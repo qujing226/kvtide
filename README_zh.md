@@ -100,18 +100,18 @@ curl http://127.0.0.1:8801/metrics
 
 ```bash
 make bench-smoke
-make bench-no-batching
-make bench-dynamic-default
-make bench-dynamic-fastflush
+make bench-cache-miss
+make bench-cache-hit
+make bench-mixed-prompt
 ```
 
-也可以直接通过 `make` 覆盖 benchmark 参数：
+也可以直接通过 benchmark CLI 覆盖参数：
 
 ```bash
-make bench-dynamic-default CONCURRENCY=50 REQUESTS=1000 TIMEOUT_MS=10000
+go run ./cmd/bench --mode mixed_prompt --requests 1000 --concurrency 50 --timeout-ms 15000
 ```
 
-## Benchmark 摘要
+## Stage 1 Benchmark 摘要
 
 ![Stage 1 Benchmark Sweep](./assets/Stage1_Benchmark_Sweep.svg)
 
@@ -125,6 +125,9 @@ make bench-dynamic-default CONCURRENCY=50 REQUESTS=1000 TIMEOUT_MS=10000
 更详细的 benchmark 表格和原始结论见：
 
 - [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
+- [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
+
+Stage 2 benchmark 场景现在重点覆盖 mixed prompt、TTFT/TBT，以及 prefix cache hit/miss 行为。
 
 ## 文档导航
 
@@ -137,6 +140,7 @@ make bench-dynamic-default CONCURRENCY=50 REQUESTS=1000 TIMEOUT_MS=10000
 Benchmark 文档：
 
 - [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
+- [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
 
 设计与路线图：
 

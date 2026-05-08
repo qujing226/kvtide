@@ -100,18 +100,18 @@ curl http://127.0.0.1:8801/metrics
 
 ```bash
 make bench-smoke
-make bench-no-batching
-make bench-dynamic-default
-make bench-dynamic-fastflush
+make bench-cache-miss
+make bench-cache-hit
+make bench-mixed-prompt
 ```
 
-You can override benchmark parameters directly from `make`:
+You can override benchmark parameters through the benchmark CLI:
 
 ```bash
-make bench-dynamic-default CONCURRENCY=50 REQUESTS=1000 TIMEOUT_MS=10000
+go run ./cmd/bench --mode mixed_prompt --requests 1000 --concurrency 50 --timeout-ms 15000
 ```
 
-## Benchmark Snapshot
+## Stage 1 Benchmark Snapshot
 
 ![Stage 1 Benchmark Sweep](./assets/Stage1_Benchmark_Sweep.svg)
 
@@ -125,6 +125,9 @@ In the current benchmark setup:
 Detailed benchmark tables and observations are documented separately:
 
 - [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
+- [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
+
+Stage 2 benchmark scenarios now focus on mixed prompt sizes, TTFT/TBT, and prefix cache hit/miss behavior.
 
 ## Documentation
 
@@ -137,6 +140,7 @@ Stage reports:
 Benchmark notes:
 
 - [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
+- [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
 
 Design and roadmap:
 

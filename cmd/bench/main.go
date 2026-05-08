@@ -19,7 +19,7 @@ func main() {
 		timeoutMs   int
 	)
 
-	pflag.StringVarP(&mode, "mode", "m", "dynamic_default", "benchmark scenario name")
+	pflag.StringVarP(&mode, "mode", "m", "mixed_prompt", "benchmark scenario name")
 	pflag.StringVarP(&target, "target", "t", "http://127.0.0.1:8800", "benchmark inference target address")
 	pflag.StringVar(&metricsURL, "metrics-url", "", "metrics endpoint address, default is <target>/metrics")
 	pflag.IntVarP(&requests, "requests", "r", 0, "request count override")
