@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -22,7 +23,7 @@ func testQueueConf(length uint64) (*conf.Conf, state.RequestLifecycleStateManage
 				},
 			},
 		},
-	}, state.NewRequestLifecycleStateManager(zap.S(), metrics.NewMetrics())
+	}, state.NewRequestLifecycleStateManager(zap.S(), cache.NewPrefixCache(), metrics.NewMetrics())
 }
 
 func testQueueWork(t *testing.T, manager state.RequestLifecycleStateManager, id string, phase v1.WorkPhase) *model.WorkItem {

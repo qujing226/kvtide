@@ -6,6 +6,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -33,15 +34,18 @@ type requestLifecycleStateManager struct {
 	subscribeCh map[string]chan *model.Event
 	mu          sync.RWMutex
 
+	prefixCache cache.PrefixCache
+
 	activeRequests atomic.Int64
 	metrics        metrics.Metrics
 }
 
-func NewRequestLifecycleStateManager(l *zap.SugaredLogger, metrics metrics.Metrics) RequestLifecycleStateManager {
+func NewRequestLifecycleStateManager(l *zap.SugaredLogger, prefixCache cache.PrefixCache, metrics metrics.Metrics) RequestLifecycleStateManager {
 	r := &requestLifecycleStateManager{
 		l:           l,
 		requests:    make(map[string]*model.Request),
 		subscribeCh: make(map[string]chan *model.Event),
+		prefixCache: prefixCache,
 		metrics:     metrics,
 	}
 	return r
@@ -58,24 +62,49 @@ func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkIt
 
 	r.subscribeCh[req.RequestId] = make(chan *model.Event, 5)
 
+	// prefix cache
+	cachedTokens, hit := r.prefixCache.Lookup(req.CacheKey, req.PromptTokens)
+	req.CachedTokens = cachedTokens
+	req.CacheHit = hit
+	req.ComputedTokens = cachedTokens
+
 	// metrics: add active requests
-	r.increaseActiveRequest()
+	r.increaseActiveRequestAndCacheHit(hit, cachedTokens)
 
 	now := time.Now()
-	workItem := &model.WorkItem{
-		WorkId:        utils.MustGenerateUUIDv7(),
-		RequestId:     req.RequestId,
-		Phase:         v1.WorkPhasePrefill,
-		Model:         req.Model,
-		Prompt:        req.Prompt,
-		MaxTokens:     req.MaxTokens,
-		Deadline:      req.Deadline,
-		PromptTokens:  req.PromptTokens,
-		PrefillOffset: 0,
-		NumNewTokens:  req.PromptTokens,
-		CacheHit:      false,
-		ReadyAt:       now,
+	var workItem *model.WorkItem
+	if req.CachedTokens >= req.PromptTokens {
+		workItem = &model.WorkItem{
+			WorkId:        utils.MustGenerateUUIDv7(),
+			RequestId:     req.RequestId,
+			Phase:         v1.WorkPhaseDecode,
+			Model:         req.Model,
+			Prompt:        req.Prompt,
+			MaxTokens:     req.MaxTokens,
+			Deadline:      req.Deadline,
+			PromptTokens:  req.PromptTokens,
+			PrefillOffset: req.CachedTokens,
+			NumNewTokens:  1,
+			CacheHit:      req.CacheHit,
+			ReadyAt:       now,
+		}
+	} else {
+		workItem = &model.WorkItem{
+			WorkId:        utils.MustGenerateUUIDv7(),
+			RequestId:     req.RequestId,
+			Phase:         v1.WorkPhasePrefill,
+			Model:         req.Model,
+			Prompt:        req.Prompt,
+			MaxTokens:     req.MaxTokens,
+			Deadline:      req.Deadline,
+			PromptTokens:  req.PromptTokens,
+			PrefillOffset: req.CachedTokens,
+			NumNewTokens:  req.PromptTokens - req.CachedTokens,
+			CacheHit:      req.CacheHit,
+			ReadyAt:       now,
+		}
 	}
+
 	return workItem, nil
 }
 
@@ -194,6 +223,11 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 			ReadyAt:         now,
 		}
 		onWorkItems = append(onWorkItems, decodeItem)
+
+		// update prefix cache
+		if req.ComputedTokens >= req.PromptTokens {
+			r.prefixCache.Put(req.CacheKey, req.PromptTokens)
+		}
 	case v1.EventTypeDecodeChunk:
 		req.GeneratedTokens += e.Usage.OutputTokens
 		req.Usage.InputTokens = req.PromptTokens
@@ -306,9 +340,12 @@ func (r *requestLifecycleStateManager) Finish(requestId string) {
 	}
 }
 
-func (r *requestLifecycleStateManager) increaseActiveRequest() {
+func (r *requestLifecycleStateManager) increaseActiveRequestAndCacheHit(hit bool, cachedTokens uint64) {
 	r.metrics.SetActiveRequests(int(r.activeRequests.Add(1)))
-
+	r.metrics.IncPrefixCacheRequests(hit)
+	if hit {
+		r.metrics.AddPrefixCacheTokensSaved(cachedTokens)
+	}
 }
 func (r *requestLifecycleStateManager) reduceActiveRequest() {
 	r.metrics.SetActiveRequests(int(r.activeRequests.Add(-1)))

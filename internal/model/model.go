@@ -14,7 +14,9 @@ type Request struct {
 	Timeout   time.Duration
 	Deadline  time.Time
 
-	CacheKey string
+	CacheKey     string
+	CachedTokens uint64
+	CacheHit     bool
 
 	PromptTokens    uint64
 	ComputedTokens  uint64

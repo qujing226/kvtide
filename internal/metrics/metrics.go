@@ -24,6 +24,12 @@ type Metrics interface {
 	SetInflightBatches(n int)
 	IncQueueRejected()
 	IncExecutorErrors(executorID string)
+
+	// Prefix Cache
+	IncPrefixCacheRequests(hit bool)
+	AddPrefixCacheTokensSaved(tokens uint64)
+
+	// Handler Snapshot RuntimeStats
 	Handler() http.Handler
 	Snapshot() model.RuntimeStats
 }
@@ -43,6 +49,8 @@ type metrics struct {
 	decodeQueueLength      prometheus.Gauge
 	activeRequests         prometheus.Gauge
 	inflightBatches        prometheus.Gauge
+	prefixCacheRequests    *prometheus.CounterVec
+	prefixCacheTokensTotal prometheus.Counter
 	queueRejectedTotal     prometheus.Counter
 	executorErrorsTotal    *prometheus.CounterVec
 
@@ -106,6 +114,14 @@ func NewMetrics() Metrics {
 			Name: "llm_inflight_batches",
 			Help: "Number of inflight batches",
 		}),
+		prefixCacheRequests: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "llm_prefix_cache_requests_total",
+			Help: "Total number of prefix cache lookups",
+		}, []string{"status"}),
+		prefixCacheTokensTotal: prometheus.NewCounter(prometheus.CounterOpts{
+			Name: "llm_prefix_cache_tokens_saved_total",
+			Help: "Total number of prefill tokens saved by prefix cache",
+		}),
 		queueRejectedTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "llm_queue_rejected_total",
 			Help: "Total Number of rejected requests due to full queue",
@@ -138,19 +154,10 @@ func NewMetrics() Metrics {
 		m.inflightBatches,
 		m.queueRejectedTotal,
 		m.executorErrorsTotal,
+		m.prefixCacheRequests,
+		m.prefixCacheTokensTotal,
 	)
 	return m
-}
-
-func (m *metrics) Handler() http.Handler {
-	return promhttp.HandlerFor(m.re, promhttp.HandlerOpts{})
-}
-
-func (m *metrics) Snapshot() model.RuntimeStats {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	s := *m.m
-	return s
 }
 
 func (m *metrics) IncRequest(status string, executorID string) {
@@ -223,4 +230,27 @@ func (m *metrics) IncQueueRejected() {
 
 func (m *metrics) IncExecutorErrors(executorID string) {
 	m.executorErrorsTotal.WithLabelValues(executorID).Inc()
+}
+
+func (m *metrics) IncPrefixCacheRequests(hit bool) {
+	if hit {
+		m.prefixCacheRequests.WithLabelValues("hit").Inc()
+	} else {
+		m.prefixCacheRequests.WithLabelValues("miss").Inc()
+	}
+}
+
+func (m *metrics) AddPrefixCacheTokensSaved(tokens uint64) {
+	m.prefixCacheTokensTotal.Add(float64(tokens))
+}
+
+func (m *metrics) Handler() http.Handler {
+	return promhttp.HandlerFor(m.re, promhttp.HandlerOpts{})
+}
+
+func (m *metrics) Snapshot() model.RuntimeStats {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	s := *m.m
+	return s
 }
