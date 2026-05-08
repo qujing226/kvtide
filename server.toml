@@ -3,12 +3,12 @@ address = "127.0.0.1:8800"
 adminPort = 8801
 
 [server.scheduleConf]
-maxBatchSeqs = 25
-maxBatchTokens = 1024
+maxBatchSeqs = 32
+maxBatchTokens = 2048
 longPrefillTokenThreshold = 512
 maxPartialPrefills = 2
 maxLongPartialPrefills = 1
-maxScheduleDelay = 30 # ms
+maxScheduleDelay = 10 # ms
 
 [server.scheduleConf.queueConf]
 queueLength = 100

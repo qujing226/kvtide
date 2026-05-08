@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.codec import Codec
 from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
@@ -25,7 +26,7 @@ class InferenceService(Protocol):
 
 
 class InferenceServiceASGIApplication(ConnectASGIApplication[InferenceService]):
-    def __init__(self, service: InferenceService | AsyncGenerator[InferenceService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: InferenceService | AsyncGenerator[InferenceService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -53,6 +54,7 @@ class InferenceServiceASGIApplication(ConnectASGIApplication[InferenceService]):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -102,8 +104,6 @@ class InferenceServiceClient(ConnectClient):
             timeout_ms=timeout_ms,
         )
 
-
-
 class AdminService(Protocol):
     async def health(self, request: mini__llm__serve_dot_v1_dot_service__pb2.HealthRequest, ctx: RequestContext) -> mini__llm__serve_dot_v1_dot_service__pb2.HealthResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
@@ -113,7 +113,7 @@ class AdminService(Protocol):
 
 
 class AdminServiceASGIApplication(ConnectASGIApplication[AdminService]):
-    def __init__(self, service: AdminService | AsyncGenerator[AdminService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: AdminService | AsyncGenerator[AdminService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -141,6 +141,7 @@ class AdminServiceASGIApplication(ConnectASGIApplication[AdminService]):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -191,6 +192,9 @@ class AdminServiceClient(ConnectClient):
         )
 
 
+
+
+
 class InferenceServiceSync(Protocol):
     def generate(self, request: mini__llm__serve_dot_v1_dot_service__pb2.GenerateRequest, ctx: RequestContext) -> mini__llm__serve_dot_v1_dot_service__pb2.GenerateResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
@@ -199,7 +203,7 @@ class InferenceServiceSync(Protocol):
 
 
 class InferenceServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: InferenceServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: InferenceServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/mini_llm_serve.v1.InferenceService/Generate": EndpointSync.unary(
@@ -226,6 +230,7 @@ class InferenceServiceWSGIApplication(ConnectWSGIApplication):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -283,7 +288,7 @@ class AdminServiceSync(Protocol):
 
 
 class AdminServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: AdminServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: AdminServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/mini_llm_serve.v1.AdminService/Health": EndpointSync.unary(
@@ -310,6 +315,7 @@ class AdminServiceWSGIApplication(ConnectWSGIApplication):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -358,3 +364,5 @@ class AdminServiceClientSync(ConnectClientSync):
             headers=headers,
             timeout_ms=timeout_ms,
         )
+
+

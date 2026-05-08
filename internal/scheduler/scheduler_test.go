@@ -39,7 +39,7 @@ func testSchedulerWork(t *testing.T, s *scheduler, id string, phase v1.WorkPhase
 	work.WorkId = id
 	work.Phase = phase
 	work.PromptTokens = promptTokens
-	work.PrefillTokens = prefillTokens
+	work.NumNewTokens = prefillTokens
 	return work
 }
 
@@ -132,7 +132,7 @@ func TestPickBatchChunksLargePrefillWithoutRequeueingRemainder(t *testing.T) {
 	require.Len(t, items, 1)
 	require.Equal(t, "large", items[0].WorkId)
 	require.Equal(t, uint64(0), items[0].PrefillOffset)
-	require.Equal(t, uint64(10), items[0].PrefillTokens)
+	require.Equal(t, uint64(10), items[0].NumNewTokens)
 	require.Equal(t, uint64(0), s.prefillQueueLarge.Length())
 }
 

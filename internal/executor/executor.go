@@ -108,9 +108,9 @@ func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*mode
 			DeltaText:  workRes.OutputText,
 			Done:       workRes.Done,
 			Usage: model.Usage{
-				InputTokens:  uint64(workRes.InputTokens),
-				OutputTokens: uint64(workRes.OutputTokens),
-				TotalTokens:  uint64(workRes.InputTokens + workRes.OutputTokens),
+				InputTokens:  uint64(workRes.ComputedTokens),
+				OutputTokens: uint64(workRes.GeneratedTokens),
+				TotalTokens:  uint64(workRes.ComputedTokens + workRes.GeneratedTokens),
 			},
 			Timing: model.Timing{
 				Queue:     0,
@@ -135,7 +135,7 @@ func nextPhase(item *model.WorkItem, err error) v1.EventType {
 		return v1.EventTypeRequestFailed
 	}
 	if item.Phase == v1.WorkPhasePrefill {
-		if item.PrefillOffset+item.PrefillTokens >= item.PromptTokens {
+		if item.PrefillOffset+item.NumNewTokens >= item.PromptTokens {
 			return v1.EventTypePrefillFinished
 		}
 		return v1.EventTypePrefillChunk

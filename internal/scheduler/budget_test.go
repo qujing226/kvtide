@@ -10,9 +10,9 @@ import (
 
 func TestWorkBudgetCostPrefillUsesScheduledPrefillTokens(t *testing.T) {
 	work := &model.WorkItem{
-		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  2048,
-		PrefillTokens: 512,
+		Phase:        v1.WorkPhasePrefill,
+		PromptTokens: 2048,
+		NumNewTokens: 512,
 	}
 
 	require.Equal(t, uint64(512), WorkBudgetCost(work))
@@ -40,7 +40,7 @@ func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 		Phase:         v1.WorkPhasePrefill,
 		PromptTokens:  1000,
 		PrefillOffset: 500,
-		PrefillTokens: 500,
+		NumNewTokens:  500,
 	}
 
 	chunk, rest := splitPrefillChunk(work, 500)
@@ -48,7 +48,7 @@ func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 	require.NotNil(t, chunk)
 	require.Nil(t, rest)
 	require.Equal(t, uint64(500), chunk.PrefillOffset)
-	require.Equal(t, uint64(500), chunk.PrefillTokens)
+	require.Equal(t, uint64(500), chunk.NumNewTokens)
 }
 
 func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
@@ -56,7 +56,7 @@ func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 		Phase:         v1.WorkPhasePrefill,
 		PromptTokens:  1000,
 		PrefillOffset: 200,
-		PrefillTokens: 800,
+		NumNewTokens:  800,
 	}
 
 	chunk, rest := splitPrefillChunk(work, 300)
@@ -64,9 +64,9 @@ func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 	require.NotNil(t, chunk)
 	require.NotNil(t, rest)
 	require.Equal(t, uint64(200), chunk.PrefillOffset)
-	require.Equal(t, uint64(300), chunk.PrefillTokens)
+	require.Equal(t, uint64(300), chunk.NumNewTokens)
 	require.Equal(t, uint64(500), rest.PrefillOffset)
-	require.Equal(t, uint64(500), rest.PrefillTokens)
+	require.Equal(t, uint64(500), rest.NumNewTokens)
 }
 
 func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
@@ -74,7 +74,7 @@ func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
 		Phase:         v1.WorkPhasePrefill,
 		PromptTokens:  1000,
 		PrefillOffset: 700,
-		PrefillTokens: 300,
+		NumNewTokens:  300,
 	}
 
 	chunk, rest := splitPrefillChunk(work, 1024)
@@ -82,5 +82,5 @@ func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
 	require.NotNil(t, chunk)
 	require.Nil(t, rest)
 	require.Equal(t, uint64(700), chunk.PrefillOffset)
-	require.Equal(t, uint64(300), chunk.PrefillTokens)
+	require.Equal(t, uint64(300), chunk.NumNewTokens)
 }

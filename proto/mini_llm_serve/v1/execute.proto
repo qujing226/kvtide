@@ -13,30 +13,48 @@ message ExecuteBatchRequest{
   repeated ExecuteItem items = 2;
 }
 
-message ExecuteItem {
-  string work_id = 1;
-  string request_id = 2;
-  WorkPhase phase = 3;
-  string prompt = 4;
-  uint32 max_tokens = 5;
-  uint32 prefill_offset = 6;
-  uint32 prefill_tokens = 7;
-}
-
 message ExecuteBatchResponse{
   string batch_id = 1;
   string executor_id = 2;
   repeated ExecuteResult results =3;
 }
 
+message ExecuteItem {
+  string work_id = 1;
+  string request_id = 2;
+  WorkPhase phase = 3;
+
+  // only present on first prefill chunk
+  string prompt = 4;
+  bool has_prompt = 5;
+
+  uint32 prompt_tokens = 6;
+
+  // prefill: already computed prompt tokens
+  // decode: prompt_tokens + generated_tokens
+  uint32 computed_tokens = 7;
+
+  // decode only: already generated output tokens
+  uint32 generated_tokens = 8;
+
+  // prefill: prompt tokens to compute this
+  // decode: normally 1
+  uint32 num_new_tokens = 9;
+
+}
+
 message ExecuteResult{
   string work_id = 1;
   string request_id =2;
+
   string output_text = 3;
   bool done = 4;
   FinishReason finish_reason = 5;
-  uint32 input_tokens = 6;
-  uint32 output_tokens = 7;
+
+  // delta of this execution step
+  uint32 computed_tokens = 6;
+  uint32 generated_tokens = 7;
+
   uint32 execution_ms = 8;
   string error_message = 9;
 }

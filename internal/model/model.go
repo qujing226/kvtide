@@ -17,6 +17,7 @@ type Request struct {
 	CacheKey string
 
 	PromptTokens    uint64
+	ComputedTokens  uint64
 	GeneratedTokens uint64
 	Phase           RequestPhase
 	FinishReason    v1.FinishReason
@@ -56,9 +57,10 @@ type WorkItem struct {
 	MaxTokens uint64
 	Deadline  time.Time
 
-	PromptTokens  uint64
-	PrefillOffset uint64 // 已经 prefill 到第几个 token
-	PrefillTokens uint64 // 本轮计划 prefill 多少 token
+	PromptTokens    uint64
+	PrefillOffset   uint64 // 已经 prefill 到第几个 token
+	GeneratedTokens uint64 // decode 已经生成多少 token
+	NumNewTokens    uint64 // 本轮计划 prefill 或 decode 多少 token
 
 	CacheHit bool
 

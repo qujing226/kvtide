@@ -10,8 +10,8 @@ const DefaultDecodeBudgetTokensPlanned uint64 = 1
 func WorkBudgetCost(work *model.WorkItem) uint64 {
 	switch work.Phase {
 	case v1.WorkPhasePrefill:
-		if work.PrefillTokens > 0 {
-			return work.PrefillTokens
+		if work.NumNewTokens > 0 {
+			return work.NumNewTokens
 		}
 		return work.PromptTokens
 	case v1.WorkPhaseDecode:
@@ -27,7 +27,7 @@ func splitPrefillChunk(item *model.WorkItem, tokens uint64) (*model.WorkItem, *m
 		tokens = cost
 	}
 	chunk := *item
-	chunk.PrefillTokens = tokens
+	chunk.NumNewTokens = tokens
 
 	processed := item.PrefillOffset + tokens
 	remainCost := cost - tokens
@@ -37,6 +37,6 @@ func splitPrefillChunk(item *model.WorkItem, tokens uint64) (*model.WorkItem, *m
 
 	rest := *item
 	rest.PrefillOffset = processed
-	rest.PrefillTokens = remainCost
+	rest.NumNewTokens = remainCost
 	return &chunk, &rest
 }

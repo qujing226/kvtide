@@ -72,7 +72,7 @@ func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkIt
 		Deadline:      req.Deadline,
 		PromptTokens:  req.PromptTokens,
 		PrefillOffset: 0,
-		PrefillTokens: req.PromptTokens,
+		NumNewTokens:  req.PromptTokens,
 		CacheHit:      false,
 		ReadyAt:       now,
 	}
@@ -150,6 +150,10 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 	now := time.Now()
 	switch e.Type {
 	case v1.EventTypePrefillChunk:
+		req.ComputedTokens += e.Usage.InputTokens
+		req.Usage.InputTokens = req.ComputedTokens
+		req.Usage.TotalTokens = req.ComputedTokens + req.GeneratedTokens
+		e.Usage = req.Usage
 		req.Phase = model.RequestPhasePrefillRunning
 		prefillItem := &model.WorkItem{
 			WorkId:        utils.MustGenerateUUIDv7(),
@@ -160,50 +164,67 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 			MaxTokens:     req.MaxTokens,
 			Deadline:      req.Deadline,
 			PromptTokens:  req.PromptTokens,
-			PrefillOffset: e.Usage.InputTokens,
-			PrefillTokens: req.PromptTokens - e.Usage.InputTokens,
+			PrefillOffset: req.ComputedTokens,
+			NumNewTokens:  req.PromptTokens - req.ComputedTokens,
 			CacheHit:      false,
 			ReadyAt:       now,
 		}
 		onWorkItems = append(onWorkItems, prefillItem)
 	case v1.EventTypePrefillFinished:
+		req.ComputedTokens += e.Usage.InputTokens
+		if req.ComputedTokens > req.PromptTokens {
+			req.ComputedTokens = req.PromptTokens
+		}
+		req.Usage.InputTokens = req.ComputedTokens
+		req.Usage.TotalTokens = req.ComputedTokens + req.GeneratedTokens
+		e.Usage = req.Usage
 		req.Phase = model.RequestPhaseDecodeReady
 		decodeItem := &model.WorkItem{
-			WorkId:       utils.MustGenerateUUIDv7(),
-			RequestId:    e.RequestId,
-			Phase:        v1.WorkPhaseDecode,
-			Model:        req.Model,
-			Prompt:       req.Prompt,
-			MaxTokens:    req.MaxTokens,
-			Deadline:     req.Deadline,
-			PromptTokens: req.PromptTokens,
-			CacheHit:     false,
-			ReadyAt:      now,
+			WorkId:          utils.MustGenerateUUIDv7(),
+			RequestId:       e.RequestId,
+			Phase:           v1.WorkPhaseDecode,
+			Model:           req.Model,
+			Prompt:          req.Prompt,
+			MaxTokens:       req.MaxTokens,
+			Deadline:        req.Deadline,
+			PromptTokens:    req.PromptTokens,
+			GeneratedTokens: req.GeneratedTokens,
+			NumNewTokens:    1,
+			CacheHit:        false,
+			ReadyAt:         now,
 		}
 		onWorkItems = append(onWorkItems, decodeItem)
 	case v1.EventTypeDecodeChunk:
-		req.Usage = e.Usage
+		req.GeneratedTokens += e.Usage.OutputTokens
+		req.Usage.InputTokens = req.PromptTokens
+		req.Usage.OutputTokens = req.GeneratedTokens
+		req.Usage.TotalTokens = req.PromptTokens + req.GeneratedTokens
+		e.Usage = req.Usage
 		req.OutputText += e.DeltaText
-		// todo: GeneratedTokens = e.Usage.OutputTokens 假设 executor 返回的是累计值。这个后面要和 Python/mock 或真实 backend 的 usage 语义对齐。现在先接受。
-		req.GeneratedTokens = e.Usage.OutputTokens
-		if e.Done {
+		if e.Done || req.GeneratedTokens >= req.MaxTokens {
 			req.Phase = model.RequestPhaseFinished
 			req.FinishedAt = now
+			if e.FinishReason == v1.FinishReasonUnspecified {
+				e.FinishReason = v1.FinishReasonLength
+			}
+			e.Done = true
 			req.FinishReason = e.FinishReason
 			// todo：决定清理请求/通知订阅者
 		} else {
 			req.Phase = model.RequestPhaseDecodeRunning
 			decodeItem := &model.WorkItem{
-				WorkId:       utils.MustGenerateUUIDv7(),
-				RequestId:    e.RequestId,
-				Phase:        v1.WorkPhaseDecode,
-				Model:        req.Model,
-				Prompt:       req.Prompt,
-				MaxTokens:    req.MaxTokens,
-				Deadline:     req.Deadline,
-				PromptTokens: req.PromptTokens,
-				CacheHit:     false,
-				ReadyAt:      now,
+				WorkId:          utils.MustGenerateUUIDv7(),
+				RequestId:       e.RequestId,
+				Phase:           v1.WorkPhaseDecode,
+				Model:           req.Model,
+				Prompt:          req.Prompt,
+				MaxTokens:       req.MaxTokens,
+				Deadline:        req.Deadline,
+				PromptTokens:    req.PromptTokens,
+				GeneratedTokens: req.GeneratedTokens,
+				NumNewTokens:    1,
+				CacheHit:        false,
+				ReadyAt:         now,
 			}
 			onWorkItems = append(onWorkItems, decodeItem)
 		}

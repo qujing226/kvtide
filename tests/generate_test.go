@@ -60,7 +60,7 @@ func TestGenerate(t *testing.T) {
 		RequestId: "002",
 		Model:     "deepseek-v4",
 		Prompt:    "hello world",
-		MaxTokens: 8,
+		MaxTokens: 71,
 		TimeoutMs: 10000,
 		Labels:    nil,
 	})

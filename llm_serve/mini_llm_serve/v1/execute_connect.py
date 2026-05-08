@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.codec import Codec
 from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
@@ -22,7 +23,7 @@ class ExecuteService(Protocol):
 
 
 class ExecuteServiceASGIApplication(ConnectASGIApplication[ExecuteService]):
-    def __init__(self, service: ExecuteService | AsyncGenerator[ExecuteService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: ExecuteService | AsyncGenerator[ExecuteService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -40,6 +41,7 @@ class ExecuteServiceASGIApplication(ConnectASGIApplication[ExecuteService]):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -70,13 +72,16 @@ class ExecuteServiceClient(ConnectClient):
         )
 
 
+
+
+
 class ExecuteServiceSync(Protocol):
     def execute_batch(self, request: mini__llm__serve_dot_v1_dot_execute__pb2.ExecuteBatchRequest, ctx: RequestContext) -> mini__llm__serve_dot_v1_dot_execute__pb2.ExecuteBatchResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
 
 class ExecuteServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: ExecuteServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: ExecuteServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/mini_llm_serve.v1.ExecuteService/ExecuteBatch": EndpointSync.unary(
@@ -93,6 +98,7 @@ class ExecuteServiceWSGIApplication(ConnectWSGIApplication):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -121,3 +127,5 @@ class ExecuteServiceClientSync(ConnectClientSync):
             headers=headers,
             timeout_ms=timeout_ms,
         )
+
+

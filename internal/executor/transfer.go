@@ -10,15 +10,37 @@ func BatchToExecute(batch *model.Batch) *v1.ExecuteBatchRequest {
 		BatchId: batch.BatchID,
 	}
 	for _, r := range batch.Items {
-		req.Items = append(req.Items, &v1.ExecuteItem{
-			WorkId:        r.WorkId,
-			RequestId:     r.RequestId,
-			Phase:         r.Phase,
-			Prompt:        r.Prompt,
-			MaxTokens:     uint32(r.MaxTokens),
-			PrefillOffset: uint32(r.PrefillOffset),
-			PrefillTokens: uint32(r.PrefillTokens),
-		})
+		hasPrompt := r.Phase == v1.WorkPhasePrefill && r.PrefillOffset == 0 && r.Prompt != ""
+		prompt := ""
+		if hasPrompt {
+			prompt = r.Prompt
+		}
+
+		if r.Phase == v1.WorkPhaseDecode {
+			req.Items = append(req.Items, &v1.ExecuteItem{
+				WorkId:          r.WorkId,
+				RequestId:       r.RequestId,
+				Phase:           v1.WorkPhaseDecode,
+				Prompt:          "",
+				HasPrompt:       false,
+				PromptTokens:    uint32(r.PromptTokens),
+				ComputedTokens:  uint32(r.PromptTokens + r.GeneratedTokens),
+				GeneratedTokens: uint32(r.GeneratedTokens),
+				NumNewTokens:    uint32(r.NumNewTokens),
+			})
+		} else {
+			req.Items = append(req.Items, &v1.ExecuteItem{
+				WorkId:          r.WorkId,
+				RequestId:       r.RequestId,
+				Phase:           v1.WorkPhasePrefill,
+				Prompt:          prompt,
+				HasPrompt:       hasPrompt,
+				PromptTokens:    uint32(r.PromptTokens),
+				ComputedTokens:  uint32(r.PrefillOffset),
+				GeneratedTokens: 0,
+				NumNewTokens:    uint32(r.NumNewTokens),
+			})
+		}
 	}
 	return req
 }

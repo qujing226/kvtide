@@ -16,6 +16,7 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 		Deadline:        time.Now().Add(time.Duration(in.TimeoutMs) * time.Millisecond),
 		CacheKey:        in.CacheKey,
 		PromptTokens:    uint64(max(1, len(in.Prompt)/4)),
+		ComputedTokens:  0,
 		GeneratedTokens: 0,
 		Phase:           0,
 		FinishReason:    0,
