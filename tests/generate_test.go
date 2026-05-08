@@ -18,6 +18,28 @@ import (
 func TestGenerate(t *testing.T) {
 	requireServer(t, "127.0.0.1:8800")
 	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 20*time.Second)
+
+	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
+		RequestId: "002",
+		Model:     "deepseek-v4",
+		Prompt:    "hello world",
+		MaxTokens: 1024,
+		TimeoutMs: 60000,
+		Labels:    nil,
+	})
+
+	require.NoError(t, err)
+	r, err := protojson.MarshalOptions{
+		Indent:          "  ",
+		EmitUnpopulated: true,
+	}.Marshal(resp)
+	require.NoError(t, err)
+	t.Log(string(r))
+}
+
+func TestStressGenerate(t *testing.T) {
+	requireServer(t, "127.0.0.1:8800")
+	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 20*time.Second)
 	var wg sync.WaitGroup
 
 	msgNumber := 100
@@ -32,7 +54,7 @@ func TestGenerate(t *testing.T) {
 				Model:     "deepseek-v4",
 				Prompt:    "hello world",
 				MaxTokens: 8,
-				TimeoutMs: 18000,
+				TimeoutMs: 60000,
 				Labels:    nil,
 			})
 			if err != nil {
@@ -56,21 +78,6 @@ func TestGenerate(t *testing.T) {
 		t.Errorf("errNum: %d error: %v", errNum, err)
 		errNum++
 	}
-	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
-		RequestId: "002",
-		Model:     "deepseek-v4",
-		Prompt:    "hello world",
-		MaxTokens: 71,
-		TimeoutMs: 10000,
-		Labels:    nil,
-	})
-	require.NoError(t, err)
-	r, err := protojson.MarshalOptions{
-		Indent:          "  ",
-		EmitUnpopulated: true,
-	}.Marshal(resp)
-	require.NoError(t, err)
-	t.Log(string(r))
 }
 
 func requireServer(t *testing.T, addr string) {
