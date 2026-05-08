@@ -48,10 +48,10 @@ type metrics struct {
 	prefillQueueLength     prometheus.Gauge
 	decodeQueueLength      prometheus.Gauge
 	activeRequests         prometheus.Gauge
-	inflightBatches        prometheus.Gauge
-	prefixCacheRequests    *prometheus.CounterVec
-	prefixCacheTokensTotal prometheus.Counter
-	queueRejectedTotal     prometheus.Counter
+	inflightBatches             prometheus.Gauge
+	prefixCacheRequestsTotal    *prometheus.CounterVec
+	prefixCacheTokensSavedTotal prometheus.Counter
+	queueRejectedTotal          prometheus.Counter
 	executorErrorsTotal    *prometheus.CounterVec
 
 	mu sync.RWMutex
@@ -114,11 +114,11 @@ func NewMetrics() Metrics {
 			Name: "llm_inflight_batches",
 			Help: "Number of inflight batches",
 		}),
-		prefixCacheRequests: prometheus.NewCounterVec(prometheus.CounterOpts{
+		prefixCacheRequestsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "llm_prefix_cache_requests_total",
 			Help: "Total number of prefix cache lookups",
 		}, []string{"status"}),
-		prefixCacheTokensTotal: prometheus.NewCounter(prometheus.CounterOpts{
+		prefixCacheTokensSavedTotal: prometheus.NewCounter(prometheus.CounterOpts{
 			Name: "llm_prefix_cache_tokens_saved_total",
 			Help: "Total number of prefill tokens saved by prefix cache",
 		}),
@@ -154,8 +154,8 @@ func NewMetrics() Metrics {
 		m.inflightBatches,
 		m.queueRejectedTotal,
 		m.executorErrorsTotal,
-		m.prefixCacheRequests,
-		m.prefixCacheTokensTotal,
+		m.prefixCacheRequestsTotal,
+		m.prefixCacheTokensSavedTotal,
 	)
 	return m
 }
@@ -234,14 +234,14 @@ func (m *metrics) IncExecutorErrors(executorID string) {
 
 func (m *metrics) IncPrefixCacheRequests(hit bool) {
 	if hit {
-		m.prefixCacheRequests.WithLabelValues("hit").Inc()
+		m.prefixCacheRequestsTotal.WithLabelValues("hit").Inc()
 	} else {
-		m.prefixCacheRequests.WithLabelValues("miss").Inc()
+		m.prefixCacheRequestsTotal.WithLabelValues("miss").Inc()
 	}
 }
 
 func (m *metrics) AddPrefixCacheTokensSaved(tokens uint64) {
-	m.prefixCacheTokensTotal.Add(float64(tokens))
+	m.prefixCacheTokensSavedTotal.Add(float64(tokens))
 }
 
 func (m *metrics) Handler() http.Handler {
