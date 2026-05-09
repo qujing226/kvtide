@@ -19,16 +19,14 @@
 <p align="center">
   <a href="./README_zh.md">中文</a>
   ·
-  <a href="./docs/summary/stage2_en.md">Stage 2 Report</a>
-  ·
-  <a href="./docs/benchmarks/stage2_en.md">Benchmarks</a>
+  <a href="./docs">Docs</a>
   ·
   <a href="#quick-start">Quick Start</a>
 </p>
 
 ---
 
-## What Is This?
+## Overview
 
 `mini-llm-serve` is a compact LLM serving system focused on the **serving control plane** around model execution.
 
@@ -45,7 +43,7 @@ It does not try to replace vLLM, TensorRT-LLM, SGLang, or llama.cpp. Instead, it
 
 The execution backend is currently a Python mock executor. The point is to make scheduler behavior visible and testable before introducing real GPU inference.
 
-## Why It Exists
+## Motivation
 
 Modern LLM serving stacks are powerful, but they are also large and difficult to understand from first principles.
 
@@ -72,9 +70,9 @@ The design goal is not "toy demo". It is a minimal, runnable model of the contro
 
 ## Architecture
 
-Stage 2 moves the system from request-level batching to token-aware work scheduling.
+Mini LLM Serve uses token-aware work scheduling. A request is represented as a lifecycle object, while prefill and decode are scheduled as separate work items.
 
-![Stage 2 Architecture](./assets/Stage2_Architecture.svg)
+![Mini LLM Serve Architecture](./assets/Stage2_Architecture.svg)
 
 The important internal loop is:
 
@@ -99,9 +97,9 @@ This split keeps responsibilities clear:
 
 ## Benchmark Highlights
 
-The Stage 2 benchmark uses a Python mock executor, so the results should be read as **control-plane behavior**, not GPU inference performance.
+The benchmark uses a Python mock executor, so the results should be read as **control-plane behavior**, not GPU inference performance.
 
-![Stage 2 Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
+![Mini LLM Serve Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
 
 Workload:
 
@@ -120,10 +118,7 @@ Key observation:
 
 > Prefix cache metadata reduced average TTFT from `1.7322s` to `0.3250s`, about an `81%` reduction in this mock workload.
 
-Read the full benchmark notes:
-
-- [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
+Detailed benchmark notes and reports are available under [`docs`](./docs).
 
 ## Quick Start
 
@@ -191,28 +186,7 @@ docs/           reports, plans, benchmark notes
 
 ## Documentation
 
-Stage reports:
-
-- [Stage 2 Report](./docs/summary/stage2_en.md)
-- [Stage 1 Report](./docs/summary/stage1_en.md)
-
-Benchmark notes:
-
-- [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
-
-Design and roadmap:
-
-- [Stage 2 Plan](./docs/plans/2026-04-01-stage2-implementation-plan.md)
-- [Project Extension Roadmap](./docs/plans/2026-03-27-project-extension-roadmap.md)
-
-## Roadmap
-
-- Multi-token decode chunks to reduce scheduler/RPC overhead
-- Kubernetes deployment with router, service discovery, and metrics
-- Real vLLM executor adapter
-- Phase-specific batch metrics for prefill and decode
-- More realistic load generation and request distributions
+Detailed reports, benchmark notes, and implementation plans are available under [`docs`](./docs).
 
 ## Non-Goals
 

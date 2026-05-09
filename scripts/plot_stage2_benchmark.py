@@ -50,7 +50,7 @@ tbt_bars = ax1.bar(
     alpha=0.9,
 )
 
-ax1.set_title("Stage 2 Benchmark: Prefix Cache Metadata Impact", fontsize=15, pad=16)
+ax1.set_title("Benchmark: Prefix Cache Metadata Impact", fontsize=15, pad=16)
 ax1.set_ylabel("Latency (s)", fontsize=12)
 ax2.set_ylabel("Throughput (req/s)", fontsize=12)
 

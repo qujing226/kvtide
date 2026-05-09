@@ -19,16 +19,14 @@
 <p align="center">
   <a href="./README.md">English</a>
   ·
-  <a href="./docs/summary/stage2_zh.md">Stage 2 总结</a>
-  ·
-  <a href="./docs/benchmarks/stage2_zh.md">Benchmark</a>
+  <a href="./docs">文档</a>
   ·
   <a href="#快速开始">快速开始</a>
 </p>
 
 ---
 
-## 这是什么
+## 项目概览
 
 `mini-llm-serve` 是一个紧凑的 LLM serving system，重点放在模型执行外围的 **serving control plane**。
 
@@ -45,7 +43,7 @@
 
 当前执行后端是 Python mock executor。这样做的目的是先让 scheduler 行为变得清晰、可测，再考虑真实 GPU 推理。
 
-## 为什么做这个项目
+## 设计动机
 
 现代 LLM serving stack 很强，但也很大，很难从第一性原理完整理解。
 
@@ -72,9 +70,9 @@
 
 ## 架构
 
-Stage 2 将系统从 request-level batching 推进到了 token-aware work scheduling。
+Mini LLM Serve 的调度机制是 token-aware work scheduling。请求由生命周期状态机管理，prefill 和 decode 则作为不同的 work item 进入调度器。
 
-![Stage 2 Architecture](./assets/Stage2_Architecture.svg)
+![Mini LLM Serve Architecture](./assets/Stage2_Architecture.svg)
 
 最核心的内部循环是：
 
@@ -97,11 +95,11 @@ GenerateRequest
 - `Scheduler` 根据 sequence 和 token budget 选择 work。
 - `ExecutorManager` 将 batch 分发给后端 executor。
 
-## Benchmark 摘要
+## Benchmark
 
-Stage 2 benchmark 使用 Python mock executor，因此结果应该理解为 **control-plane behavior**，不是真实 GPU 推理性能。
+Benchmark 使用 Python mock executor，因此结果应该理解为 **control-plane behavior**，不是真实 GPU 推理性能。
 
-![Stage 2 Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
+![Mini LLM Serve Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
 
 工作负载：
 
@@ -120,10 +118,7 @@ Stage 2 benchmark 使用 Python mock executor，因此结果应该理解为 **co
 
 > 在当前 mock workload 下，prefix cache metadata 将平均 TTFT 从 `1.7322s` 降到 `0.3250s`，约 `81%` 降低。
 
-完整 benchmark 文档：
-
-- [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
+更详细的报告和 benchmark 记录位于 [`docs`](./docs)。
 
 ## 快速开始
 
@@ -191,28 +186,7 @@ docs/           reports, plans, benchmark notes
 
 ## 文档
 
-阶段总结：
-
-- [Stage 2 Report](./docs/summary/stage2_zh.md)
-- [Stage 1 Report](./docs/summary/stage1_zh.md)
-
-Benchmark 文档：
-
-- [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
-
-设计与路线图：
-
-- [Stage 2 Plan](./docs/plans/2026-04-01-stage2-implementation-plan.md)
-- [Project Extension Roadmap](./docs/plans/2026-03-27-project-extension-roadmap.md)
-
-## Roadmap
-
-- Multi-token decode chunk，降低 scheduler/RPC 往返成本
-- Kubernetes 部署，补充 router、service discovery 和 metrics
-- 真实 vLLM executor adapter
-- prefill / decode phase-specific batch metrics
-- 更真实的 load generation 和请求分布
+更详细的系统总结、benchmark 记录和实现计划都位于 [`docs`](./docs)。
 
 ## Non-Goals
 
