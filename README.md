@@ -7,66 +7,123 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+" />
   <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12+" />
-  <img src="https://img.shields.io/badge/License-MIT-0B3954" alt="MIT License" />
-  <img src="https://img.shields.io/badge/Docs-EN%20%7C%20ZH-E97132" alt="Docs EN ZH" />
-  <img src="https://img.shields.io/badge/CI-passing-2E8B57" alt="CI passing" />
+  <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
+  <img src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white" alt="Prometheus metrics" />
+  <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
 </p>
 
-A compact LLM serving system for learning, experimentation, and scheduler prototyping.
+<p align="center">
+  <strong>A small LLM serving control plane for learning batching, streaming, token scheduling, and cache-aware inference systems.</strong>
+</p>
 
-[中文](./README_zh.md)
+<p align="center">
+  <a href="./README_zh.md">中文</a>
+  ·
+  <a href="./docs/summary/stage2_en.md">Stage 2 Report</a>
+  ·
+  <a href="./docs/benchmarks/stage2_en.md">Benchmarks</a>
+  ·
+  <a href="#quick-start">Quick Start</a>
+</p>
 
-## What This Project Is
+---
 
-`mini-llm-serve` is a small but realistic LLM serving system focused on the serving control plane rather than the inference engine itself.
+## What Is This?
 
-It is built to make the core serving problems easy to study end-to-end:
+`mini-llm-serve` is a compact LLM serving system focused on the **serving control plane** around model execution.
 
-- request ingress via Connect RPC
-- queueing and request lifecycle management
-- dynamic batching
+It does not try to replace vLLM, TensorRT-LLM, SGLang, or llama.cpp. Instead, it isolates the scheduling and systems layer so the core serving problems are easier to study end-to-end:
+
+- request lifecycle management
 - prefill / decode separation
-- token-budget-aware scheduling
+- token-budget-based scheduling
 - streaming response delivery
-- pluggable executors
-- Prometheus metrics and runtime stats
+- TTFT / TBT observability
+- prefix cache metadata
+- executor dispatch and result routing
 - reproducible benchmark scenarios
 
-This repository is intentionally **not** a production-scale inference engine like vLLM, TensorRT-LLM, or llama.cpp. Instead, it focuses on the serving layer around model execution, with a clean enough structure to support scheduling, batching, streaming, and cache experiments.
+The execution backend is currently a Python mock executor. The point is to make scheduler behavior visible and testable before introducing real GPU inference.
 
 ## Why It Exists
 
-Large LLM serving systems are powerful, but they are often too large to understand end-to-end. Many smaller demos, on the other hand, are too shallow to expose real systems tradeoffs.
+Modern LLM serving stacks are powerful, but they are also large and difficult to understand from first principles.
 
-The goal is straightforward: keep the system small enough to read, but real enough to expose serving tradeoffs:
+This project takes the opposite approach:
 
-- small enough to read in one sitting
-- real enough to expose throughput / latency tradeoffs
-- structured enough to extend with scheduler, cache, and streaming experiments
+- small enough to read
+- real enough to expose serving tradeoffs
+- structured enough to extend toward production-style components
 
-## Core Capabilities
+The design goal is not "toy demo". It is a minimal, runnable model of the control plane behind LLM inference serving.
 
-- Go control plane with Connect RPC services
-- separate inference and admin/metrics endpoints
-- FIFO queueing baseline with dynamic batching
-- prefill / decode separation for LLM-aware execution modeling
-- token-budget-oriented scheduling experiments
-- streaming response path
-- Python mock executor backend over `connect-python`
-- Prometheus metrics and AdminService runtime stats
-- benchmark CLI for fixed scenarios and concurrency sweeps
+## Feature Highlights
+
+| Area | What exists today |
+|---|---|
+| API | Connect RPC inference service and admin/metrics endpoints |
+| Control plane | Go request lifecycle, scheduler, executor manager, metrics |
+| Execution backend | Python mock LLM executor over Connect RPC |
+| Scheduling | prefill/decode separation, token budget, small/large prefill queues |
+| Streaming | unary and server-streaming generation paths |
+| Observability | Prometheus metrics, runtime stats, TTFT, TBT, queue wait, batch size |
+| Cache model | prefix cache metadata with hit/miss and saved-token metrics |
+| Benchmarks | cache miss, cache hit, mixed prompt workloads |
 
 ## Architecture
 
-![Stage 1 Architecture](./assets/Stage1_Architecture.svg)
+Stage 2 moves the system from request-level batching to token-aware work scheduling.
 
-The system has three logical planes:
+![Stage 2 Architecture](./assets/Stage2_Architecture.svg)
 
-- **Inference plane**: request admission, queueing, batching, execution dispatch, and result routing
-- **Execution plane**: backend executor interface and Python mock executor
-- **Observability plane**: admin service, runtime stats, and Prometheus metrics
+The important internal loop is:
 
-This separation keeps the request flow easy to reason about while making the scheduler-executor boundary explicit.
+```text
+GenerateRequest
+  -> Request
+  -> WorkItem
+  -> Scheduler
+  -> ExecutorManager
+  -> Python Mock Executor
+  -> Event
+  -> next WorkItem or final response
+```
+
+This split keeps responsibilities clear:
+
+- `Request` owns the user-visible lifecycle.
+- `WorkItem` is one schedulable unit of execution.
+- `Event` drives the state machine after executor output.
+- `Scheduler` chooses work by sequence and token budget.
+- `ExecutorManager` dispatches batches to backend executors.
+
+## Benchmark Highlights
+
+The Stage 2 benchmark uses a Python mock executor, so the results should be read as **control-plane behavior**, not GPU inference performance.
+
+![Stage 2 Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
+
+Workload:
+
+- `1000` requests per scenario
+- `100` concurrency
+- Go server + Python mock executor
+- metrics computed as per-run deltas
+
+| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Prefix Hits | Tokens Saved |
+|---|---:|---:|---:|---:|---:|---:|
+| `cache_miss` | 3.28 req/s | 30.502s | 1.7322s | 0.4109s | 0 | 0 |
+| `cache_hit` | 4.10 req/s | 24.341s | 0.3250s | 0.3430s | 1000 | 147000 |
+| `mixed_prompt` | 4.22 req/s | 23.682s | 1.2117s | 0.3209s | 0 | 0 |
+
+Key observation:
+
+> Prefix cache metadata reduced average TTFT from `1.7322s` to `0.3250s`, about an `81%` reduction in this mock workload.
+
+Read the full benchmark notes:
+
+- [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
+- [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
 
 ## Quick Start
 
@@ -77,7 +134,7 @@ cd llm_serve
 make run
 ```
 
-By default, the Python executor listens on `127.0.0.1:19991`.
+The executor listens on `127.0.0.1:19991` by default.
 
 ### 2. Start the Go server
 
@@ -105,51 +162,76 @@ make bench-cache-hit
 make bench-mixed-prompt
 ```
 
-You can override benchmark parameters through the benchmark CLI:
+Override benchmark parameters directly through the CLI:
 
 ```bash
 go run ./cmd/bench --mode mixed_prompt --requests 1000 --concurrency 50 --timeout-ms 15000
 ```
 
-## Stage 1 Benchmark Snapshot
+## Project Layout
 
-![Stage 1 Benchmark Sweep](./assets/Stage1_Benchmark_Sweep.svg)
-
-In the current benchmark setup:
-
-- dynamic batching improves throughput substantially over the no-batching baseline
-- larger batches improve throughput but increase queue wait and end-to-end latency
-- backend execution remains stable, so the main differences come from scheduling policy
-- flush policy changes the balance between queue wait and effective batch size
-
-Detailed benchmark tables and observations are documented separately:
-
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
-- [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
-
-Stage 2 benchmark scenarios now focus on mixed prompt sizes, TTFT/TBT, and prefix cache hit/miss behavior.
+```text
+cmd/
+  bench/        benchmark CLI
+  client/       simple client wrapper
+  server/       Go serving process
+internal/
+  cache/        prefix cache metadata
+  executor/     executor manager and Connect backend
+  handler/      request admission
+  metrics/      Prometheus metrics and runtime stats
+  model/        Request, WorkItem, Event, Batch
+  scheduler/    token-budget scheduler and queues
+  state/        request lifecycle state machine
+  transport/    Connect RPC transport handlers
+llm_serve/      Python mock executor
+proto/          protobuf API definitions
+docs/           reports, plans, benchmark notes
+```
 
 ## Documentation
 
-Detailed reports and benchmark notes are available under `docs/`.
-
 Stage reports:
 
+- [Stage 2 Report](./docs/summary/stage2_en.md)
 - [Stage 1 Report](./docs/summary/stage1_en.md)
 
 Benchmark notes:
 
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
 - [Stage 2 Benchmarks](./docs/benchmarks/stage2_en.md)
+- [Stage 1 Benchmarks](./docs/benchmarks/stage1_en.md)
 
 Design and roadmap:
 
 - [Stage 2 Plan](./docs/plans/2026-04-01-stage2-implementation-plan.md)
 - [Project Extension Roadmap](./docs/plans/2026-03-27-project-extension-roadmap.md)
 
+## Roadmap
+
+- Multi-token decode chunks to reduce scheduler/RPC overhead
+- Kubernetes deployment with router, service discovery, and metrics
+- Real vLLM executor adapter
+- Phase-specific batch metrics for prefill and decode
+- More realistic load generation and request distributions
+
+## Non-Goals
+
+This repository intentionally does not implement:
+
+- real GPU kernels
+- real KV block allocation
+- PagedAttention or FlashAttention
+- distributed multi-node inference
+- production autoscaling
+- full OpenAI API compatibility
+
+Those are inference-engine or production-platform concerns. This project focuses on the serving control plane.
+
 ## Related Systems
 
 - [vLLM](https://github.com/vllm-project/vllm)
+- [SGLang](https://github.com/sgl-project/sglang)
+- [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
+- [llama.cpp](https://github.com/ggml-org/llama.cpp)
 - [Ollama](https://github.com/ollama/ollama)
 - [Ray](https://github.com/ray-project/ray)
-- [SGLang](https://github.com/sgl-project/sglang)

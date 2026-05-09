@@ -7,66 +7,123 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+" />
   <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12+" />
-  <img src="https://img.shields.io/badge/License-MIT-0B3954" alt="MIT License" />
-  <img src="https://img.shields.io/badge/Docs-EN%20%7C%20ZH-E97132" alt="Docs EN ZH" />
-  <img src="https://img.shields.io/badge/CI-passing-2E8B57" alt="CI passing" />
+  <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
+  <img src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white" alt="Prometheus metrics" />
+  <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
 </p>
 
-一个面向学习、实验与调度原型设计的紧凑型 LLM serving system。
+<p align="center">
+  <strong>一个用于学习 batching、streaming、token scheduling 和 cache-aware inference system 的小型 LLM serving control plane。</strong>
+</p>
 
-[English Version](./README.md)
+<p align="center">
+  <a href="./README.md">English</a>
+  ·
+  <a href="./docs/summary/stage2_zh.md">Stage 2 总结</a>
+  ·
+  <a href="./docs/benchmarks/stage2_zh.md">Benchmark</a>
+  ·
+  <a href="#快速开始">快速开始</a>
+</p>
 
-## 这个项目是什么
+---
 
-`mini-llm-serve` 是一个小而真实的 LLM serving system，重点放在 serving control plane，而不是底层 inference engine 本身。
+## 这是什么
 
-它希望把 serving 中最核心、也最值得学习的部分清晰地暴露出来：
+`mini-llm-serve` 是一个紧凑的 LLM serving system，重点放在模型执行外围的 **serving control plane**。
 
-- 基于 Connect RPC 的请求入口
-- 请求排队与生命周期管理
-- dynamic batching
+它不是 vLLM、TensorRT-LLM、SGLang 或 llama.cpp 的替代品。它的目标是把调度与系统层抽出来，让 LLM serving 的核心问题可以被端到端地学习、运行和观测：
+
+- 请求生命周期管理
 - prefill / decode separation
-- token-budget-aware scheduling
+- token-budget-based scheduling
 - streaming response delivery
-- 可插拔 executors
-- Prometheus 指标与 runtime stats
-- 可复现的 benchmark 场景
+- TTFT / TBT 可观测性
+- prefix cache metadata
+- executor dispatch 与结果回流
+- 可复现 benchmark 场景
 
-这个仓库刻意 **不是** vLLM、TensorRT-LLM、llama.cpp 这类生产级推理引擎的替代品。它更关注模型执行外围的 serving 层，并且保持足够清晰的结构，以便继续做调度、批处理、streaming 和 cache 实验。
+当前执行后端是 Python mock executor。这样做的目的是先让 scheduler 行为变得清晰、可测，再考虑真实 GPU 推理。
 
-## 为什么要做它
+## 为什么做这个项目
 
-大型 LLM serving 系统很强大，但通常太大，难以完整读懂；很多小 demo 虽然容易跑通，却不足以暴露真实系统中的 tradeoff。
+现代 LLM serving stack 很强，但也很大，很难从第一性原理完整理解。
 
-目标很直接：系统要足够小，便于读懂；也要足够真实，能暴露 serving 中的关键 tradeoff：
+这个项目采取相反的方式：
 
-- 足够小，能在较短时间内读懂
-- 足够真，能看到吞吐与延迟的真实权衡
-- 足够干净，后续能继续扩展 scheduler、cache 和 streaming 实验
+- 足够小，方便阅读
+- 足够真实，能暴露 serving tradeoff
+- 结构足够清晰，后续可以继续扩展生产系统组件
 
-## 核心能力
+设计目标不是 toy demo，而是一个最小可运行的 LLM inference serving control plane。
 
-- Go 控制平面与 Connect RPC 服务
-- inference 与 admin/metrics 端口分离
-- 以 FIFO 为基线的排队与动态批处理
-- 用于建模 LLM 执行差异的 prefill / decode separation
-- 面向 token budget 的调度实验
-- streaming 响应路径
-- 基于 `connect-python` 的 Python mock executor
-- Prometheus 指标与 AdminService runtime stats
-- 支持固定场景与并发 sweep 的 benchmark CLI
+## 功能亮点
 
-## 架构概览
+| 方向 | 当前能力 |
+|---|---|
+| API | Connect RPC inference service 与 admin/metrics endpoint |
+| Control plane | Go 请求生命周期、scheduler、executor manager、metrics |
+| Execution backend | 通过 Connect RPC 调用的 Python mock LLM executor |
+| Scheduling | prefill/decode separation、token budget、small/large prefill queues |
+| Streaming | unary 和 server-streaming generation path |
+| Observability | Prometheus metrics、runtime stats、TTFT、TBT、queue wait、batch size |
+| Cache model | prefix cache metadata、hit/miss、saved-token metrics |
+| Benchmarks | cache miss、cache hit、mixed prompt workload |
 
-![Stage 1 Architecture](./assets/Stage1_Architecture.svg)
+## 架构
 
-这个系统可以分成三个逻辑平面：
+Stage 2 将系统从 request-level batching 推进到了 token-aware work scheduling。
 
-- **推理平面**：请求接入、排队、批处理、执行分发与结果回填
-- **执行平面**：后端 executor 接口与 Python mock executor
-- **观测平面**：admin service、runtime stats 与 Prometheus metrics
+![Stage 2 Architecture](./assets/Stage2_Architecture.svg)
 
-这种分层让请求流更容易理解，也使 scheduler 与 executor 之间的边界更明确。
+最核心的内部循环是：
+
+```text
+GenerateRequest
+  -> Request
+  -> WorkItem
+  -> Scheduler
+  -> ExecutorManager
+  -> Python Mock Executor
+  -> Event
+  -> next WorkItem or final response
+```
+
+这个拆分让职责边界更清楚：
+
+- `Request` 表示用户请求的完整生命周期。
+- `WorkItem` 表示一次可调度执行单元。
+- `Event` 表示 executor 输出，并驱动状态机继续推进。
+- `Scheduler` 根据 sequence 和 token budget 选择 work。
+- `ExecutorManager` 将 batch 分发给后端 executor。
+
+## Benchmark 摘要
+
+Stage 2 benchmark 使用 Python mock executor，因此结果应该理解为 **control-plane behavior**，不是真实 GPU 推理性能。
+
+![Stage 2 Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
+
+工作负载：
+
+- 每个场景 `1000` 请求
+- 并发 `100`
+- Go server + Python mock executor
+- metrics 使用单次运行 delta
+
+| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Prefix Hits | Tokens Saved |
+|---|---:|---:|---:|---:|---:|---:|
+| `cache_miss` | 3.28 req/s | 30.502s | 1.7322s | 0.4109s | 0 | 0 |
+| `cache_hit` | 4.10 req/s | 24.341s | 0.3250s | 0.3430s | 1000 | 147000 |
+| `mixed_prompt` | 4.22 req/s | 23.682s | 1.2117s | 0.3209s | 0 | 0 |
+
+关键观察：
+
+> 在当前 mock workload 下，prefix cache metadata 将平均 TTFT 从 `1.7322s` 降到 `0.3250s`，约 `81%` 降低。
+
+完整 benchmark 文档：
+
+- [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
+- [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
 
 ## 快速开始
 
@@ -79,7 +136,7 @@ make run
 
 默认监听：`127.0.0.1:19991`
 
-### 2. 启动 Go 服务
+### 2. 启动 Go server
 
 ```bash
 make run
@@ -105,51 +162,76 @@ make bench-cache-hit
 make bench-mixed-prompt
 ```
 
-也可以直接通过 benchmark CLI 覆盖参数：
+也可以直接通过 CLI 覆盖 benchmark 参数：
 
 ```bash
 go run ./cmd/bench --mode mixed_prompt --requests 1000 --concurrency 50 --timeout-ms 15000
 ```
 
-## Stage 1 Benchmark 摘要
+## 项目结构
 
-![Stage 1 Benchmark Sweep](./assets/Stage1_Benchmark_Sweep.svg)
+```text
+cmd/
+  bench/        benchmark CLI
+  client/       simple client wrapper
+  server/       Go serving process
+internal/
+  cache/        prefix cache metadata
+  executor/     executor manager and Connect backend
+  handler/      request admission
+  metrics/      Prometheus metrics and runtime stats
+  model/        Request, WorkItem, Event, Batch
+  scheduler/    token-budget scheduler and queues
+  state/        request lifecycle state machine
+  transport/    Connect RPC transport handlers
+llm_serve/      Python mock executor
+proto/          protobuf API definitions
+docs/           reports, plans, benchmark notes
+```
 
-在当前 benchmark 配置下：
+## 文档
 
-- dynamic batching 相比 no-batching baseline 显著提升吞吐
-- 更大的 batch 往往提升吞吐，但也会增加 queue wait 和端到端延迟
-- backend execution 相对稳定，因此主要差异来自调度策略
-- flush policy 会改变 queue wait 与有效 batch size 之间的平衡
+阶段总结：
 
-更详细的 benchmark 表格和原始结论见：
-
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
-- [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
-
-Stage 2 benchmark 场景现在重点覆盖 mixed prompt、TTFT/TBT，以及 prefix cache hit/miss 行为。
-
-## 文档导航
-
-更详细的报告和 benchmark 说明都放在 `docs/` 目录下。
-
-阶段报告：
-
+- [Stage 2 Report](./docs/summary/stage2_zh.md)
 - [Stage 1 Report](./docs/summary/stage1_zh.md)
 
 Benchmark 文档：
 
-- [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
 - [Stage 2 Benchmarks](./docs/benchmarks/stage2_zh.md)
+- [Stage 1 Benchmarks](./docs/benchmarks/stage1_zh.md)
 
 设计与路线图：
 
 - [Stage 2 Plan](./docs/plans/2026-04-01-stage2-implementation-plan.md)
 - [Project Extension Roadmap](./docs/plans/2026-03-27-project-extension-roadmap.md)
 
-## 相关项目
+## Roadmap
+
+- Multi-token decode chunk，降低 scheduler/RPC 往返成本
+- Kubernetes 部署，补充 router、service discovery 和 metrics
+- 真实 vLLM executor adapter
+- prefill / decode phase-specific batch metrics
+- 更真实的 load generation 和请求分布
+
+## Non-Goals
+
+这个仓库刻意不实现：
+
+- 真实 GPU kernel
+- 真实 KV block allocation
+- PagedAttention 或 FlashAttention
+- 分布式多节点推理
+- 生产级 autoscaling
+- 完整 OpenAI API 兼容
+
+这些属于 inference engine 或生产平台范畴。本项目聚焦 serving control plane。
+
+## 相关系统
 
 - [vLLM](https://github.com/vllm-project/vllm)
+- [SGLang](https://github.com/sgl-project/sglang)
+- [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
+- [llama.cpp](https://github.com/ggml-org/llama.cpp)
 - [Ollama](https://github.com/ollama/ollama)
 - [Ray](https://github.com/ray-project/ray)
-- [SGLang](https://github.com/sgl-project/sglang)
