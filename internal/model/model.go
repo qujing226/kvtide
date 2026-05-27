@@ -17,6 +17,7 @@ type Request struct {
 	CacheKey     string
 	CachedTokens uint64
 	CacheHit     bool
+	TokenIDs     []uint32
 
 	PromptTokens    uint64
 	ComputedTokens  uint64
@@ -59,6 +60,8 @@ type WorkItem struct {
 	MaxTokens uint64
 	Deadline  time.Time
 
+	TokenIDs []uint32
+
 	PromptTokens    uint64
 	PrefillOffset   uint64 // 已经 prefill 到第几个 token
 	GeneratedTokens uint64 // decode 已经生成多少 token
@@ -88,13 +91,4 @@ type Event struct {
 
 	At  time.Time
 	Err error
-}
-
-type RuntimeStats struct {
-	PrefillQueueLength uint64
-	DecodeQueueLength  uint64
-	ActiveRequests     uint64
-	InflightBatches    uint64
-	BusyExecutors      uint64
-	IdleExecutors      uint64
 }

@@ -5,6 +5,7 @@ bin
 tmp
 .venv
 plans
+notes
 
 .codex
 
