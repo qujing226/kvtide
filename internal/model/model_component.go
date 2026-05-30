@@ -6,15 +6,15 @@ import (
 
 type Batch struct {
 	BatchID   string
-	BatchSize uint64
+	BatchSize uint32
 	CreateAt  time.Time
 	Items     []*WorkItem
 }
 
 type Usage struct {
-	InputTokens  uint64
-	OutputTokens uint64
-	TotalTokens  uint64
+	InputTokens  uint32
+	OutputTokens uint32
+	TotalTokens  uint32
 }
 
 type Timing struct {

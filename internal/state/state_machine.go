@@ -340,11 +340,11 @@ func (r *requestLifecycleStateManager) Finish(requestId string) {
 	}
 }
 
-func (r *requestLifecycleStateManager) increaseActiveRequestAndCacheHit(hit bool, cachedTokens uint64) {
+func (r *requestLifecycleStateManager) increaseActiveRequestAndCacheHit(hit bool, cachedTokens uint32) {
 	r.metrics.SetActiveRequests(int(r.activeRequests.Add(1)))
 	r.metrics.IncPrefixCacheRequests(hit)
 	if hit {
-		r.metrics.AddPrefixCacheTokensSaved(cachedTokens)
+		r.metrics.AddPrefixCacheTokensSaved(uint64(cachedTokens))
 	}
 }
 func (r *requestLifecycleStateManager) reduceActiveRequest() {

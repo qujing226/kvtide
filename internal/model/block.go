@@ -10,7 +10,7 @@ type Block struct {
 	Hash string
 
 	// RefCount is the number of active requests or cached entries referencing this block.
-	RefCount   uint32
+	RefCount uint32
 	// TokenCount is the number of valid tokens stored in this block.
 	TokenCount uint32
 
@@ -33,14 +33,14 @@ type BlockAllocation struct {
 	BlockSize uint32
 
 	// BlockTable is the full block table visible to this request after allocation.
-	BlockTable      []uint32
+	BlockTable []uint32
 	// AllocatedBlocks are blocks newly reserved for this WorkItem.
 	AllocatedBlocks []uint32
 
 	// CachedTokens is the number of prompt tokens reused from prefix cache.
-	CachedTokens   uint64
+	CachedTokens uint32
 	// RequiredTokens is the number of new tokens this WorkItem needs to place in KV cache.
-	RequiredTokens uint64
+	RequiredTokens uint32
 	// RequiredBlocks is the number of additional blocks needed for RequiredTokens.
-	RequiredBlocks uint64
+	RequiredBlocks uint32
 }

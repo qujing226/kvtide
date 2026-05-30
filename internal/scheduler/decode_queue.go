@@ -11,21 +11,21 @@ import (
 
 type DecodeQueue interface {
 	Enqueue(t *model.WorkItem) error
-	Dequeue(maxSeqs uint64) ([]*model.WorkItem, uint64)
-	Length() uint64
-	AvailableSpace() uint64
+	Dequeue(maxSeqs uint32) ([]*model.WorkItem, uint32)
+	Length() uint32
+	AvailableSpace() uint32
 }
 type decodeQueue struct {
 	requestManager state.RequestLifecycleStateManager
 	mu             sync.Mutex
 	works          []*workItemEntry
-	size           uint64
+	size           uint32
 }
 
 type workItemEntry struct {
 	work    *model.WorkItem
-	deficit uint64
-	quant   uint64
+	deficit uint32
+	quant   uint32
 }
 
 func NewDecodeQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) DecodeQueue {
@@ -45,7 +45,7 @@ func (q *decodeQueue) Enqueue(t *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if uint64(len(q.works)) >= q.size {
+	if uint32(len(q.works)) >= q.size {
 		return errors.New(errors.CodeQueueFull, "decodeQueue is full")
 	}
 	q.works = append(q.works, &workItemEntry{
@@ -56,14 +56,14 @@ func (q *decodeQueue) Enqueue(t *model.WorkItem) error {
 	return nil
 }
 
-func (q *decodeQueue) Dequeue(maxSeqs uint64) ([]*model.WorkItem, uint64) {
+func (q *decodeQueue) Dequeue(maxSeqs uint32) ([]*model.WorkItem, uint32) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if maxSeqs == 0 {
 		return nil, 0
 	}
 	workList := make([]*model.WorkItem, 0, maxSeqs)
-	for i := uint64(0); i < maxSeqs; i++ {
+	for i := uint32(0); i < maxSeqs; i++ {
 		if len(q.works) == 0 {
 			break
 		}
@@ -73,17 +73,17 @@ func (q *decodeQueue) Dequeue(maxSeqs uint64) ([]*model.WorkItem, uint64) {
 			workList = append(workList, w.work)
 		}
 	}
-	return workList, uint64(len(workList))
+	return workList, uint32(len(workList))
 }
 
-func (q *decodeQueue) Length() uint64 {
+func (q *decodeQueue) Length() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return uint64(len(q.works))
+	return uint32(len(q.works))
 }
 
-func (q *decodeQueue) AvailableSpace() uint64 {
+func (q *decodeQueue) AvailableSpace() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return q.size - uint64(len(q.works))
+	return q.size - uint32(len(q.works))
 }

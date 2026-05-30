@@ -23,13 +23,13 @@ type Scheduler interface {
 type scheduler struct {
 	l *zap.SugaredLogger
 
-	maxBatchSeqs           uint64
-	maxBatchTokens         uint64
-	maxPartialPrefills     uint64
-	maxLongPartialPrefills uint64
-	longPrefillThreshold   uint64
+	maxBatchSeqs           uint32
+	maxBatchTokens         uint32
+	maxPartialPrefills     uint32
+	maxLongPartialPrefills uint32
+	longPrefillThreshold   uint32
 	scheduleRoundDelay     time.Duration
-	highPressureSeqs       uint64
+	highPressureSeqs       uint32
 
 	prefillQueueSmall PrefillQueue
 	prefillQueueLarge PrefillQueue
@@ -162,7 +162,7 @@ func (s *scheduler) patchExecute(ctx context.Context) {
 
 	err = s.executorManager.Submit(ctx, &model.Batch{
 		BatchID:   bid,
-		BatchSize: uint64(len(workItems)),
+		BatchSize: uint32(len(workItems)),
 		CreateAt:  batchCreateAt,
 		Items:     workItems,
 	})

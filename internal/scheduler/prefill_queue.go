@@ -13,15 +13,15 @@ type PrefillQueue interface {
 	Enqueue(t *model.WorkItem) error
 	Pop() (*model.WorkItem, bool)
 	Peek() (*model.WorkItem, bool)
-	Length() uint64
-	AvailableSpace() uint64
+	Length() uint32
+	AvailableSpace() uint32
 }
 
 type prefillQueue struct {
 	requestManager state.RequestLifecycleStateManager
 	mu             sync.Mutex
 	works          []*model.WorkItem
-	size           uint64
+	size           uint32
 }
 
 func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) PrefillQueue {
@@ -41,7 +41,7 @@ func (q *prefillQueue) Enqueue(t *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
-	if uint64(len(q.works)) >= q.size {
+	if uint32(len(q.works)) >= q.size {
 		return errors.New(errors.CodeQueueFull, "prefillQueue is full")
 	}
 	q.works = append(q.works, t)
@@ -75,14 +75,14 @@ func (q *prefillQueue) Peek() (*model.WorkItem, bool) {
 	return nil, false
 }
 
-func (q *prefillQueue) Dequeue(tokens uint64) ([]*model.WorkItem, error) {
+func (q *prefillQueue) Dequeue(tokens uint32) ([]*model.WorkItem, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if tokens == 0 || len(q.works) == 0 {
 		return nil, nil
 	}
 	workList := make([]*model.WorkItem, 0, 10)
-	used := uint64(0)
+	used := uint32(0)
 
 	for len(q.works) > 0 {
 		cost := WorkBudgetCost(q.works[0])
@@ -100,14 +100,14 @@ func (q *prefillQueue) Dequeue(tokens uint64) ([]*model.WorkItem, error) {
 	return workList, nil
 }
 
-func (q *prefillQueue) Length() uint64 {
+func (q *prefillQueue) Length() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return uint64(len(q.works))
+	return uint32(len(q.works))
 }
 
-func (q *prefillQueue) AvailableSpace() uint64 {
+func (q *prefillQueue) AvailableSpace() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	return q.size - uint64(len(q.works))
+	return q.size - uint32(len(q.works))
 }

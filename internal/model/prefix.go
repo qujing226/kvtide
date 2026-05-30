@@ -5,7 +5,7 @@ package model
 type PrefixMatch struct {
 	RequestID string
 	// CachedTokens is usually len(BlockIDs) * block size, except for partial tail blocks.
-	CachedTokens uint64
+	CachedTokens uint32
 	BlockIDs     []uint32
 	Hit          bool
 }

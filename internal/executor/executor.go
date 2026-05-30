@@ -108,9 +108,9 @@ func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*mode
 			DeltaText:  workRes.OutputText,
 			Done:       workRes.Done,
 			Usage: model.Usage{
-				InputTokens:  uint64(workRes.ComputedTokens),
-				OutputTokens: uint64(workRes.GeneratedTokens),
-				TotalTokens:  uint64(workRes.ComputedTokens + workRes.GeneratedTokens),
+				InputTokens:  workRes.ComputedTokens,
+				OutputTokens: workRes.GeneratedTokens,
+				TotalTokens:  workRes.ComputedTokens + workRes.GeneratedTokens,
 			},
 			Timing: model.Timing{
 				Queue:     0,

@@ -5,23 +5,23 @@ import (
 )
 
 type PrefixCache interface {
-	Lookup(cacheKey string, promptTokens uint64) (cacheTokens uint64, hit bool)
-	Put(cacheKey string, promptTokens uint64)
+	Lookup(cacheKey string, promptTokens uint32) (cacheTokens uint32, hit bool)
+	Put(cacheKey string, promptTokens uint32)
 }
 
 type prefixCache struct {
-	prefixes map[string]uint64
+	prefixes map[string]uint32
 	mu       sync.RWMutex
 }
 
 func NewPrefixCache() PrefixCache {
 	p := &prefixCache{
-		prefixes: make(map[string]uint64),
+		prefixes: make(map[string]uint32),
 	}
 	return p
 }
 
-func (p *prefixCache) Lookup(cacheKey string, promptTokens uint64) (cacheTokens uint64, hit bool) {
+func (p *prefixCache) Lookup(cacheKey string, promptTokens uint32) (cacheTokens uint32, hit bool) {
 	if cacheKey == "" {
 		return 0, false
 	}
@@ -34,7 +34,7 @@ func (p *prefixCache) Lookup(cacheKey string, promptTokens uint64) (cacheTokens 
 	return min(cachedTokens, promptTokens), true
 }
 
-func (p *prefixCache) Put(cacheKey string, promptTokens uint64) {
+func (p *prefixCache) Put(cacheKey string, promptTokens uint32) {
 	if cacheKey == "" {
 		return
 	}

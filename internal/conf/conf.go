@@ -26,16 +26,16 @@ type ServerConf struct {
 type ScheduleConf struct {
 	QueueConf QueueConf
 
-	MaxBatchSeq               uint64 `koanf:"maxBatchSeqs"`
-	MaxBatchTokens            uint64 `koanf:"maxBatchTokens"`
-	LongPrefillTokenThreshold uint64 `koanf:"longPrefillTokenThreshold"`
-	MaxPartialPrefills        uint64 `koanf:"maxPartialPrefills"`
-	MaxLongPartialPrefills    uint64 `koanf:"maxLongPartialPrefills"`
+	MaxBatchSeq               uint32 `koanf:"maxBatchSeqs"`
+	MaxBatchTokens            uint32 `koanf:"maxBatchTokens"`
+	LongPrefillTokenThreshold uint32 `koanf:"longPrefillTokenThreshold"`
+	MaxPartialPrefills        uint32 `koanf:"maxPartialPrefills"`
+	MaxLongPartialPrefills    uint32 `koanf:"maxLongPartialPrefills"`
 	MaxScheduleDelay          uint64 `koanf:"maxScheduleDelay"`
 }
 
 type QueueConf struct {
-	QueueLength uint64 `koanf:"queueLength"`
+	QueueLength uint32 `koanf:"queueLength"`
 }
 
 func (s ScheduleConf) ScheduleDelay() time.Duration {

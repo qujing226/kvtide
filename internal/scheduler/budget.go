@@ -5,9 +5,9 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
-const DefaultDecodeBudgetTokensPlanned uint64 = 1
+const DefaultDecodeBudgetTokensPlanned uint32 = 1
 
-func WorkBudgetCost(work *model.WorkItem) uint64 {
+func WorkBudgetCost(work *model.WorkItem) uint32 {
 	switch work.Phase {
 	case v1.WorkPhasePrefill:
 		if work.NumNewTokens > 0 {
@@ -21,7 +21,7 @@ func WorkBudgetCost(work *model.WorkItem) uint64 {
 	}
 }
 
-func splitPrefillChunk(item *model.WorkItem, tokens uint64) (*model.WorkItem, *model.WorkItem) {
+func splitPrefillChunk(item *model.WorkItem, tokens uint32) (*model.WorkItem, *model.WorkItem) {
 	cost := WorkBudgetCost(item)
 	if tokens > cost {
 		tokens = cost
