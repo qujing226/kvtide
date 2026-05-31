@@ -43,4 +43,6 @@ type BlockAllocation struct {
 	RequiredTokens uint32
 	// RequiredBlocks is the number of additional blocks needed for RequiredTokens.
 	RequiredBlocks uint32
+	// TokensAfterCommit is the number of tokens after an allocation succeed.
+	TokensAfterCommit uint32
 }

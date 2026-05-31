@@ -98,22 +98,40 @@ func (m *manager) AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, b
 	blockTable = append(blockTable, blocks...)
 	m.requestBlocks[work.RequestId] = blockTable
 
-	m.updateTokenCounts(blockTable, requiredKVToken)
-
 	return &model.BlockAllocation{
-		RequestID:       work.RequestId,
-		WorkID:          work.WorkId,
-		BlockSize:       m.blockSize,
-		BlockTable:      append([]uint32(nil), blockTable...),
-		AllocatedBlocks: blocks,
-		CachedTokens:    work.PrefillOffset,
-		RequiredTokens:  work.NumNewTokens,
-		RequiredBlocks:  requiredBlocks,
+		RequestID:         work.RequestId,
+		WorkID:            work.WorkId,
+		BlockSize:         m.blockSize,
+		BlockTable:        append([]uint32(nil), blockTable...),
+		AllocatedBlocks:   blocks,
+		CachedTokens:      work.PrefillOffset,
+		RequiredTokens:    work.NumNewTokens,
+		RequiredBlocks:    requiredBlocks,
+		TokensAfterCommit: requiredKVToken,
 	}, true
 }
 
 func (m *manager) Commit(allocation *model.BlockAllocation) {
-	// MVP: allocation is applied eagerly in AllocateSlots.
+	if allocation == nil {
+		return
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	tokenTotal := allocation.TokensAfterCommit
+	for idx, blockID := range allocation.BlockTable {
+		start := uint32(idx) * m.blockSize
+		if tokenTotal <= start {
+			m.blocks[blockID].TokenCount = 0
+			continue
+		}
+
+		remaining := tokenTotal - start
+		if remaining >= m.blockSize {
+			m.blocks[blockID].TokenCount = m.blockSize
+		} else {
+			m.blocks[blockID].TokenCount = remaining
+		}
+	}
 }
 
 func (m *manager) Rollback(allocation *model.BlockAllocation) {
@@ -192,20 +210,7 @@ func (m *manager) allocate(n uint32) ([]uint32, bool) {
 }
 
 func (m *manager) updateTokenCounts(blockTable []uint32, tokenTotal uint32) {
-	for idx, blockID := range blockTable {
-		start := uint32(idx) * m.blockSize
-		if tokenTotal <= start {
-			m.blocks[blockID].TokenCount = 0
-			continue
-		}
 
-		remaining := tokenTotal - start
-		if remaining >= m.blockSize {
-			m.blocks[blockID].TokenCount = m.blockSize
-		} else {
-			m.blocks[blockID].TokenCount = remaining
-		}
-	}
 }
 
 func requiredKVTokens(work *model.WorkItem) uint32 {

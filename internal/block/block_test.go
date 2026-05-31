@@ -24,6 +24,11 @@ func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
 	require.Equal(t, uint32(3), allocation.RequiredBlocks)
 	require.Equal(t, []uint32{0, 1, 2}, allocation.AllocatedBlocks)
 	require.Equal(t, []uint32{0, 1, 2}, allocation.BlockTable)
+	require.Equal(t, uint32(0), m.blocks[0].TokenCount)
+	require.Equal(t, uint32(0), m.blocks[1].TokenCount)
+	require.Equal(t, uint32(0), m.blocks[2].TokenCount)
+
+	m.Commit(allocation)
 	require.Equal(t, uint32(16), m.blocks[0].TokenCount)
 	require.Equal(t, uint32(16), m.blocks[1].TokenCount)
 	require.Equal(t, uint32(8), m.blocks[2].TokenCount)
@@ -46,6 +51,9 @@ func TestAllocateSlotsReusesPartiallyFilledPrefillBlock(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, uint32(1), first.RequiredBlocks)
 	require.Equal(t, []uint32{0}, first.BlockTable)
+	require.Equal(t, uint32(0), m.blocks[0].TokenCount)
+
+	m.Commit(first)
 	require.Equal(t, uint32(8), m.blocks[0].TokenCount)
 
 	second, ok := m.AllocateSlots(&model.WorkItem{
@@ -59,6 +67,9 @@ func TestAllocateSlotsReusesPartiallyFilledPrefillBlock(t *testing.T) {
 	require.Equal(t, uint32(0), second.RequiredBlocks)
 	require.Empty(t, second.AllocatedBlocks)
 	require.Equal(t, []uint32{0}, second.BlockTable)
+	require.Equal(t, uint32(8), m.blocks[0].TokenCount)
+
+	m.Commit(second)
 	require.Equal(t, uint32(16), m.blocks[0].TokenCount)
 }
 
