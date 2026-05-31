@@ -79,7 +79,8 @@ func (m *manager) AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, b
 	defer m.mu.Unlock()
 
 	currentBlocks := uint32(len(m.requestBlocks[work.RequestId]))
-	requiredTotalBlocks := ceilDiv(requiredKVTokens(work), m.blockSize)
+	requiredKVToken := requiredKVTokens(work)
+	requiredTotalBlocks := ceilDiv(requiredKVToken, m.blockSize)
 	requiredBlocks := requiredTotalBlocks - currentBlocks
 	if requiredBlocks > m.freeCount {
 		return nil, false
@@ -96,6 +97,8 @@ func (m *manager) AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, b
 	blockTable = append(blockTable, existBlocks...)
 	blockTable = append(blockTable, blocks...)
 	m.requestBlocks[work.RequestId] = blockTable
+
+	m.updateTokenCounts(blockTable, requiredKVToken)
 
 	return &model.BlockAllocation{
 		RequestID:       work.RequestId,
@@ -186,6 +189,23 @@ func (m *manager) allocate(n uint32) ([]uint32, bool) {
 		ids = append(ids, id)
 	}
 	return ids, true
+}
+
+func (m *manager) updateTokenCounts(blockTable []uint32, tokenTotal uint32) {
+	for idx, blockID := range blockTable {
+		start := uint32(idx) * m.blockSize
+		if tokenTotal <= start {
+			m.blocks[blockID].TokenCount = 0
+			continue
+		}
+
+		remaining := tokenTotal - start
+		if remaining >= m.blockSize {
+			m.blocks[blockID].TokenCount = m.blockSize
+		} else {
+			m.blocks[blockID].TokenCount = remaining
+		}
+	}
 }
 
 func requiredKVTokens(work *model.WorkItem) uint32 {

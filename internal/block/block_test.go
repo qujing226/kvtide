@@ -10,7 +10,7 @@ import (
 )
 
 func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar())
+	m := NewManager(zap.NewNop().Sugar()).(*manager)
 
 	allocation, ok := m.AllocateSlots(&model.WorkItem{
 		WorkId:        "work-1",
@@ -24,6 +24,9 @@ func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
 	require.Equal(t, uint32(3), allocation.RequiredBlocks)
 	require.Equal(t, []uint32{0, 1, 2}, allocation.AllocatedBlocks)
 	require.Equal(t, []uint32{0, 1, 2}, allocation.BlockTable)
+	require.Equal(t, uint32(16), m.blocks[0].TokenCount)
+	require.Equal(t, uint32(16), m.blocks[1].TokenCount)
+	require.Equal(t, uint32(8), m.blocks[2].TokenCount)
 
 	stats := m.Stats()
 	require.Equal(t, uint64(TmpTotalBlocks-3), stats.FreeBlocks)
@@ -31,7 +34,7 @@ func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
 }
 
 func TestAllocateSlotsReusesPartiallyFilledPrefillBlock(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar())
+	m := NewManager(zap.NewNop().Sugar()).(*manager)
 
 	first, ok := m.AllocateSlots(&model.WorkItem{
 		WorkId:        "work-1",
@@ -43,6 +46,7 @@ func TestAllocateSlotsReusesPartiallyFilledPrefillBlock(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, uint32(1), first.RequiredBlocks)
 	require.Equal(t, []uint32{0}, first.BlockTable)
+	require.Equal(t, uint32(8), m.blocks[0].TokenCount)
 
 	second, ok := m.AllocateSlots(&model.WorkItem{
 		WorkId:        "work-2",
@@ -55,6 +59,7 @@ func TestAllocateSlotsReusesPartiallyFilledPrefillBlock(t *testing.T) {
 	require.Equal(t, uint32(0), second.RequiredBlocks)
 	require.Empty(t, second.AllocatedBlocks)
 	require.Equal(t, []uint32{0}, second.BlockTable)
+	require.Equal(t, uint32(16), m.blocks[0].TokenCount)
 }
 
 func TestAllocateSlotsOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) {

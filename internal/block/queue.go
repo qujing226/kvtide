@@ -10,6 +10,7 @@ func (m *manager) pushFree(id uint32) {
 	}
 
 	b.RefCount = 0
+	b.TokenCount = 0
 	b.InFreeQueue = true
 	b.PrevFree = m.freeTail
 	b.NextFree = -1
