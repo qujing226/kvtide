@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
@@ -14,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-func testQueueConf(length uint64) (*conf.Conf, state.RequestLifecycleStateManager) {
+func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
 	return &conf.Conf{
 		Server: conf.ServerConf{
 			ScheduleConf: conf.ScheduleConf{
@@ -23,10 +24,10 @@ func testQueueConf(length uint64) (*conf.Conf, state.RequestLifecycleStateManage
 				},
 			},
 		},
-	}, state.NewRequestLifecycleStateManager(zap.S(), cache.NewPrefixCache(), metrics.NewMetrics())
+	}, state.NewRequestLifecycleStateManager(zap.S(), cache.NewPrefixCache(), block.NewManager(zap.S()), metrics.NewMetrics())
 }
 
-func testQueueWork(t *testing.T, manager state.RequestLifecycleStateManager, id string, phase v1.WorkPhase) *model.WorkItem {
+func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, phase v1.WorkPhase) *model.WorkItem {
 	t.Helper()
 
 	work, err := manager.Create(&model.Request{
@@ -53,12 +54,12 @@ func TestPrefillQueuePeekDoesNotRemove(t *testing.T) {
 	item, ok := q.Peek()
 	require.True(t, ok)
 	require.Equal(t, "p1", item.WorkId)
-	require.Equal(t, uint64(2), q.Length())
+	require.Equal(t, uint32(2), q.Length())
 
 	item, ok = q.Peek()
 	require.True(t, ok)
 	require.Equal(t, "p1", item.WorkId)
-	require.Equal(t, uint64(2), q.Length())
+	require.Equal(t, uint32(2), q.Length())
 }
 
 func TestPrefillQueuePopRemovesFIFO(t *testing.T) {
@@ -71,14 +72,14 @@ func TestPrefillQueuePopRemovesFIFO(t *testing.T) {
 	item, ok := q.Pop()
 	require.True(t, ok)
 	require.Equal(t, "p1", item.WorkId)
-	require.Equal(t, uint64(1), q.Length())
-	require.Equal(t, uint64(2), q.AvailableSpace())
+	require.Equal(t, uint32(1), q.Length())
+	require.Equal(t, uint32(2), q.AvailableSpace())
 
 	item, ok = q.Pop()
 	require.True(t, ok)
 	require.Equal(t, "p2", item.WorkId)
-	require.Equal(t, uint64(0), q.Length())
-	require.Equal(t, uint64(3), q.AvailableSpace())
+	require.Equal(t, uint32(0), q.Length())
+	require.Equal(t, uint32(3), q.AvailableSpace())
 }
 
 func TestPrefillQueueEmptyPeekAndPop(t *testing.T) {
@@ -100,8 +101,20 @@ func TestPrefillQueueFull(t *testing.T) {
 
 	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "p1", v1.WorkPhasePrefill)))
 	require.Error(t, q.Enqueue(testQueueWork(t, manager, "p2", v1.WorkPhasePrefill)))
-	require.Equal(t, uint64(1), q.Length())
-	require.Equal(t, uint64(0), q.AvailableSpace())
+	require.Equal(t, uint32(1), q.Length())
+	require.Equal(t, uint32(0), q.AvailableSpace())
+}
+
+func TestPrefillQueueRequeueCanExceedAdmissionCapacity(t *testing.T) {
+	cfg, manager := testQueueConf(1)
+	q := NewPrefillQueue(cfg, manager)
+
+	q.Requeue(testQueueWork(t, manager, "p1", v1.WorkPhasePrefill))
+	q.Requeue(testQueueWork(t, manager, "p2", v1.WorkPhasePrefill))
+
+	require.Equal(t, uint32(2), q.Length())
+	require.Equal(t, uint32(0), q.AvailableSpace())
+	require.Error(t, q.Enqueue(testQueueWork(t, manager, "p3", v1.WorkPhasePrefill)))
 }
 
 func TestDecodeQueueDequeueRespectsMaxSeqs(t *testing.T) {
@@ -113,17 +126,17 @@ func TestDecodeQueueDequeueRespectsMaxSeqs(t *testing.T) {
 	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "d3", v1.WorkPhaseDecode)))
 
 	items, n := q.Dequeue(2)
-	require.Equal(t, uint64(2), n)
+	require.Equal(t, uint32(2), n)
 	require.Len(t, items, 2)
 	require.Equal(t, "d1", items[0].WorkId)
 	require.Equal(t, "d2", items[1].WorkId)
-	require.Equal(t, uint64(1), q.Length())
+	require.Equal(t, uint32(1), q.Length())
 
 	items, n = q.Dequeue(2)
-	require.Equal(t, uint64(1), n)
+	require.Equal(t, uint32(1), n)
 	require.Len(t, items, 1)
 	require.Equal(t, "d3", items[0].WorkId)
-	require.Equal(t, uint64(0), q.Length())
+	require.Equal(t, uint32(0), q.Length())
 }
 
 func TestDecodeQueueDequeueZeroOrEmpty(t *testing.T) {
@@ -131,11 +144,11 @@ func TestDecodeQueueDequeueZeroOrEmpty(t *testing.T) {
 	q := NewDecodeQueue(cfg, manager)
 
 	items, n := q.Dequeue(0)
-	require.Equal(t, uint64(0), n)
+	require.Equal(t, uint32(0), n)
 	require.Nil(t, items)
 
 	items, n = q.Dequeue(1)
-	require.Equal(t, uint64(0), n)
+	require.Equal(t, uint32(0), n)
 	require.Empty(t, items)
 }
 
@@ -145,6 +158,18 @@ func TestDecodeQueueFull(t *testing.T) {
 
 	require.NoError(t, q.Enqueue(testQueueWork(t, manager, "d1", v1.WorkPhaseDecode)))
 	require.Error(t, q.Enqueue(testQueueWork(t, manager, "d2", v1.WorkPhaseDecode)))
-	require.Equal(t, uint64(1), q.Length())
-	require.Equal(t, uint64(0), q.AvailableSpace())
+	require.Equal(t, uint32(1), q.Length())
+	require.Equal(t, uint32(0), q.AvailableSpace())
+}
+
+func TestDecodeQueueRequeueCanExceedAdmissionCapacity(t *testing.T) {
+	cfg, manager := testQueueConf(1)
+	q := NewDecodeQueue(cfg, manager)
+
+	q.Requeue(testQueueWork(t, manager, "d1", v1.WorkPhaseDecode))
+	q.Requeue(testQueueWork(t, manager, "d2", v1.WorkPhaseDecode))
+
+	require.Equal(t, uint32(2), q.Length())
+	require.Equal(t, uint32(0), q.AvailableSpace())
+	require.Error(t, q.Enqueue(testQueueWork(t, manager, "d3", v1.WorkPhaseDecode)))
 }

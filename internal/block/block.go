@@ -17,9 +17,9 @@ const (
 
 type Manager interface {
 	MatchPrefix(req *model.Request) *model.PrefixMatch
-	AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, bool)
-	Commit(allocation *model.BlockAllocation)
-	Rollback(allocation *model.BlockAllocation)
+	AllocateBlocks(work *model.WorkItem) bool
+	Commit(workID string)
+	Rollback(workID string)
 	FreeRequest(requestID string)
 	Stats() model.BlockStats
 }
@@ -38,20 +38,23 @@ type manager struct {
 	requestBlocks map[string][]uint32
 	// cachedBlocks maps a prefix block hash to a reusable block id.
 	cachedBlocks map[string]uint32
+	// pendingAllocations maps a work.ID to a BlockAllocation which is waiting for commit or rollback.
+	pendingAllocations map[string]*model.BlockAllocation
 
 	mu sync.RWMutex
 }
 
 func NewManager(l *zap.SugaredLogger) Manager {
 	m := &manager{
-		l:             l,
-		blocks:        make([]model.Block, TmpTotalBlocks),
-		blockSize:     TmpBlockSize,
-		freeHead:      0,
-		freeTail:      TmpTotalBlocks - 1,
-		freeCount:     TmpTotalBlocks,
-		requestBlocks: make(map[string][]uint32),
-		cachedBlocks:  make(map[string]uint32),
+		l:                  l,
+		blocks:             make([]model.Block, TmpTotalBlocks),
+		blockSize:          TmpBlockSize,
+		freeHead:           0,
+		freeTail:           TmpTotalBlocks - 1,
+		freeCount:          TmpTotalBlocks,
+		requestBlocks:      make(map[string][]uint32),
+		cachedBlocks:       make(map[string]uint32),
+		pendingAllocations: make(map[string]*model.BlockAllocation),
 	}
 	for i := range m.blocks {
 		// Blocks start in a doubly linked free queue.
@@ -74,23 +77,27 @@ func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
 	}
 }
 
-func (m *manager) AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, bool) {
+func (m *manager) AllocateBlocks(work *model.WorkItem) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
 	currentBlocks := uint32(len(m.requestBlocks[work.RequestId]))
 	requiredKVToken := requiredKVTokens(work)
 	requiredTotalBlocks := ceilDiv(requiredKVToken, m.blockSize)
-	requiredBlocks := requiredTotalBlocks - currentBlocks
+	requiredBlocks := uint32(0)
+	// protect uint32
+	if requiredTotalBlocks > currentBlocks {
+		requiredBlocks = requiredTotalBlocks - currentBlocks
+	}
 	if requiredBlocks > m.freeCount {
-		return nil, false
+		return false
 	}
 	existBlocks := m.requestBlocks[work.RequestId]
 
 	blocks, ok := m.allocate(requiredBlocks)
 	if !ok {
 		m.l.Errorw("allocate blocks error", "blocks:", requiredBlocks)
-		return nil, false
+		return false
 	}
 
 	blockTable := make([]uint32, 0, len(existBlocks)+len(blocks))
@@ -98,7 +105,7 @@ func (m *manager) AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, b
 	blockTable = append(blockTable, blocks...)
 	m.requestBlocks[work.RequestId] = blockTable
 
-	return &model.BlockAllocation{
+	work.BlockAllocation = &model.BlockAllocation{
 		RequestID:         work.RequestId,
 		WorkID:            work.WorkId,
 		BlockSize:         m.blockSize,
@@ -108,24 +115,31 @@ func (m *manager) AllocateSlots(work *model.WorkItem) (*model.BlockAllocation, b
 		RequiredTokens:    work.NumNewTokens,
 		RequiredBlocks:    requiredBlocks,
 		TokensAfterCommit: requiredKVToken,
-	}, true
+	}
+	m.pendingAllocations[work.WorkId] = work.BlockAllocation
+
+	return true
 }
 
-func (m *manager) Commit(allocation *model.BlockAllocation) {
-	if allocation == nil {
-		return
-	}
+func (m *manager) Commit(workID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	tokenTotal := allocation.TokensAfterCommit
+
+	allocation, exists := m.pendingAllocations[workID]
+	if !exists {
+		return
+	}
+	delete(m.pendingAllocations, workID)
+
+	// update tokenCount
 	for idx, blockID := range allocation.BlockTable {
 		start := uint32(idx) * m.blockSize
-		if tokenTotal <= start {
+		if allocation.TokensAfterCommit <= start {
 			m.blocks[blockID].TokenCount = 0
 			continue
 		}
 
-		remaining := tokenTotal - start
+		remaining := allocation.TokensAfterCommit - start
 		if remaining >= m.blockSize {
 			m.blocks[blockID].TokenCount = m.blockSize
 		} else {
@@ -134,12 +148,14 @@ func (m *manager) Commit(allocation *model.BlockAllocation) {
 	}
 }
 
-func (m *manager) Rollback(allocation *model.BlockAllocation) {
-	if allocation == nil || len(allocation.AllocatedBlocks) == 0 {
-		return
-	}
+func (m *manager) Rollback(workID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	allocation, exists := m.pendingAllocations[workID]
+	if !exists {
+		return
+	}
+	delete(m.pendingAllocations, workID)
 
 	blocks := m.requestBlocks[allocation.RequestID]
 	// Allocation is appended to the request block table, so rollback removes
@@ -163,6 +179,11 @@ func (m *manager) FreeRequest(requestID string) {
 
 	blocks := m.requestBlocks[requestID]
 	delete(m.requestBlocks, requestID)
+	for workID, allocation := range m.pendingAllocations {
+		if allocation.RequestID == requestID {
+			delete(m.pendingAllocations, workID)
+		}
+	}
 	for _, id := range blocks {
 		m.pushFree(id)
 	}
@@ -207,10 +228,6 @@ func (m *manager) allocate(n uint32) ([]uint32, bool) {
 		ids = append(ids, id)
 	}
 	return ids, true
-}
-
-func (m *manager) updateTokenCounts(blockTable []uint32, tokenTotal uint32) {
-
 }
 
 func requiredKVTokens(work *model.WorkItem) uint32 {

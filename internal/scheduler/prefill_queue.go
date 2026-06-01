@@ -12,19 +12,20 @@ import (
 type PrefillQueue interface {
 	Enqueue(t *model.WorkItem) error
 	Pop() (*model.WorkItem, bool)
+	Requeue(work *model.WorkItem)
 	Peek() (*model.WorkItem, bool)
 	Length() uint32
 	AvailableSpace() uint32
 }
 
 type prefillQueue struct {
-	requestManager state.RequestLifecycleStateManager
+	requestManager state.RequestStateManager
 	mu             sync.Mutex
 	works          []*model.WorkItem
 	size           uint32
 }
 
-func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) PrefillQueue {
+func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestStateManager) PrefillQueue {
 	length := cfg.Server.ScheduleConf.QueueConf.QueueLength
 	if length == 0 {
 		length = 100
@@ -37,15 +38,21 @@ func NewPrefillQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateM
 	return q
 }
 
-func (q *prefillQueue) Enqueue(t *model.WorkItem) error {
+func (q *prefillQueue) Enqueue(work *model.WorkItem) error {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 
 	if uint32(len(q.works)) >= q.size {
 		return errors.New(errors.CodeQueueFull, "prefillQueue is full")
 	}
-	q.works = append(q.works, t)
+	q.works = append(q.works, work)
 	return nil
+}
+
+func (q *prefillQueue) Requeue(work *model.WorkItem) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.works = append(q.works, work)
 }
 
 func (q *prefillQueue) Pop() (*model.WorkItem, bool) {
@@ -109,5 +116,9 @@ func (q *prefillQueue) Length() uint32 {
 func (q *prefillQueue) AvailableSpace() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	// Note: if Requeue expanded slice length, return 0 for protection.
+	if uint32(len(q.works)) >= q.size {
+		return 0
+	}
 	return q.size - uint32(len(q.works))
 }

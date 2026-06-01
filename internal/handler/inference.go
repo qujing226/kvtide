@@ -19,10 +19,10 @@ type inferenceHandler struct {
 	l *zap.SugaredLogger
 
 	scheduler      scheduler.Scheduler
-	requestManager state.RequestLifecycleStateManager
+	requestManager state.RequestStateManager
 }
 
-func NewInferenceHandle(l *zap.SugaredLogger, s scheduler.Scheduler, r state.RequestLifecycleStateManager) InferenceHandler {
+func NewInferenceHandle(l *zap.SugaredLogger, s scheduler.Scheduler, r state.RequestStateManager) InferenceHandler {
 	e := &inferenceHandler{
 		l:              l,
 		scheduler:      s,

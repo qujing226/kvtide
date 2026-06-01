@@ -15,7 +15,7 @@ func TestWorkBudgetCostPrefillUsesScheduledPrefillTokens(t *testing.T) {
 		NumNewTokens: 512,
 	}
 
-	require.Equal(t, uint64(512), WorkBudgetCost(work))
+	require.Equal(t, uint32(512), WorkBudgetCost(work))
 }
 
 func TestWorkBudgetCostPrefillFallsBackToPromptTokens(t *testing.T) {
@@ -24,7 +24,7 @@ func TestWorkBudgetCostPrefillFallsBackToPromptTokens(t *testing.T) {
 		PromptTokens: 2048,
 	}
 
-	require.Equal(t, uint64(2048), WorkBudgetCost(work))
+	require.Equal(t, uint32(2048), WorkBudgetCost(work))
 }
 
 func TestWorkBudgetCostDecodeIsOneTokenPerStep(t *testing.T) {
@@ -32,7 +32,7 @@ func TestWorkBudgetCostDecodeIsOneTokenPerStep(t *testing.T) {
 		Phase: v1.WorkPhaseDecode,
 	}
 
-	require.Equal(t, uint64(1), WorkBudgetCost(work))
+	require.Equal(t, uint32(1), WorkBudgetCost(work))
 }
 
 func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
@@ -47,8 +47,8 @@ func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 
 	require.NotNil(t, chunk)
 	require.Nil(t, rest)
-	require.Equal(t, uint64(500), chunk.PrefillOffset)
-	require.Equal(t, uint64(500), chunk.NumNewTokens)
+	require.Equal(t, uint32(500), chunk.PrefillOffset)
+	require.Equal(t, uint32(500), chunk.NumNewTokens)
 }
 
 func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
@@ -63,10 +63,10 @@ func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 
 	require.NotNil(t, chunk)
 	require.NotNil(t, rest)
-	require.Equal(t, uint64(200), chunk.PrefillOffset)
-	require.Equal(t, uint64(300), chunk.NumNewTokens)
-	require.Equal(t, uint64(500), rest.PrefillOffset)
-	require.Equal(t, uint64(500), rest.NumNewTokens)
+	require.Equal(t, uint32(200), chunk.PrefillOffset)
+	require.Equal(t, uint32(300), chunk.NumNewTokens)
+	require.Equal(t, uint32(500), rest.PrefillOffset)
+	require.Equal(t, uint32(500), rest.NumNewTokens)
 }
 
 func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
@@ -81,6 +81,6 @@ func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
 
 	require.NotNil(t, chunk)
 	require.Nil(t, rest)
-	require.Equal(t, uint64(700), chunk.PrefillOffset)
-	require.Equal(t, uint64(300), chunk.NumNewTokens)
+	require.Equal(t, uint32(700), chunk.PrefillOffset)
+	require.Equal(t, uint32(300), chunk.NumNewTokens)
 }

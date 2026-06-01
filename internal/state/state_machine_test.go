@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -12,8 +13,12 @@ import (
 	"go.uber.org/zap"
 )
 
+func newTestRequestStateManager(prefixCache cache.PrefixCache, m metrics.Metrics) RequestStateManager {
+	return NewRequestLifecycleStateManager(zap.NewNop().Sugar(), prefixCache, block.NewManager(zap.NewNop().Sugar()), m)
+}
+
 func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), cache.NewPrefixCache(), metrics.NewMetrics())
+	manager := newTestRequestStateManager(cache.NewPrefixCache(), metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-stale",
 		Model:        "mock",
@@ -40,7 +45,7 @@ func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
 }
 
 func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), cache.NewPrefixCache(), metrics.NewMetrics())
+	manager := newTestRequestStateManager(cache.NewPrefixCache(), metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-canceled",
 		Model:        "mock",
@@ -57,7 +62,7 @@ func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
 }
 
 func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), cache.NewPrefixCache(), metrics.NewMetrics())
+	manager := newTestRequestStateManager(cache.NewPrefixCache(), metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-timeout",
 		Model:        "mock",
@@ -88,7 +93,7 @@ func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
 
 func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 	m := metrics.NewMetrics()
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), cache.NewPrefixCache(), m)
+	manager := newTestRequestStateManager(cache.NewPrefixCache(), m)
 	req := &model.Request{
 		RequestId:    "req-duplicate",
 		Model:        "mock",
@@ -110,7 +115,7 @@ func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 
 func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
 	prefixCache := cache.NewPrefixCache()
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), prefixCache, metrics.NewMetrics())
+	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-cache-miss",
 		Model:        "mock",
@@ -124,18 +129,18 @@ func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, v1.WorkPhasePrefill, work.Phase)
-	require.Equal(t, uint64(0), work.PrefillOffset)
-	require.Equal(t, uint64(8), work.NumNewTokens)
+	require.Equal(t, uint32(0), work.PrefillOffset)
+	require.Equal(t, uint32(8), work.NumNewTokens)
 	require.False(t, work.CacheHit)
 	require.False(t, req.CacheHit)
-	require.Equal(t, uint64(0), req.CachedTokens)
-	require.Equal(t, uint64(0), req.ComputedTokens)
+	require.Equal(t, uint32(0), req.CachedTokens)
+	require.Equal(t, uint32(0), req.ComputedTokens)
 }
 
 func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
 	prefixCache := cache.NewPrefixCache()
 	prefixCache.Put("shared-prefix", 5)
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), prefixCache, metrics.NewMetrics())
+	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-cache-partial-hit",
 		Model:        "mock",
@@ -149,18 +154,18 @@ func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, v1.WorkPhasePrefill, work.Phase)
-	require.Equal(t, uint64(5), work.PrefillOffset)
-	require.Equal(t, uint64(3), work.NumNewTokens)
+	require.Equal(t, uint32(5), work.PrefillOffset)
+	require.Equal(t, uint32(3), work.NumNewTokens)
 	require.True(t, work.CacheHit)
 	require.True(t, req.CacheHit)
-	require.Equal(t, uint64(5), req.CachedTokens)
-	require.Equal(t, uint64(5), req.ComputedTokens)
+	require.Equal(t, uint32(5), req.CachedTokens)
+	require.Equal(t, uint32(5), req.ComputedTokens)
 }
 
 func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
 	prefixCache := cache.NewPrefixCache()
 	prefixCache.Put("shared-prefix", 8)
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), prefixCache, metrics.NewMetrics())
+	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-cache-full-hit",
 		Model:        "mock",
@@ -174,17 +179,17 @@ func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, v1.WorkPhaseDecode, work.Phase)
-	require.Equal(t, uint64(8), work.PrefillOffset)
-	require.Equal(t, uint64(1), work.NumNewTokens)
+	require.Equal(t, uint32(8), work.PrefillOffset)
+	require.Equal(t, uint32(1), work.NumNewTokens)
 	require.True(t, work.CacheHit)
 	require.True(t, req.CacheHit)
-	require.Equal(t, uint64(8), req.CachedTokens)
-	require.Equal(t, uint64(8), req.ComputedTokens)
+	require.Equal(t, uint32(8), req.CachedTokens)
+	require.Equal(t, uint32(8), req.ComputedTokens)
 }
 
 func TestPrefillFinishedStoresPrefixCacheMetadata(t *testing.T) {
 	prefixCache := cache.NewPrefixCache()
-	manager := NewRequestLifecycleStateManager(zap.NewNop().Sugar(), prefixCache, metrics.NewMetrics())
+	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
 	req := &model.Request{
 		RequestId:    "req-cache-store",
 		Model:        "mock",
@@ -212,5 +217,5 @@ func TestPrefillFinishedStoresPrefixCacheMetadata(t *testing.T) {
 
 	tokens, hit := prefixCache.Lookup("shared-prefix", 8)
 	require.True(t, hit)
-	require.Equal(t, uint64(8), tokens)
+	require.Equal(t, uint32(8), tokens)
 }

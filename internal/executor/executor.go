@@ -38,7 +38,7 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 		var err error
 		switch ec.Kind {
 		case "connect":
-			exec, err = newPythonExecutor(logger, ec)
+			exec, err = newExecutor(logger, ec)
 		case "http":
 			exec, err = newHTTPExecutor(ec)
 		default:
@@ -59,15 +59,15 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 	return executors, nil
 }
 
-type mockExecutor struct {
+type executor struct {
 	l         *zap.SugaredLogger
 	id        string
 	endpoints []string
 	client    *client.ExecutorClient
 }
 
-func newPythonExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
-	e := &mockExecutor{
+func newExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
+	e := &executor{
 		l:         l,
 		id:        cfg.ID,
 		endpoints: cfg.Address,
@@ -76,7 +76,7 @@ func newPythonExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, e
 	return e, nil
 }
 
-func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error) {
+func (m *executor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error) {
 	resp, err := m.client.ExecuteBatch(ctx, BatchToExecute(batch))
 	if err != nil {
 		return nil, err
@@ -121,6 +121,7 @@ func (m *mockExecutor) Execute(ctx context.Context, batch *model.Batch) ([]*mode
 			FinishReason: workRes.FinishReason,
 			Err:          err,
 		})
+
 	}
 
 	return results, nil

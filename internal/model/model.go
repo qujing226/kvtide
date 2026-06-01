@@ -60,12 +60,19 @@ type WorkItem struct {
 	MaxTokens uint32
 	Deadline  time.Time
 
-	TokenIDs []uint32
+	PromptTokens uint32
+	TokenIDs     []uint32
 
-	PromptTokens    uint32
-	PrefillOffset   uint32 // 已经 prefill 到第几个 token
-	GeneratedTokens uint32 // decode 已经生成多少 token
-	NumNewTokens    uint32 // 本轮计划 prefill 或 decode 多少 token
+	// BlockAllocation is the KV block reservation made for this WorkItem.
+	// It is committed after successful execution or rolled back if the work is not executed.
+	BlockAllocation *BlockAllocation
+
+	// PrefillOffset is the number of prompt tokens that already have KV cache.
+	PrefillOffset uint32
+	// GeneratedTokens is the number of tokens already generated in decode.
+	GeneratedTokens uint32
+	// NumNewTokens is the number of tokens this WorkItem plans to process.
+	NumNewTokens uint32
 
 	CacheHit bool
 

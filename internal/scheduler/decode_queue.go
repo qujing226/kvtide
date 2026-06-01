@@ -10,13 +10,14 @@ import (
 )
 
 type DecodeQueue interface {
-	Enqueue(t *model.WorkItem) error
+	Enqueue(work *model.WorkItem) error
 	Dequeue(maxSeqs uint32) ([]*model.WorkItem, uint32)
+	Requeue(work *model.WorkItem)
 	Length() uint32
 	AvailableSpace() uint32
 }
 type decodeQueue struct {
-	requestManager state.RequestLifecycleStateManager
+	requestManager state.RequestStateManager
 	mu             sync.Mutex
 	works          []*workItemEntry
 	size           uint32
@@ -28,7 +29,7 @@ type workItemEntry struct {
 	quant   uint32
 }
 
-func NewDecodeQueue(cfg *conf.Conf, requestManager state.RequestLifecycleStateManager) DecodeQueue {
+func NewDecodeQueue(cfg *conf.Conf, requestManager state.RequestStateManager) DecodeQueue {
 	length := cfg.Server.ScheduleConf.QueueConf.QueueLength
 	if length == 0 {
 		length = 100
@@ -76,6 +77,16 @@ func (q *decodeQueue) Dequeue(maxSeqs uint32) ([]*model.WorkItem, uint32) {
 	return workList, uint32(len(workList))
 }
 
+func (q *decodeQueue) Requeue(work *model.WorkItem) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+	q.works = append(q.works, &workItemEntry{
+		work:    work,
+		deficit: 0,
+		quant:   0,
+	})
+}
+
 func (q *decodeQueue) Length() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
@@ -85,5 +96,9 @@ func (q *decodeQueue) Length() uint32 {
 func (q *decodeQueue) AvailableSpace() uint32 {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	// Note: if Requeue expanded slice length, return 0 for protection.
+	if uint32(len(q.works)) >= q.size {
+		return 0
+	}
 	return q.size - uint32(len(q.works))
 }

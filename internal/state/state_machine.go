@@ -6,6 +6,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
@@ -14,7 +15,7 @@ import (
 	"go.uber.org/zap"
 )
 
-type RequestLifecycleStateManager interface {
+type RequestStateManager interface {
 	Create(req *model.Request) (*model.WorkItem, error)
 	Get(requestId string) (*model.Request, bool)
 	Subscribe(requestId string) (<-chan *model.Event, error)
@@ -27,7 +28,7 @@ type RequestLifecycleStateManager interface {
 	Finish(requestId string)
 }
 
-type requestLifecycleStateManager struct {
+type requestStateManager struct {
 	l *zap.SugaredLogger
 
 	requests    map[string]*model.Request
@@ -35,23 +36,27 @@ type requestLifecycleStateManager struct {
 	mu          sync.RWMutex
 
 	prefixCache cache.PrefixCache
+	// blockManager is used for free blocks.
+	blockManager block.Manager
 
 	activeRequests atomic.Int64
 	metrics        metrics.Metrics
 }
 
-func NewRequestLifecycleStateManager(l *zap.SugaredLogger, prefixCache cache.PrefixCache, metrics metrics.Metrics) RequestLifecycleStateManager {
-	r := &requestLifecycleStateManager{
-		l:           l,
-		requests:    make(map[string]*model.Request),
-		subscribeCh: make(map[string]chan *model.Event),
-		prefixCache: prefixCache,
-		metrics:     metrics,
+func NewRequestLifecycleStateManager(l *zap.SugaredLogger, prefixCache cache.PrefixCache, blockManager block.Manager,
+	metrics metrics.Metrics) RequestStateManager {
+	r := &requestStateManager{
+		l:            l,
+		requests:     make(map[string]*model.Request),
+		subscribeCh:  make(map[string]chan *model.Event),
+		prefixCache:  prefixCache,
+		blockManager: blockManager,
+		metrics:      metrics,
 	}
 	return r
 }
 
-func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkItem, error) {
+func (r *requestStateManager) Create(req *model.Request) (*model.WorkItem, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	if _, exists := r.requests[req.RequestId]; exists {
@@ -108,7 +113,7 @@ func (r *requestLifecycleStateManager) Create(req *model.Request) (*model.WorkIt
 	return workItem, nil
 }
 
-func (r *requestLifecycleStateManager) Get(requestId string) (*model.Request, bool) {
+func (r *requestStateManager) Get(requestId string) (*model.Request, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	if req, exists := r.requests[requestId]; exists {
@@ -116,7 +121,7 @@ func (r *requestLifecycleStateManager) Get(requestId string) (*model.Request, bo
 	}
 	return nil, false
 }
-func (r *requestLifecycleStateManager) Subscribe(requestId string) (<-chan *model.Event, error) {
+func (r *requestStateManager) Subscribe(requestId string) (<-chan *model.Event, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	ch, exists := r.subscribeCh[requestId]
@@ -126,19 +131,18 @@ func (r *requestLifecycleStateManager) Subscribe(requestId string) (<-chan *mode
 	return ch, nil
 }
 
-func (r *requestLifecycleStateManager) CanSchedule(work *model.WorkItem) bool {
+func (r *requestStateManager) CanSchedule(work *model.WorkItem) bool {
 	r.mu.Lock()
 	req, exists := r.requests[work.RequestId]
 	if !exists {
 		r.mu.Unlock()
 		return false
 	}
+	// arrival deadline
 	if !req.Deadline.IsZero() && time.Now().After(req.Deadline) {
 		req.Phase = model.RequestPhaseTimeout
-		delete(r.requests, work.RequestId)
-		r.reduceActiveRequest()
 		subCh, exists := r.subscribeCh[work.RequestId]
-		delete(r.subscribeCh, work.RequestId)
+		r.deleteRequest(work.RequestId)
 		r.mu.Unlock()
 		if exists {
 			subCh <- &model.Event{
@@ -165,7 +169,7 @@ func (r *requestLifecycleStateManager) CanSchedule(work *model.WorkItem) bool {
 	}
 }
 
-func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error) {
+func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error) {
 	r.mu.Lock()
 	req, exists := r.requests[e.RequestId]
 	if !exists {
@@ -287,32 +291,35 @@ func (r *requestLifecycleStateManager) OnEvent(e *model.Event) ([]*model.WorkIte
 	return onWorkItems, nil
 }
 
-func (r *requestLifecycleStateManager) Cancel(requestId string) {
+func (r *requestStateManager) Cancel(requestId string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	// take subCh first cause deleteRequest will delete subCh.
+	subCh, subscribed := r.subscribeCh[requestId]
 	if req, exists := r.requests[requestId]; exists {
 		req.Phase = model.RequestPhaseCanceled
-		delete(r.requests, requestId)
-		r.reduceActiveRequest()
-	}
-	if subCh, exists := r.subscribeCh[requestId]; exists {
+		r.deleteRequest(requestId)
+	} else {
 		delete(r.subscribeCh, requestId)
+	}
+	r.mu.Unlock()
+
+	if subscribed {
 		close(subCh)
 	}
-
 }
 
-func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
+func (r *requestStateManager) Fail(requestId string, err error) {
 	r.mu.Lock()
+	// take subCh first cause deleteRequest will delete subCh.
+	subCh, subscribed := r.subscribeCh[requestId]
 	if req, exists := r.requests[requestId]; exists {
 		req.Phase = model.RequestPhaseFailed
-		delete(r.requests, requestId)
-		r.reduceActiveRequest()
+		r.deleteRequest(requestId)
+	} else {
+		delete(r.subscribeCh, requestId)
 	}
-	subCh, exists := r.subscribeCh[requestId]
-	delete(r.subscribeCh, requestId)
 	r.mu.Unlock()
-	if exists {
+	if subscribed {
 		subCh <- &model.Event{
 			WorkId:       utils.MustGenerateUUIDv7(),
 			RequestId:    requestId,
@@ -326,27 +333,35 @@ func (r *requestLifecycleStateManager) Fail(requestId string, err error) {
 	}
 }
 
-func (r *requestLifecycleStateManager) Finish(requestId string) {
+func (r *requestStateManager) Finish(requestId string) {
 	r.mu.Lock()
-	defer r.mu.Unlock()
+	// take subCh first cause deleteRequest will delete subCh.
+	subCh, subscribed := r.subscribeCh[requestId]
 	if req, exists := r.requests[requestId]; exists {
 		req.Phase = model.RequestPhaseFinished
-		delete(r.requests, requestId)
-		r.reduceActiveRequest()
-	}
-	if subCh, exists := r.subscribeCh[requestId]; exists {
+		r.deleteRequest(requestId)
+	} else {
 		delete(r.subscribeCh, requestId)
+	}
+	r.mu.Unlock()
+
+	if subscribed {
 		close(subCh)
 	}
 }
 
-func (r *requestLifecycleStateManager) increaseActiveRequestAndCacheHit(hit bool, cachedTokens uint32) {
+func (r *requestStateManager) increaseActiveRequestAndCacheHit(hit bool, cachedTokens uint32) {
 	r.metrics.SetActiveRequests(int(r.activeRequests.Add(1)))
 	r.metrics.IncPrefixCacheRequests(hit)
 	if hit {
 		r.metrics.AddPrefixCacheTokensSaved(uint64(cachedTokens))
 	}
 }
-func (r *requestLifecycleStateManager) reduceActiveRequest() {
+
+func (r *requestStateManager) deleteRequest(requestId string) {
+	delete(r.requests, requestId)
+	delete(r.subscribeCh, requestId)
+	// free all blocks allocated from block.Manager for current request.
+	r.blockManager.FreeRequest(requestId)
 	r.metrics.SetActiveRequests(int(r.activeRequests.Add(-1)))
 }

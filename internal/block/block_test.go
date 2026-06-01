@@ -12,14 +12,16 @@ import (
 func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
 	m := NewManager(zap.NewNop().Sugar()).(*manager)
 
-	allocation, ok := m.AllocateSlots(&model.WorkItem{
+	work := &model.WorkItem{
 		WorkId:        "work-1",
 		RequestId:     "req-1",
 		Phase:         v1.WorkPhasePrefill,
 		PrefillOffset: 0,
 		NumNewTokens:  40,
-	})
+	}
 
+	ok := m.AllocateBlocks(work)
+	allocation := work.BlockAllocation
 	require.True(t, ok)
 	require.Equal(t, uint32(3), allocation.RequiredBlocks)
 	require.Equal(t, []uint32{0, 1, 2}, allocation.AllocatedBlocks)
@@ -28,7 +30,7 @@ func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
 	require.Equal(t, uint32(0), m.blocks[1].TokenCount)
 	require.Equal(t, uint32(0), m.blocks[2].TokenCount)
 
-	m.Commit(allocation)
+	m.Commit(work.WorkId)
 	require.Equal(t, uint32(16), m.blocks[0].TokenCount)
 	require.Equal(t, uint32(16), m.blocks[1].TokenCount)
 	require.Equal(t, uint32(8), m.blocks[2].TokenCount)
@@ -41,71 +43,83 @@ func TestAllocateSlotsForPrefillUsesTotalKVLength(t *testing.T) {
 func TestAllocateSlotsReusesPartiallyFilledPrefillBlock(t *testing.T) {
 	m := NewManager(zap.NewNop().Sugar()).(*manager)
 
-	first, ok := m.AllocateSlots(&model.WorkItem{
+	firstWork := &model.WorkItem{
 		WorkId:        "work-1",
 		RequestId:     "req-1",
 		Phase:         v1.WorkPhasePrefill,
 		PrefillOffset: 0,
 		NumNewTokens:  8,
-	})
+	}
+	ok := m.AllocateBlocks(firstWork)
+	first := firstWork.BlockAllocation
 	require.True(t, ok)
 	require.Equal(t, uint32(1), first.RequiredBlocks)
 	require.Equal(t, []uint32{0}, first.BlockTable)
 	require.Equal(t, uint32(0), m.blocks[0].TokenCount)
 
-	m.Commit(first)
+	m.Commit(firstWork.WorkId)
 	require.Equal(t, uint32(8), m.blocks[0].TokenCount)
 
-	second, ok := m.AllocateSlots(&model.WorkItem{
+	secondWork := &model.WorkItem{
 		WorkId:        "work-2",
 		RequestId:     "req-1",
 		Phase:         v1.WorkPhasePrefill,
 		PrefillOffset: 8,
 		NumNewTokens:  8,
-	})
+	}
+	ok = m.AllocateBlocks(secondWork)
+	second := secondWork.BlockAllocation
 	require.True(t, ok)
 	require.Equal(t, uint32(0), second.RequiredBlocks)
 	require.Empty(t, second.AllocatedBlocks)
 	require.Equal(t, []uint32{0}, second.BlockTable)
 	require.Equal(t, uint32(8), m.blocks[0].TokenCount)
 
-	m.Commit(second)
+	m.Commit(secondWork.WorkId)
 	require.Equal(t, uint32(16), m.blocks[0].TokenCount)
 }
 
 func TestAllocateSlotsOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) {
 	m := NewManager(zap.NewNop().Sugar())
 
-	first, ok := m.AllocateSlots(&model.WorkItem{
+	firstWork := &model.WorkItem{
 		WorkId:        "prefill",
 		RequestId:     "req-1",
 		Phase:         v1.WorkPhasePrefill,
 		PrefillOffset: 0,
 		NumNewTokens:  16,
-	})
+	}
+	ok := m.AllocateBlocks(firstWork)
+	first := firstWork.BlockAllocation
 	require.True(t, ok)
 	require.Equal(t, uint32(1), first.RequiredBlocks)
+	m.Commit(firstWork.WorkId)
 
-	withinBlock, ok := m.AllocateSlots(&model.WorkItem{
+	withinBlockWork := &model.WorkItem{
 		WorkId:          "decode-1",
 		RequestId:       "req-1",
 		Phase:           v1.WorkPhaseDecode,
 		PromptTokens:    16,
 		GeneratedTokens: 0,
 		NumNewTokens:    1,
-	})
+	}
+	ok = m.AllocateBlocks(withinBlockWork)
+	withinBlock := withinBlockWork.BlockAllocation
 	require.True(t, ok)
 	require.Equal(t, uint32(1), withinBlock.RequiredBlocks)
 	require.Equal(t, []uint32{0, 1}, withinBlock.BlockTable)
+	m.Commit(withinBlockWork.WorkId)
 
-	stillWithinBlock, ok := m.AllocateSlots(&model.WorkItem{
+	stillWithinBlockWork := &model.WorkItem{
 		WorkId:          "decode-2",
 		RequestId:       "req-1",
 		Phase:           v1.WorkPhaseDecode,
 		PromptTokens:    16,
 		GeneratedTokens: 1,
 		NumNewTokens:    1,
-	})
+	}
+	ok = m.AllocateBlocks(stillWithinBlockWork)
+	stillWithinBlock := stillWithinBlockWork.BlockAllocation
 	require.True(t, ok)
 	require.Equal(t, uint32(0), stillWithinBlock.RequiredBlocks)
 	require.Empty(t, stillWithinBlock.AllocatedBlocks)
@@ -115,13 +129,15 @@ func TestAllocateSlotsOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) 
 func TestFreeRequestReturnsBlocksToFreeQueue(t *testing.T) {
 	m := NewManager(zap.NewNop().Sugar())
 
-	allocation, ok := m.AllocateSlots(&model.WorkItem{
+	work := &model.WorkItem{
 		WorkId:        "work-1",
 		RequestId:     "req-1",
 		Phase:         v1.WorkPhasePrefill,
 		PrefillOffset: 0,
 		NumNewTokens:  40,
-	})
+	}
+	ok := m.AllocateBlocks(work)
+	allocation := work.BlockAllocation
 	require.True(t, ok)
 	require.Len(t, allocation.AllocatedBlocks, 3)
 

@@ -5,26 +5,31 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func newTestScheduler() *scheduler {
 	cfg, manager := testQueueConf(16)
 	return &scheduler{
-		maxBatchSeqs:           8,
-		maxBatchTokens:         16,
-		maxPartialPrefills:     2,
-		maxLongPartialPrefills: 1,
-		longPrefillThreshold:   8,
-		prefillQueueSmall:      NewPrefillQueue(cfg, manager),
-		prefillQueueLarge:      NewPrefillQueue(cfg, manager),
-		decodeQueue:            NewDecodeQueue(cfg, manager),
-		requestManager:         manager,
+		batchBudget: batchBudget{
+			remainTokens:       16,
+			remainSeqs:         8,
+			remainPrefill:      2,
+			remainLargePrefill: 1,
+		},
+		longPrefillThreshold: 8,
+		prefillQueueSmall:    NewPrefillQueue(cfg, manager),
+		prefillQueueLarge:    NewPrefillQueue(cfg, manager),
+		decodeQueue:          NewDecodeQueue(cfg, manager),
+		requestManager:       manager,
+		blockManager:         block.NewManager(zap.NewNop().Sugar()),
 	}
 }
 
-func testSchedulerWork(t *testing.T, s *scheduler, id string, phase v1.WorkPhase, promptTokens uint64, prefillTokens uint64) *model.WorkItem {
+func testSchedulerWork(t *testing.T, s *scheduler, id string, phase v1.WorkPhase, promptTokens uint32, prefillTokens uint32) *model.WorkItem {
 	t.Helper()
 
 	work, err := s.requestManager.Create(&model.Request{
@@ -52,8 +57,8 @@ func requirePickBatchReturns(t *testing.T, s *scheduler) ([]*model.WorkItem, int
 	}
 	ch := make(chan result, 1)
 	go func() {
-		items, n := s.pickBatch()
-		ch <- result{items: items, n: n}
+		items := s.pickBatch()
+		ch <- result{items: items, n: len(items)}
 	}()
 
 	select {
@@ -77,14 +82,14 @@ func TestPickBatchSchedulesDecodeBeforePrefill(t *testing.T) {
 	require.Len(t, items, 2)
 	require.Equal(t, "d1", items[0].WorkId)
 	require.Equal(t, "p1", items[1].WorkId)
-	require.Equal(t, uint64(0), s.decodeQueue.Length())
-	require.Equal(t, uint64(0), s.prefillQueueSmall.Length())
+	require.Equal(t, uint32(0), s.decodeQueue.Length())
+	require.Equal(t, uint32(0), s.prefillQueueSmall.Length())
 }
 
 func TestPickBatchUsesRemainingTokenBudgetForSmallPrefill(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 6
-	s.maxBatchSeqs = 4
+	s.batchBudget.remainTokens = 6
+	s.batchBudget.remainSeqs = 4
 
 	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
 	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d2", v1.WorkPhaseDecode, 2, 0)))
@@ -103,8 +108,8 @@ func TestPickBatchUsesRemainingTokenBudgetForSmallPrefill(t *testing.T) {
 
 func TestPickBatchDoesNotScheduleSmallPrefillThatExceedsRemainingBudget(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 5
-	s.maxBatchSeqs = 4
+	s.batchBudget.remainTokens = 5
+	s.batchBudget.remainSeqs = 4
 
 	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
 	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 8, 8)))
@@ -114,15 +119,15 @@ func TestPickBatchDoesNotScheduleSmallPrefillThatExceedsRemainingBudget(t *testi
 	require.Equal(t, 1, n)
 	require.Len(t, items, 1)
 	require.Equal(t, "d1", items[0].WorkId)
-	require.Equal(t, uint64(1), s.prefillQueueSmall.Length())
+	require.Equal(t, uint32(1), s.prefillQueueSmall.Length())
 }
 
 func TestPickBatchChunksLargePrefillWithoutRequeueingRemainder(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 10
-	s.maxBatchSeqs = 2
-	s.maxPartialPrefills = 1
-	s.maxLongPartialPrefills = 1
+	s.batchBudget.remainTokens = 10
+	s.batchBudget.remainSeqs = 2
+	s.batchBudget.remainPrefill = 1
+	s.batchBudget.remainLargePrefill = 1
 
 	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "large", v1.WorkPhasePrefill, 24, 24)))
 
@@ -131,16 +136,16 @@ func TestPickBatchChunksLargePrefillWithoutRequeueingRemainder(t *testing.T) {
 	require.Equal(t, 1, n)
 	require.Len(t, items, 1)
 	require.Equal(t, "large", items[0].WorkId)
-	require.Equal(t, uint64(0), items[0].PrefillOffset)
-	require.Equal(t, uint64(10), items[0].NumNewTokens)
-	require.Equal(t, uint64(0), s.prefillQueueLarge.Length())
+	require.Equal(t, uint32(0), items[0].PrefillOffset)
+	require.Equal(t, uint32(10), items[0].NumNewTokens)
+	require.Equal(t, uint32(0), s.prefillQueueLarge.Length())
 }
 
 func TestPickBatchFillsPrefillOnlyBatchBeyondPartialLimit(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 16
-	s.maxBatchSeqs = 8
-	s.maxPartialPrefills = 1
+	s.batchBudget.remainTokens = 16
+	s.batchBudget.remainSeqs = 8
+	s.batchBudget.remainPrefill = 1
 
 	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 2, 2)))
 	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p2", v1.WorkPhasePrefill, 2, 2)))
@@ -151,14 +156,14 @@ func TestPickBatchFillsPrefillOnlyBatchBeyondPartialLimit(t *testing.T) {
 	require.Len(t, items, 2)
 	require.Equal(t, "p1", items[0].WorkId)
 	require.Equal(t, "p2", items[1].WorkId)
-	require.Equal(t, uint64(0), s.prefillQueueSmall.Length())
+	require.Equal(t, uint32(0), s.prefillQueueSmall.Length())
 }
 
 func TestPickBatchRespectsMaxPartialPrefillsWhenDecodeIsPresent(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 16
-	s.maxBatchSeqs = 8
-	s.maxPartialPrefills = 1
+	s.batchBudget.remainTokens = 16
+	s.batchBudget.remainSeqs = 8
+	s.batchBudget.remainPrefill = 1
 
 	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
 	require.NoError(t, s.prefillQueueSmall.Enqueue(testSchedulerWork(t, s, "p1", v1.WorkPhasePrefill, 2, 2)))
@@ -170,15 +175,15 @@ func TestPickBatchRespectsMaxPartialPrefillsWhenDecodeIsPresent(t *testing.T) {
 	require.Len(t, items, 2)
 	require.Equal(t, "d1", items[0].WorkId)
 	require.Equal(t, "p1", items[1].WorkId)
-	require.Equal(t, uint64(1), s.prefillQueueSmall.Length())
+	require.Equal(t, uint32(1), s.prefillQueueSmall.Length())
 }
 
 func TestPickBatchFillsPrefillOnlyBatchBeyondLongPartialLimit(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 16
-	s.maxBatchSeqs = 8
-	s.maxPartialPrefills = 2
-	s.maxLongPartialPrefills = 1
+	s.batchBudget.remainTokens = 16
+	s.batchBudget.remainSeqs = 8
+	s.batchBudget.remainPrefill = 2
+	s.batchBudget.remainLargePrefill = 1
 
 	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l1", v1.WorkPhasePrefill, 4, 4)))
 	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l2", v1.WorkPhasePrefill, 4, 4)))
@@ -189,15 +194,15 @@ func TestPickBatchFillsPrefillOnlyBatchBeyondLongPartialLimit(t *testing.T) {
 	require.Len(t, items, 2)
 	require.Equal(t, "l1", items[0].WorkId)
 	require.Equal(t, "l2", items[1].WorkId)
-	require.Equal(t, uint64(0), s.prefillQueueLarge.Length())
+	require.Equal(t, uint32(0), s.prefillQueueLarge.Length())
 }
 
 func TestPickBatchRespectsMaxLongPartialPrefillsWhenDecodeIsPresent(t *testing.T) {
 	s := newTestScheduler()
-	s.maxBatchTokens = 16
-	s.maxBatchSeqs = 8
-	s.maxPartialPrefills = 2
-	s.maxLongPartialPrefills = 1
+	s.batchBudget.remainTokens = 16
+	s.batchBudget.remainSeqs = 8
+	s.batchBudget.remainPrefill = 2
+	s.batchBudget.remainLargePrefill = 1
 
 	require.NoError(t, s.decodeQueue.Enqueue(testSchedulerWork(t, s, "d1", v1.WorkPhaseDecode, 2, 0)))
 	require.NoError(t, s.prefillQueueLarge.Enqueue(testSchedulerWork(t, s, "l1", v1.WorkPhasePrefill, 4, 4)))
@@ -209,7 +214,7 @@ func TestPickBatchRespectsMaxLongPartialPrefillsWhenDecodeIsPresent(t *testing.T
 	require.Len(t, items, 2)
 	require.Equal(t, "d1", items[0].WorkId)
 	require.Equal(t, "l1", items[1].WorkId)
-	require.Equal(t, uint64(1), s.prefillQueueLarge.Length())
+	require.Equal(t, uint32(1), s.prefillQueueLarge.Length())
 }
 
 func TestPickBatchDropsCanceledWork(t *testing.T) {
@@ -232,7 +237,7 @@ func TestPickBatchDropsCanceledWork(t *testing.T) {
 
 	require.Equal(t, 0, n)
 	require.Empty(t, items)
-	require.Equal(t, uint64(0), s.prefillQueueSmall.Length())
+	require.Equal(t, uint32(0), s.prefillQueueSmall.Length())
 }
 
 func TestPickBatchDropsTimedOutWork(t *testing.T) {
@@ -254,5 +259,5 @@ func TestPickBatchDropsTimedOutWork(t *testing.T) {
 
 	require.Equal(t, 0, n)
 	require.Empty(t, items)
-	require.Equal(t, uint64(0), s.prefillQueueSmall.Length())
+	require.Equal(t, uint32(0), s.prefillQueueSmall.Length())
 }

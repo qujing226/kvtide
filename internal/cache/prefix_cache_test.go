@@ -12,7 +12,7 @@ func TestPrefixCacheLookupMissesForEmptyKey(t *testing.T) {
 	tokens, hit := prefixCache.Lookup("", 8)
 
 	require.False(t, hit)
-	require.Equal(t, uint64(0), tokens)
+	require.Equal(t, uint32(0), tokens)
 }
 
 func TestPrefixCacheLookupMissesForUnknownKey(t *testing.T) {
@@ -21,7 +21,7 @@ func TestPrefixCacheLookupMissesForUnknownKey(t *testing.T) {
 	tokens, hit := prefixCache.Lookup("missing", 8)
 
 	require.False(t, hit)
-	require.Equal(t, uint64(0), tokens)
+	require.Equal(t, uint32(0), tokens)
 }
 
 func TestPrefixCachePutThenLookupHits(t *testing.T) {
@@ -31,7 +31,7 @@ func TestPrefixCachePutThenLookupHits(t *testing.T) {
 	tokens, hit := prefixCache.Lookup("shared-prefix", 8)
 
 	require.True(t, hit)
-	require.Equal(t, uint64(8), tokens)
+	require.Equal(t, uint32(8), tokens)
 }
 
 func TestPrefixCacheLookupCapsCachedTokensAtPromptTokens(t *testing.T) {
@@ -41,7 +41,7 @@ func TestPrefixCacheLookupCapsCachedTokensAtPromptTokens(t *testing.T) {
 	tokens, hit := prefixCache.Lookup("shared-prefix", 8)
 
 	require.True(t, hit)
-	require.Equal(t, uint64(8), tokens)
+	require.Equal(t, uint32(8), tokens)
 }
 
 func TestPrefixCachePutKeepsLargestTokenCount(t *testing.T) {
@@ -52,7 +52,7 @@ func TestPrefixCachePutKeepsLargestTokenCount(t *testing.T) {
 	tokens, hit := prefixCache.Lookup("shared-prefix", 16)
 
 	require.True(t, hit)
-	require.Equal(t, uint64(8), tokens)
+	require.Equal(t, uint32(8), tokens)
 }
 
 func TestPrefixCachePutIgnoresEmptyKey(t *testing.T) {
@@ -62,5 +62,5 @@ func TestPrefixCachePutIgnoresEmptyKey(t *testing.T) {
 	tokens, hit := prefixCache.Lookup("", 8)
 
 	require.False(t, hit)
-	require.Equal(t, uint64(0), tokens)
+	require.Equal(t, uint32(0), tokens)
 }

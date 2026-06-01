@@ -6,6 +6,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -27,12 +28,13 @@ type executorManager struct {
 	batchChan chan *model.Batch
 	eventChan chan *model.Event
 
-	metrics metrics.Metrics
+	blockManager block.Manager
 
+	metrics         metrics.Metrics
 	inflightBatches atomic.Uint64
 }
 
-func NewExecutorManager(logger *zap.SugaredLogger, executors map[string]Executor, metrics metrics.Metrics) Manager {
+func NewExecutorManager(logger *zap.SugaredLogger, executors map[string]Executor, blockManager block.Manager, metrics metrics.Metrics) Manager {
 	executorNum := len(executors)
 
 	// todo: 调度管理
@@ -49,6 +51,7 @@ func NewExecutorManager(logger *zap.SugaredLogger, executors map[string]Executor
 		executorList: executorList,
 		batchChan:    make(chan *model.Batch, 100),
 		eventChan:    make(chan *model.Event, 100),
+		blockManager: blockManager,
 		metrics:      metrics,
 	}
 	return e
@@ -90,16 +93,24 @@ func (e *executorManager) consumeExecutor(ctx context.Context, executorId string
 			e.metrics.IncBatches(executorId)
 			events, err := executor.Execute(ctx, batch)
 			if err != nil {
-				e.metrics.IncExecutorErrors(executorId)
+				// envents.Lenth == 0: execute error.
 				if len(events) == 0 {
 					events = batchFailedEvents(batch, executorId, err)
 				} else {
 					markEventsFailed(events, err)
 				}
+				e.metrics.IncExecutorErrors(executorId)
 			}
 			e.metrics.SetInflightBatches(int(e.inflightBatches.Add(^uint64(0))))
 
 			for _, event := range events {
+				// 1. Commit or Rollback
+				if event.Err != nil || event.Type == v1.EventTypeRequestFailed {
+					e.rollbackEventsBlocks(event)
+				} else {
+					e.blockManager.Commit(event.WorkId)
+				}
+				// 2. send to upper layer
 				select {
 				case e.eventChan <- event:
 				case <-ctx.Done():
@@ -107,6 +118,13 @@ func (e *executorManager) consumeExecutor(ctx context.Context, executorId string
 				}
 			}
 		}
+	}
+}
+
+// rollbackEventsBlocks failed event should push kv block back.
+func (e *executorManager) rollbackEventsBlocks(events ...*model.Event) {
+	for _, item := range events {
+		e.blockManager.Rollback(item.WorkId)
 	}
 }
 

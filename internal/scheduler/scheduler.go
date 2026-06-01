@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/executor"
@@ -23,43 +24,50 @@ type Scheduler interface {
 type scheduler struct {
 	l *zap.SugaredLogger
 
-	maxBatchSeqs           uint32
-	maxBatchTokens         uint32
-	maxPartialPrefills     uint32
-	maxLongPartialPrefills uint32
-	longPrefillThreshold   uint32
-	scheduleRoundDelay     time.Duration
-	highPressureSeqs       uint32
+	batchBudget batchBudget
+
+	longPrefillThreshold uint32
+	scheduleRoundDelay   time.Duration
+	thresholdSeqs        uint32
 
 	prefillQueueSmall PrefillQueue
 	prefillQueueLarge PrefillQueue
 	decodeQueue       DecodeQueue
 
-	requestManager  state.RequestLifecycleStateManager
+	requestManager  state.RequestStateManager
 	executorManager executor.Manager
+	blockManager    block.Manager
 
 	patchExecuteChan chan struct{}
 
 	metrics metrics.Metrics
 }
 
-func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, prefillQL PrefillQueue, decodeQ DecodeQueue, worker executor.Manager, r state.RequestLifecycleStateManager, metrics metrics.Metrics) Scheduler {
+func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, prefillQL PrefillQueue, decodeQ DecodeQueue,
+	executorManager executor.Manager, requestManager state.RequestStateManager, blockManager block.Manager,
+	metrics metrics.Metrics) Scheduler {
 	s := &scheduler{
-		l:                      l,
-		maxBatchSeqs:           cfg.Server.ScheduleConf.MaxBatchSeq,
-		maxBatchTokens:         cfg.Server.ScheduleConf.MaxBatchTokens,
-		maxPartialPrefills:     cfg.Server.ScheduleConf.MaxPartialPrefills,
-		maxLongPartialPrefills: cfg.Server.ScheduleConf.MaxLongPartialPrefills,
-		longPrefillThreshold:   cfg.Server.ScheduleConf.LongPrefillTokenThreshold,
-		scheduleRoundDelay:     cfg.Server.ScheduleConf.ScheduleDelay(),
-		highPressureSeqs:       cfg.Server.ScheduleConf.MaxBatchSeq * 4 / 5,
+		l:                l,
+		patchExecuteChan: make(chan struct{}, 1),
+
+		batchBudget: batchBudget{
+			remainTokens:       cfg.Server.ScheduleConf.MaxBatchTokens,
+			remainSeqs:         cfg.Server.ScheduleConf.MaxBatchSeq,
+			remainPrefill:      cfg.Server.ScheduleConf.MaxPartialPrefills,
+			remainLargePrefill: cfg.Server.ScheduleConf.MaxLongPartialPrefills,
+		},
+
+		longPrefillThreshold: cfg.Server.ScheduleConf.LongPrefillTokenThreshold,
+		scheduleRoundDelay:   cfg.Server.ScheduleConf.ScheduleDelay(),
+		thresholdSeqs:        cfg.Server.ScheduleConf.MaxBatchSeq * 4 / 5,
 
 		prefillQueueSmall: prefillQS,
 		prefillQueueLarge: prefillQL,
 		decodeQueue:       decodeQ,
-		executorManager:   worker,
-		requestManager:    r,
-		patchExecuteChan:  make(chan struct{}, 1),
+
+		executorManager: executorManager,
+		blockManager:    blockManager,
+		requestManager:  requestManager,
 
 		metrics: metrics,
 	}
@@ -141,119 +149,81 @@ func (s *scheduler) consumeEvents(ctx context.Context) {
 }
 
 func (s *scheduler) patchExecute(ctx context.Context) {
-	workItems, taskLength := s.pickBatch()
-	if taskLength <= 0 {
+	// assemble work items
+	batch := s.pickBatch()
+	if len(batch) <= 0 {
 		return
 	}
+
+	batchLength := len(batch)
 	s.trySchedule()
 
-	// metrics: observe batch batchSize & inflight batch number
-	s.metrics.ObserveBatchSize(taskLength)
-
-	bid, err := utils.GenerateUUIDv7()
-	if err != nil {
-		s.l.Errorf("failed to generate batch id: %v", err)
-	}
 	batchCreateAt := time.Now()
-	// metrics: observe prefillQueue wait ms
-	for _, task := range workItems {
-		s.metrics.ObserveQueueWait(batchCreateAt.Sub(task.EnqueuedAt).Seconds())
-	}
 
-	err = s.executorManager.Submit(ctx, &model.Batch{
-		BatchID:   bid,
-		BatchSize: uint32(len(workItems)),
+	batchId := utils.MustGenerateUUIDv7()
+	err := s.executorManager.Submit(ctx, &model.Batch{
+		BatchID:   batchId,
+		BatchSize: uint32(batchLength),
 		CreateAt:  batchCreateAt,
-		Items:     workItems,
+		Items:     batch,
 	})
 	if err != nil {
-		for _, e := range workItems {
-			s.l.Errorf("failed to submit task: %v", e)
-			s.requestManager.Fail(e.RequestId, err)
+		// Submit err: requeue workItem.
+		for _, work := range batch {
+			// Rollback blocks.
+			s.blockManager.Rollback(work.WorkId)
+			s.l.Errorf("failed to submit work: %v", work)
+			s.requeueWork(work)
 		}
-		s.l.Errorf("failed to submit batch: %v, batchId: %s", err, bid)
+		s.l.Errorf("failed to submit batch: %v, batchId: %s", err, batchId)
 		return
 	}
+
+	// metrics: observe batch batchSize & infight batch number
+	s.metrics.ObserveBatchSize(batchLength)
+	// metrics: observe prefillQueue wait ms
+	for i := 0; i < batchLength; i++ {
+		s.metrics.ObserveQueueWait(batchCreateAt.Sub(batch[i].EnqueuedAt).Seconds())
+	}
 }
 
-func (s *scheduler) pickBatch() ([]*model.WorkItem, int) {
-	remainTokens := s.maxBatchTokens
-	remainSeqs := s.maxBatchSeqs
-	remainPrefill := s.maxPartialPrefills
-	remainLongPrefill := s.maxLongPartialPrefills
-
-	batch := make([]*model.WorkItem, 0, remainSeqs)
-	items, itemNums := s.decodeQueue.Dequeue(min(remainSeqs, remainTokens))
-	if itemNums != 0 {
-		remainTokens -= itemNums
-		remainSeqs -= itemNums
-		batch = append(batch, items...)
-	} else {
-		remainPrefill, remainLongPrefill = remainSeqs, remainSeqs
-	}
-
-	for remainSeqs > 0 && remainTokens > 0 && remainPrefill > 0 {
-		if small, ok := s.prefillQueueSmall.Peek(); ok {
-			cost := WorkBudgetCost(small)
-			if cost <= remainTokens {
-				small, ok = s.prefillQueueSmall.Pop()
-				if !ok {
-					continue
-				}
-				batch = append(batch, small)
-				remainTokens -= cost
-				remainSeqs--
-				remainPrefill--
-				continue
-			}
-		}
-		if remainLongPrefill <= 0 {
-			break
-		}
-		if large, ok := s.prefillQueueLarge.Peek(); ok {
-			large, ok = s.prefillQueueLarge.Pop()
-			if !ok {
-				continue
-			}
-			cost := WorkBudgetCost(large)
-			scheduledTokens := min(cost, remainTokens)
-			chunk, _ := splitPrefillChunk(large, scheduledTokens)
-
-			batch = append(batch, chunk)
-			remainTokens -= scheduledTokens
-			remainSeqs--
-			remainPrefill--
-			remainLongPrefill--
-			continue
-		}
-		break
-	}
-
-	return batch, len(batch)
+func (s *scheduler) pickBatch() []*model.WorkItem {
+	budget := s.batchBudget
+	batch := make([]*model.WorkItem, 0, budget.remainSeqs)
+	s.pickDecode(&batch, &budget)
+	s.pickSmallPrefill(&batch, &budget)
+	s.pickLargePrefill(&batch, &budget)
+	return batch
 }
 
+func (s *scheduler) requeueWork(workItems ...*model.WorkItem) {
+	for _, work := range workItems {
+		work.BlockAllocation = nil
+		switch work.Phase {
+		case v1.WorkPhaseDecode:
+			s.decodeQueue.Requeue(work)
+		case v1.WorkPhasePrefill:
+			if work.PromptTokens <= s.longPrefillThreshold {
+				s.prefillQueueSmall.Requeue(work)
+			} else {
+				s.prefillQueueLarge.Requeue(work)
+			}
+		}
+	}
+}
+
+// trySchedule is a trigger for dispatch if queue pressure > threshold.
 func (s *scheduler) trySchedule() {
-	if s.shouldDispatchNow() {
-		s.signalSchedule()
+	if s.prefillQueueLarge.Length() > 10 || s.prefillQueueSmall.Length() > 30 ||
+		s.decodeQueue.Length() >= s.thresholdSeqs {
+		// signal
+		select {
+		case s.patchExecuteChan <- struct{}{}:
+		default:
+		}
 	}
-	s.updateQueueMetrics()
-}
 
-func (s *scheduler) shouldDispatchNow() bool {
-	if s.prefillQueueLarge.Length() > 10 || s.prefillQueueSmall.Length() > 30 {
-		return true
-	}
-	return s.decodeQueue.Length() >= s.highPressureSeqs
-}
-
-func (s *scheduler) signalSchedule() {
-	select {
-	case s.patchExecuteChan <- struct{}{}:
-	default:
-	}
-}
-
-func (s *scheduler) updateQueueMetrics() {
+	// metrics: queueLength
 	s.metrics.SetPrefillQueueLength(int(s.prefillQueueSmall.Length() + s.prefillQueueLarge.Length()))
 	s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
 }

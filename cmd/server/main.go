@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/qujing226/mini-llm-serve/internal/block"
 	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/executor"
@@ -48,10 +49,11 @@ func main() {
 			),
 			fx.Annotate(
 				scheduler.NewScheduler,
-				fx.ParamTags(``, ``, `name:"prefillQueueSmall"`, `name:"prefillQueueLarge"`, ``, ``, ``, ``),
+				fx.ParamTags(``, ``, `name:"prefillQueueSmall"`, `name:"prefillQueueLarge"`, ``, ``, ``, ``, ``),
 			),
 		),
 		fx.Provide(
+			block.NewManager,
 			metrics.NewMetrics,
 			executor.NewExecutors,
 			executor.NewExecutorManager,
