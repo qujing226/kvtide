@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package mini_llm_serve.v1;
+
+message KVBlockMetadata {
+  // block_size represents token quant in a block.
+  // for a real Block Size, it is:
+  // 2 (key/value) * block_size (default=16) * num_kv_heads * head_size * dtype_num_bytes (e.g. 2 for bf16)
+  uint32 block_size = 1;
+  // block_table is a slice of block_id which is assigned form control plane.
+  // in Go control plane's block manager, block.ID is sequential and starts with 0.
+  repeated uint32 block_table = 2;
+  // allocated_blocks are blocks newly reserved for this WorkItem.
+  repeated uint32 allocated_blocks = 3;
+}

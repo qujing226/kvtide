@@ -1,4 +1,5 @@
 from mini_llm_serve.v1 import core_pb2 as _core_pb2
+from mini_llm_serve.v1 import block_pb2 as _block_pb2
 from google.protobuf.internal import containers as _containers
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -26,7 +27,7 @@ class ExecuteBatchResponse(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., executor_id: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ExecuteResult, _Mapping]]] = ...) -> None: ...
 
 class ExecuteItem(_message.Message):
-    __slots__ = ("work_id", "request_id", "phase", "prompt", "has_prompt", "prompt_tokens", "computed_tokens", "generated_tokens", "num_new_tokens")
+    __slots__ = ("work_id", "request_id", "phase", "prompt", "has_prompt", "prompt_tokens", "computed_tokens", "generated_tokens", "num_new_tokens", "kv_blocks")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
@@ -36,6 +37,7 @@ class ExecuteItem(_message.Message):
     COMPUTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     GENERATED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     NUM_NEW_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    KV_BLOCKS_FIELD_NUMBER: _ClassVar[int]
     work_id: str
     request_id: str
     phase: _core_pb2.WorkPhase
@@ -45,7 +47,8 @@ class ExecuteItem(_message.Message):
     computed_tokens: int
     generated_tokens: int
     num_new_tokens: int
-    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., prompt: _Optional[str] = ..., has_prompt: _Optional[bool] = ..., prompt_tokens: _Optional[int] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ...) -> None: ...
+    kv_blocks: _block_pb2.KVBlockMetadata
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., prompt: _Optional[str] = ..., has_prompt: _Optional[bool] = ..., prompt_tokens: _Optional[int] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ...) -> None: ...
 
 class ExecuteResult(_message.Message):
     __slots__ = ("work_id", "request_id", "output_text", "done", "finish_reason", "computed_tokens", "generated_tokens", "execution_ms", "error_message")

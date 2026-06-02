@@ -9,36 +9,46 @@ func BatchToExecute(batch *model.Batch) *v1.ExecuteBatchRequest {
 	req := &v1.ExecuteBatchRequest{
 		BatchId: batch.BatchID,
 	}
-	for _, r := range batch.Items {
-		hasPrompt := r.Phase == v1.WorkPhasePrefill && r.PrefillOffset == 0 && r.Prompt != ""
+	for _, work := range batch.Items {
+		hasPrompt := work.Phase == v1.WorkPhasePrefill && work.PrefillOffset == 0 && work.Prompt != ""
 		prompt := ""
 		if hasPrompt {
-			prompt = r.Prompt
+			prompt = work.Prompt
 		}
 
-		if r.Phase == v1.WorkPhaseDecode {
+		if work.Phase == v1.WorkPhaseDecode {
 			req.Items = append(req.Items, &v1.ExecuteItem{
-				WorkId:          r.WorkId,
-				RequestId:       r.RequestId,
+				WorkId:          work.WorkId,
+				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhaseDecode,
 				Prompt:          "",
 				HasPrompt:       false,
-				PromptTokens:    uint32(r.PromptTokens),
-				ComputedTokens:  uint32(r.PromptTokens + r.GeneratedTokens),
-				GeneratedTokens: uint32(r.GeneratedTokens),
-				NumNewTokens:    uint32(r.NumNewTokens),
+				PromptTokens:    work.PromptTokens,
+				ComputedTokens:  work.PromptTokens + work.GeneratedTokens,
+				GeneratedTokens: work.GeneratedTokens,
+				NumNewTokens:    work.NumNewTokens,
+				KvBlocks: &v1.KVBlockMetadata{
+					BlockSize:       work.BlockAllocation.BlockSize,
+					BlockTable:      work.BlockAllocation.BlockTable,
+					AllocatedBlocks: work.BlockAllocation.AllocatedBlocks,
+				},
 			})
 		} else {
 			req.Items = append(req.Items, &v1.ExecuteItem{
-				WorkId:          r.WorkId,
-				RequestId:       r.RequestId,
+				WorkId:          work.WorkId,
+				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhasePrefill,
 				Prompt:          prompt,
 				HasPrompt:       hasPrompt,
-				PromptTokens:    uint32(r.PromptTokens),
-				ComputedTokens:  uint32(r.PrefillOffset),
+				PromptTokens:    work.PromptTokens,
+				ComputedTokens:  work.PrefillOffset,
 				GeneratedTokens: 0,
-				NumNewTokens:    uint32(r.NumNewTokens),
+				NumNewTokens:    work.NumNewTokens,
+				KvBlocks: &v1.KVBlockMetadata{
+					BlockSize:       work.BlockAllocation.BlockSize,
+					BlockTable:      work.BlockAllocation.BlockTable,
+					AllocatedBlocks: work.BlockAllocation.AllocatedBlocks,
+				},
 			})
 		}
 	}

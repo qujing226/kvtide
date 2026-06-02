@@ -138,7 +138,8 @@ type ExecuteItem struct {
 	WorkId    string                 `protobuf:"bytes,1,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
 	RequestId string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Phase     WorkPhase              `protobuf:"varint,3,opt,name=phase,proto3,enum=mini_llm_serve.v1.WorkPhase" json:"phase,omitempty"`
-	// only present on first prefill chunk
+	// Note: prompt and has_prompt are just for mock compatibility.
+	// todo: replace with token_ids
 	Prompt       string `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
 	HasPrompt    bool   `protobuf:"varint,5,opt,name=has_prompt,json=hasPrompt,proto3" json:"has_prompt,omitempty"`
 	PromptTokens uint32 `protobuf:"varint,6,opt,name=prompt_tokens,json=promptTokens,proto3" json:"prompt_tokens,omitempty"`
@@ -149,7 +150,9 @@ type ExecuteItem struct {
 	GeneratedTokens uint32 `protobuf:"varint,8,opt,name=generated_tokens,json=generatedTokens,proto3" json:"generated_tokens,omitempty"`
 	// prefill: prompt tokens to compute this
 	// decode: normally 1
-	NumNewTokens  uint32 `protobuf:"varint,9,opt,name=num_new_tokens,json=numNewTokens,proto3" json:"num_new_tokens,omitempty"`
+	NumNewTokens uint32 `protobuf:"varint,9,opt,name=num_new_tokens,json=numNewTokens,proto3" json:"num_new_tokens,omitempty"`
+	// kv block metadata in current work.
+	KvBlocks      *KVBlockMetadata `protobuf:"bytes,10,opt,name=kv_blocks,json=kvBlocks,proto3" json:"kv_blocks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -245,6 +248,13 @@ func (x *ExecuteItem) GetNumNewTokens() uint32 {
 		return x.NumNewTokens
 	}
 	return 0
+}
+
+func (x *ExecuteItem) GetKvBlocks() *KVBlockMetadata {
+	if x != nil {
+		return x.KvBlocks
+	}
+	return nil
 }
 
 type ExecuteResult struct {
@@ -360,7 +370,7 @@ var File_mini_llm_serve_v1_execute_proto protoreflect.FileDescriptor
 
 const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\n" +
-	"\x1fmini_llm_serve/v1/execute.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"f\n" +
+	"\x1fmini_llm_serve/v1/execute.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\x1a\x1dmini_llm_serve/v1/block.proto\"f\n" +
 	"\x13ExecuteBatchRequest\x12\x19\n" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x124\n" +
 	"\x05items\x18\x02 \x03(\v2\x1e.mini_llm_serve.v1.ExecuteItemR\x05items\"\x8e\x01\n" +
@@ -368,7 +378,7 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12\x1f\n" +
 	"\vexecutor_id\x18\x02 \x01(\tR\n" +
 	"executorId\x12:\n" +
-	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xcf\x02\n" +
+	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\x90\x03\n" +
 	"\vExecuteItem\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
@@ -380,7 +390,9 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\rprompt_tokens\x18\x06 \x01(\rR\fpromptTokens\x12'\n" +
 	"\x0fcomputed_tokens\x18\a \x01(\rR\x0ecomputedTokens\x12)\n" +
 	"\x10generated_tokens\x18\b \x01(\rR\x0fgeneratedTokens\x12$\n" +
-	"\x0enum_new_tokens\x18\t \x01(\rR\fnumNewTokens\"\xde\x02\n" +
+	"\x0enum_new_tokens\x18\t \x01(\rR\fnumNewTokens\x12?\n" +
+	"\tkv_blocks\x18\n" +
+	" \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\"\xde\x02\n" +
 	"\rExecuteResult\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
@@ -416,20 +428,22 @@ var file_mini_llm_serve_v1_execute_proto_goTypes = []any{
 	(*ExecuteItem)(nil),          // 2: mini_llm_serve.v1.ExecuteItem
 	(*ExecuteResult)(nil),        // 3: mini_llm_serve.v1.ExecuteResult
 	(WorkPhase)(0),               // 4: mini_llm_serve.v1.WorkPhase
-	(FinishReason)(0),            // 5: mini_llm_serve.v1.FinishReason
+	(*KVBlockMetadata)(nil),      // 5: mini_llm_serve.v1.KVBlockMetadata
+	(FinishReason)(0),            // 6: mini_llm_serve.v1.FinishReason
 }
 var file_mini_llm_serve_v1_execute_proto_depIdxs = []int32{
 	2, // 0: mini_llm_serve.v1.ExecuteBatchRequest.items:type_name -> mini_llm_serve.v1.ExecuteItem
 	3, // 1: mini_llm_serve.v1.ExecuteBatchResponse.results:type_name -> mini_llm_serve.v1.ExecuteResult
 	4, // 2: mini_llm_serve.v1.ExecuteItem.phase:type_name -> mini_llm_serve.v1.WorkPhase
-	5, // 3: mini_llm_serve.v1.ExecuteResult.finish_reason:type_name -> mini_llm_serve.v1.FinishReason
-	0, // 4: mini_llm_serve.v1.ExecuteService.ExecuteBatch:input_type -> mini_llm_serve.v1.ExecuteBatchRequest
-	1, // 5: mini_llm_serve.v1.ExecuteService.ExecuteBatch:output_type -> mini_llm_serve.v1.ExecuteBatchResponse
-	5, // [5:6] is the sub-list for method output_type
-	4, // [4:5] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	5, // 3: mini_llm_serve.v1.ExecuteItem.kv_blocks:type_name -> mini_llm_serve.v1.KVBlockMetadata
+	6, // 4: mini_llm_serve.v1.ExecuteResult.finish_reason:type_name -> mini_llm_serve.v1.FinishReason
+	0, // 5: mini_llm_serve.v1.ExecuteService.ExecuteBatch:input_type -> mini_llm_serve.v1.ExecuteBatchRequest
+	1, // 6: mini_llm_serve.v1.ExecuteService.ExecuteBatch:output_type -> mini_llm_serve.v1.ExecuteBatchResponse
+	6, // [6:7] is the sub-list for method output_type
+	5, // [5:6] is the sub-list for method input_type
+	5, // [5:5] is the sub-list for extension type_name
+	5, // [5:5] is the sub-list for extension extendee
+	0, // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_mini_llm_serve_v1_execute_proto_init() }
@@ -438,6 +452,7 @@ func file_mini_llm_serve_v1_execute_proto_init() {
 		return
 	}
 	file_mini_llm_serve_v1_core_proto_init()
+	file_mini_llm_serve_v1_block_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -3,6 +3,7 @@ syntax = "proto3";
 package mini_llm_serve.v1;
 
 import "mini_llm_serve/v1/core.proto";
+import "mini_llm_serve/v1/block.proto";
 
 service ExecuteService{
   rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
@@ -24,7 +25,8 @@ message ExecuteItem {
   string request_id = 2;
   WorkPhase phase = 3;
 
-  // only present on first prefill chunk
+  // Note: prompt and has_prompt are just for mock compatibility.
+  // todo: replace with token_ids
   string prompt = 4;
   bool has_prompt = 5;
 
@@ -33,14 +35,14 @@ message ExecuteItem {
   // prefill: already computed prompt tokens
   // decode: prompt_tokens + generated_tokens
   uint32 computed_tokens = 7;
-
   // decode only: already generated output tokens
   uint32 generated_tokens = 8;
-
   // prefill: prompt tokens to compute this
   // decode: normally 1
   uint32 num_new_tokens = 9;
 
+  // kv block metadata in current work.
+  KVBlockMetadata kv_blocks = 10;
 }
 
 message ExecuteResult{
