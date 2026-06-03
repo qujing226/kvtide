@@ -41,13 +41,20 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         )
 
     async def _execute_prefill(self, item: execute_pb2.ExecuteItem) -> execute_pb2.ExecuteResult:
+        # Refresh the executor-side KV metadata shadow from the control plane.
         kv_state = block.update_runtime(item)
 
+        # Tokens scheduled for this prefill chunk.
+        # In the normal path, this is the remaining prompt tokens selected by the scheduler.
         scheduled_tokens = item.num_new_tokens or max(1, item.prompt_tokens - item.computed_tokens)
 
         new_blocks = len(item.kv_blocks.allocated_blocks) or 0
         block_table_size = len(kv_state.block_table)
 
+        # This mock estimates prefill latency from three factors:
+        # - scheduled_tokens: prompt tokens to compute in this chunk.
+        # - new_blocks: newly allocated KV cache blocks to write.
+        # - block_table_size: metadata/context size overhead.
         latency_ms = max(
             10,
             min(
@@ -60,12 +67,16 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         )
         await asyncio.sleep(latency_ms / 1000)
 
+        # The mock still accepts raw prompt text as a fallback.
+        # A real executor should receive token IDs or token ranges instead.
         prompt_tokens = item.prompt_tokens or max(1, len(item.prompt) // 4)
+        # Cumulative prompt tokens after this prefill chunk.
         computed_tokens = min(prompt_tokens, item.computed_tokens + scheduled_tokens)
 
         kv_state.computed_tokens = computed_tokens
         block.set_runtime(item.request_id, kv_state)
 
+        # Ready to decode.
         if computed_tokens >= prompt_tokens:
             request_state.set_decode_index(item.request_id, 0)
 
@@ -82,11 +93,15 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         )
 
     async def _execute_decode(self, item: execute_pb2.ExecuteItem) -> execute_pb2.ExecuteResult:
+        # Refresh the executor-side KV metadata shadow for this decode step.
         kv_state = block.update_runtime(item)
 
         block_table_size = len(kv_state.block_table)
+        # In decode phase, one decode item usually won't take a new slot.
         new_blocks = len(item.kv_blocks.allocated_blocks) or 0
 
+        # Decode reads existing KV cache blocks to generate the next token.
+        # Longer block tables approximate higher memory-access cost.
         latency_ms = (
             random.randint(5, 15)
             + block_table_size // 16
@@ -94,6 +109,8 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         )
         await asyncio.sleep(latency_ms / 1000)
 
+        # Use the larger progress value to avoid generating duplicate words if
+        # either the mock runtime state or control-plane state is behind.
         word_index = max(request_state.get_decode_index(item.request_id), item.generated_tokens)
 
         if word_index >= len(request_state.MOCK_RESPONSE_WORDS):
