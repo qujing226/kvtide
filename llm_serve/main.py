@@ -1,35 +1,19 @@
 import asyncio
 import random
 
+import request_state.request as state
+
 from connectrpc.request import RequestContext
 
 from mini_llm_serve.v1 import core_pb2
-from mini_llm_serve.v1.execute_pb2 import (
-    ExecuteBatchResponse,
-    ExecuteResult,
-)
+from mini_llm_serve.v1 import execute_pb2
+from mini_llm_serve.v1 import execute_connect 
 
-from mini_llm_serve.v1.execute_connect import (
-    ExecuteService,
-    ExecuteServiceASGIApplication,
-)
 
-request_state: dict[str, int] = {}
 
-MOCK_RESPONSE_TEXT = (
-    "Currently, vLLM utilizes its own implementation of a multi-head query "
-    "attention kernel (csrc/attention/attention_kernels.cu). This kernel is "
-    "designed to be compatible with vLLM's paged KV caches, where the key and "
-    "value cache are stored in separate blocks (note that this block concept "
-    "differs from the GPU thread block. So in a later document, I will refer "
-    'to vLLM paged attention block as "block", while refer to GPU thread '
-    'block as "thread block").'
-)
-MOCK_RESPONSE_WORDS = MOCK_RESPONSE_TEXT.split()
-
-class ExecuteServiceImpl(ExecuteService):
-    async def execute_batch(self, request, ctx: RequestContext) -> ExecuteBatchResponse:
-        response = ExecuteBatchResponse(
+class ExecuteServiceImpl(execute_connect.ExecuteService):
+    async def execute_batch(self, request, ctx: RequestContext) -> execute_pb2.ExecuteBatchResponse:
+        response = execute_pb2.ExecuteBatchResponse(
             batch_id = request.batch_id,
             executor_id = "mock-python",
         )
@@ -40,12 +24,12 @@ class ExecuteServiceImpl(ExecuteService):
         response.results.extend(results)
         return response
 
-    async def _execute_item(self, item) -> ExecuteResult:
+    async def _execute_item(self, item) -> execute_pb2.ExecuteResult:
         if item.phase == core_pb2.WORK_PHASE_PREFILL:
             return await self._execute_prefill(item)
         if item.phase == core_pb2.WORK_PHASE_DECODE:
             return await self._execute_decode(item)
-        return ExecuteResult(
+        return execute_pb2.ExecuteResult(
             work_id=item.work_id,
             request_id=item.request_id,
             done=True,
@@ -57,7 +41,7 @@ class ExecuteServiceImpl(ExecuteService):
             error_message=f"unsupported work phase: {item.phase}."
         )
     
-    async def _execute_prefill(self, item) -> ExecuteResult:
+    async def _execute_prefill(self, item) -> execute_pb2.ExecuteResult:
         scheduled_tokens = item.num_new_tokens or max(1, item.prompt_tokens)
         latency_ms = max(10, min(180, scheduled_tokens // 4 + random.randint(10, 30)))
         await asyncio.sleep(latency_ms / 1000)
@@ -65,9 +49,9 @@ class ExecuteServiceImpl(ExecuteService):
         prompt_tokens = item.prompt_tokens or max(1, len(item.prompt) // 4)
         computed_tokens = min(prompt_tokens, item.computed_tokens + scheduled_tokens)
         if computed_tokens >= prompt_tokens:
-            request_state[item.request_id] = 0
+            state.request_state[item.request_id] = 0
 
-        return ExecuteResult(
+        return execute_pb2.ExecuteResult(
             work_id=item.work_id,
             request_id=item.request_id,
             done=False,
@@ -79,23 +63,23 @@ class ExecuteServiceImpl(ExecuteService):
             error_message="",
         )
 
-    async def _execute_decode(self, item) -> ExecuteResult:
+    async def _execute_decode(self, item) -> execute_pb2.ExecuteResult:
         latency_ms = random.randint(5,20)
         await asyncio.sleep(latency_ms/1000)
 
-        word_index = max(request_state.get(item.request_id, 0), item.generated_tokens)
+        word_index = max(state.request_state.get(item.request_id, 0), item.generated_tokens)
 
-        if word_index >= len(MOCK_RESPONSE_WORDS):
-            request_state.pop(item.request_id, None)
+        if word_index >= len(state.MOCK_RESPONSE_WORDS):
+            state.request_state.pop(item.request_id, None)
             output_text = ""
             done = True
             generated_tokens = 0
             finish_reason = core_pb2.FINISH_REASON_STOP
         else:
-            word = MOCK_RESPONSE_WORDS[word_index]
+            word = state.MOCK_RESPONSE_WORDS[word_index]
             output_text = word if word_index == 0 else f" {word}"
             word_index += 1
-            done = word_index >= len(MOCK_RESPONSE_WORDS)
+            done = word_index >= len(state.MOCK_RESPONSE_WORDS)
             generated_tokens = 1
             finish_reason = (
                 core_pb2.FINISH_REASON_STOP
@@ -104,11 +88,11 @@ class ExecuteServiceImpl(ExecuteService):
             )
 
             if done:
-                request_state.pop(item.request_id, None)
+                state.request_state.pop(item.request_id, None)
             else:
-                request_state[item.request_id] = word_index
+                state.request_state[item.request_id] = word_index
 
-        return ExecuteResult(
+        return execute_pb2.ExecuteResult(
             work_id=item.work_id,
             request_id=item.request_id,
             done = done,
@@ -121,7 +105,7 @@ class ExecuteServiceImpl(ExecuteService):
         )
 
 
-app = ExecuteServiceASGIApplication(ExecuteServiceImpl())
+app = execute_connect.ExecuteServiceASGIApplication(ExecuteServiceImpl())
 
 # def main():
     # print("Hello from llm-serve!")
