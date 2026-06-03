@@ -1,5 +1,3 @@
-request_state: dict[str, int] = {}
-
 MOCK_RESPONSE_TEXT = (
     "Currently, vLLM utilizes its own implementation of a multi-head query "
     "attention kernel (csrc/attention/attention_kernels.cu). This kernel is "
@@ -10,3 +8,17 @@ MOCK_RESPONSE_TEXT = (
     'block as "thread block").'
 )
 MOCK_RESPONSE_WORDS = MOCK_RESPONSE_TEXT.split()
+
+decode_positions: dict[str, int] = {}
+
+
+def set_decode_index(request_id: str, index: int) -> None:
+    decode_positions[request_id] = index
+
+
+def get_decode_index(request_id: str) -> int:
+    return decode_positions.get(request_id, 0)
+
+
+def clear_decode_index(request_id: str) -> None:
+    decode_positions.pop(request_id, None)
