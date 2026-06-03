@@ -9,6 +9,7 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/scheduler"
 	"github.com/qujing226/mini-llm-serve/internal/state"
+	"github.com/qujing226/mini-llm-serve/internal/tokenizer"
 	connect "github.com/qujing226/mini-llm-serve/internal/transport"
 	"github.com/spf13/pflag"
 	"go.uber.org/fx"
@@ -53,6 +54,7 @@ func main() {
 			),
 		),
 		fx.Provide(
+			tokenizer.NewTokenizer,
 			block.NewManager,
 			metrics.NewMetrics,
 			executor.NewExecutors,
