@@ -26,19 +26,18 @@ message ExecuteItem {
   WorkPhase phase = 3;
 
   repeated uint32 token_ids = 4;
-  bool last_chunk = 5;
 
   // prefill: already computed prompt tokens
   // decode: prompt_tokens + generated_tokens
-  uint32 computed_tokens = 6;
+  uint32 computed_tokens = 5;
   // decode only: already generated output tokens
-  uint32 generated_tokens = 7;
+  uint32 generated_tokens = 6;
   // prefill: prompt tokens to compute this
   // decode: normally 1
-  uint32 num_new_tokens = 8;
+  uint32 num_new_tokens = 7;
 
   // kv block metadata in current work.
-  KVBlockMetadata kv_blocks = 9;
+  KVBlockMetadata kv_blocks = 8;
 }
 
 message ExecuteResult{

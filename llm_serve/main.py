@@ -46,7 +46,7 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
 
         # Tokens scheduled for this prefill chunk.
         # In the normal path, this is the remaining prompt tokens selected by the scheduler.
-        scheduled_tokens = item.num_new_tokens or max(1, item.prompt_tokens - item.computed_tokens)
+        scheduled_tokens = item.num_new_tokens or len(item.token_ids) or 1
 
         new_blocks = len(item.kv_blocks.allocated_blocks) or 0
         block_table_size = len(kv_state.block_table)
@@ -67,18 +67,12 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         )
         await asyncio.sleep(latency_ms / 1000)
 
-        # The mock still accepts raw prompt text as a fallback.
-        # A real executor should receive token IDs or token ranges instead.
-        prompt_tokens = item.prompt_tokens or max(1, len(item.prompt) // 4)
-        # Cumulative prompt tokens after this prefill chunk.
-        computed_tokens = min(prompt_tokens, item.computed_tokens + scheduled_tokens)
+        # Tokens actually computed by this prefill chunk.
+        # The Go control plane owns lifecycle transition, so the executor returns only a delta.
+        computed_delta = min(scheduled_tokens, len(item.token_ids) or scheduled_tokens)
 
-        kv_state.computed_tokens = computed_tokens
+        kv_state.computed_tokens += computed_delta
         block.set_runtime(item.request_id, kv_state)
-
-        # Ready to decode.
-        if computed_tokens >= prompt_tokens:
-            request_state.set_decode_index(item.request_id, 0)
 
         return execute_pb2.ExecuteResult(
             work_id=item.work_id,
@@ -86,7 +80,7 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
             done=False,
             output_text="",
             finish_reason=core_pb2.FINISH_REASON_UNSPECIFIED,
-            computed_tokens=computed_tokens - item.computed_tokens,
+            computed_tokens=computed_delta,
             generated_tokens=0,
             execution_ms=latency_ms,
             error_message="",

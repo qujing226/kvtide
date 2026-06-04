@@ -139,17 +139,16 @@ type ExecuteItem struct {
 	RequestId string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	Phase     WorkPhase              `protobuf:"varint,3,opt,name=phase,proto3,enum=mini_llm_serve.v1.WorkPhase" json:"phase,omitempty"`
 	TokenIds  []uint32               `protobuf:"varint,4,rep,packed,name=token_ids,json=tokenIds,proto3" json:"token_ids,omitempty"`
-	LastChunk bool                   `protobuf:"varint,5,opt,name=last_chunk,json=lastChunk,proto3" json:"last_chunk,omitempty"`
 	// prefill: already computed prompt tokens
 	// decode: prompt_tokens + generated_tokens
-	ComputedTokens uint32 `protobuf:"varint,6,opt,name=computed_tokens,json=computedTokens,proto3" json:"computed_tokens,omitempty"`
+	ComputedTokens uint32 `protobuf:"varint,5,opt,name=computed_tokens,json=computedTokens,proto3" json:"computed_tokens,omitempty"`
 	// decode only: already generated output tokens
-	GeneratedTokens uint32 `protobuf:"varint,7,opt,name=generated_tokens,json=generatedTokens,proto3" json:"generated_tokens,omitempty"`
+	GeneratedTokens uint32 `protobuf:"varint,6,opt,name=generated_tokens,json=generatedTokens,proto3" json:"generated_tokens,omitempty"`
 	// prefill: prompt tokens to compute this
 	// decode: normally 1
-	NumNewTokens uint32 `protobuf:"varint,8,opt,name=num_new_tokens,json=numNewTokens,proto3" json:"num_new_tokens,omitempty"`
+	NumNewTokens uint32 `protobuf:"varint,7,opt,name=num_new_tokens,json=numNewTokens,proto3" json:"num_new_tokens,omitempty"`
 	// kv block metadata in current work.
-	KvBlocks      *KVBlockMetadata `protobuf:"bytes,9,opt,name=kv_blocks,json=kvBlocks,proto3" json:"kv_blocks,omitempty"`
+	KvBlocks      *KVBlockMetadata `protobuf:"bytes,8,opt,name=kv_blocks,json=kvBlocks,proto3" json:"kv_blocks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -210,13 +209,6 @@ func (x *ExecuteItem) GetTokenIds() []uint32 {
 		return x.TokenIds
 	}
 	return nil
-}
-
-func (x *ExecuteItem) GetLastChunk() bool {
-	if x != nil {
-		return x.LastChunk
-	}
-	return false
 }
 
 func (x *ExecuteItem) GetComputedTokens() uint32 {
@@ -368,19 +360,17 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12\x1f\n" +
 	"\vexecutor_id\x18\x02 \x01(\tR\n" +
 	"executorId\x12:\n" +
-	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xf0\x02\n" +
+	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xd1\x02\n" +
 	"\vExecuteItem\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x02 \x01(\tR\trequestId\x122\n" +
 	"\x05phase\x18\x03 \x01(\x0e2\x1c.mini_llm_serve.v1.WorkPhaseR\x05phase\x12\x1b\n" +
-	"\ttoken_ids\x18\x04 \x03(\rR\btokenIds\x12\x1d\n" +
-	"\n" +
-	"last_chunk\x18\x05 \x01(\bR\tlastChunk\x12'\n" +
-	"\x0fcomputed_tokens\x18\x06 \x01(\rR\x0ecomputedTokens\x12)\n" +
-	"\x10generated_tokens\x18\a \x01(\rR\x0fgeneratedTokens\x12$\n" +
-	"\x0enum_new_tokens\x18\b \x01(\rR\fnumNewTokens\x12?\n" +
-	"\tkv_blocks\x18\t \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\"\xde\x02\n" +
+	"\ttoken_ids\x18\x04 \x03(\rR\btokenIds\x12'\n" +
+	"\x0fcomputed_tokens\x18\x05 \x01(\rR\x0ecomputedTokens\x12)\n" +
+	"\x10generated_tokens\x18\x06 \x01(\rR\x0fgeneratedTokens\x12$\n" +
+	"\x0enum_new_tokens\x18\a \x01(\rR\fnumNewTokens\x12?\n" +
+	"\tkv_blocks\x18\b \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\"\xde\x02\n" +
 	"\rExecuteResult\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +

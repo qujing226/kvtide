@@ -64,9 +64,6 @@ type WorkItem struct {
 	TokenIDs      []uint32
 	TokenCntTotal uint32
 
-	// LastChunk is the flag of whether prefill will be finished or not in current Step.
-	//LastChunk bool
-
 	// BlockAllocation is the KV block reservation made for this WorkItem.
 	// It is committed after successful execution or rolled back if the work is not executed.
 	BlockAllocation *BlockAllocation
