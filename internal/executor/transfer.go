@@ -10,21 +10,13 @@ func BatchToExecute(batch *model.Batch) *v1.ExecuteBatchRequest {
 		BatchId: batch.BatchID,
 	}
 	for _, work := range batch.Items {
-		hasPrompt := work.Phase == v1.WorkPhasePrefill && work.PrefillOffset == 0 && work.Prompt != ""
-		prompt := ""
-		if hasPrompt {
-			prompt = work.Prompt
-		}
-
 		if work.Phase == v1.WorkPhaseDecode {
 			req.Items = append(req.Items, &v1.ExecuteItem{
 				WorkId:          work.WorkId,
 				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhaseDecode,
-				Prompt:          "",
-				HasPrompt:       false,
-				PromptTokens:    work.PromptTokens,
-				ComputedTokens:  work.PromptTokens + work.GeneratedTokens,
+				TokenIds:        work.TokenIDs,
+				ComputedTokens:  work.PrefillOffset + work.GeneratedTokens,
 				GeneratedTokens: work.GeneratedTokens,
 				NumNewTokens:    work.NumNewTokens,
 				KvBlocks: &v1.KVBlockMetadata{
@@ -38,9 +30,7 @@ func BatchToExecute(batch *model.Batch) *v1.ExecuteBatchRequest {
 				WorkId:          work.WorkId,
 				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhasePrefill,
-				Prompt:          prompt,
-				HasPrompt:       hasPrompt,
-				PromptTokens:    work.PromptTokens,
+				TokenIds:        work.TokenIDs,
 				ComputedTokens:  work.PrefillOffset,
 				GeneratedTokens: 0,
 				NumNewTokens:    work.NumNewTokens,

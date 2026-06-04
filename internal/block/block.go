@@ -235,7 +235,7 @@ func requiredKVTokens(work *model.WorkItem) uint32 {
 	case v1.WorkPhasePrefill:
 		return work.PrefillOffset + work.NumNewTokens
 	case v1.WorkPhaseDecode:
-		return work.PromptTokens + work.GeneratedTokens + work.NumNewTokens
+		return work.TokenCntTotal + work.GeneratedTokens + work.NumNewTokens
 	default:
 		return 0
 	}

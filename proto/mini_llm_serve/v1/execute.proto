@@ -25,24 +25,20 @@ message ExecuteItem {
   string request_id = 2;
   WorkPhase phase = 3;
 
-  // Note: prompt and has_prompt are just for mock compatibility.
-  // todo: replace with token_ids
-  string prompt = 4;
-  bool has_prompt = 5;
-
-  uint32 prompt_tokens = 6;
+  repeated uint32 token_ids = 4;
+  bool last_chunk = 5;
 
   // prefill: already computed prompt tokens
   // decode: prompt_tokens + generated_tokens
-  uint32 computed_tokens = 7;
+  uint32 computed_tokens = 6;
   // decode only: already generated output tokens
-  uint32 generated_tokens = 8;
+  uint32 generated_tokens = 7;
   // prefill: prompt tokens to compute this
   // decode: normally 1
-  uint32 num_new_tokens = 9;
+  uint32 num_new_tokens = 8;
 
   // kv block metadata in current work.
-  KVBlockMetadata kv_blocks = 10;
+  KVBlockMetadata kv_blocks = 9;
 }
 
 message ExecuteResult{

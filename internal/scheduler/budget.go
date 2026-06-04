@@ -27,7 +27,7 @@ func WorkBudgetCost(work *model.WorkItem) uint32 {
 		if work.NumNewTokens > 0 {
 			return work.NumNewTokens
 		}
-		return work.PromptTokens
+		return uint32(len(work.TokenIDs))
 	case v1.WorkPhaseDecode:
 		return DefaultDecodeBudgetTokensPlanned
 	default:

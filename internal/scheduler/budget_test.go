@@ -10,18 +10,19 @@ import (
 
 func TestWorkBudgetCostPrefillUsesScheduledPrefillTokens(t *testing.T) {
 	work := &model.WorkItem{
-		Phase:        v1.WorkPhasePrefill,
-		PromptTokens: 2048,
-		NumNewTokens: 512,
+		Phase:         v1.WorkPhasePrefill,
+		TokenCntTotal: 2048,
+		NumNewTokens:  512,
 	}
 
 	require.Equal(t, uint32(512), WorkBudgetCost(work))
 }
 
-func TestWorkBudgetCostPrefillFallsBackToPromptTokens(t *testing.T) {
+func TestWorkBudgetCostPrefillFallsBackToTokenIDsLength(t *testing.T) {
 	work := &model.WorkItem{
-		Phase:        v1.WorkPhasePrefill,
-		PromptTokens: 2048,
+		Phase:         v1.WorkPhasePrefill,
+		TokenIDs:      make([]uint32, 2048),
+		TokenCntTotal: 2048,
 	}
 
 	require.Equal(t, uint32(2048), WorkBudgetCost(work))
@@ -38,7 +39,7 @@ func TestWorkBudgetCostDecodeIsOneTokenPerStep(t *testing.T) {
 func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 	work := &model.WorkItem{
 		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  1000,
+		TokenCntTotal: 1000,
 		PrefillOffset: 500,
 		NumNewTokens:  500,
 	}
@@ -54,7 +55,7 @@ func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 	work := &model.WorkItem{
 		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  1000,
+		TokenCntTotal: 1000,
 		PrefillOffset: 200,
 		NumNewTokens:  800,
 	}
@@ -72,7 +73,7 @@ func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
 	work := &model.WorkItem{
 		Phase:         v1.WorkPhasePrefill,
-		PromptTokens:  1000,
+		TokenCntTotal: 1000,
 		PrefillOffset: 700,
 		NumNewTokens:  300,
 	}

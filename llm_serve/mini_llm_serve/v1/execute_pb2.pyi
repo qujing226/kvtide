@@ -27,13 +27,12 @@ class ExecuteBatchResponse(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., executor_id: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ExecuteResult, _Mapping]]] = ...) -> None: ...
 
 class ExecuteItem(_message.Message):
-    __slots__ = ("work_id", "request_id", "phase", "prompt", "has_prompt", "prompt_tokens", "computed_tokens", "generated_tokens", "num_new_tokens", "kv_blocks")
+    __slots__ = ("work_id", "request_id", "phase", "token_ids", "last_chunk", "computed_tokens", "generated_tokens", "num_new_tokens", "kv_blocks")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
-    PROMPT_FIELD_NUMBER: _ClassVar[int]
-    HAS_PROMPT_FIELD_NUMBER: _ClassVar[int]
-    PROMPT_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_IDS_FIELD_NUMBER: _ClassVar[int]
+    LAST_CHUNK_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     GENERATED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     NUM_NEW_TOKENS_FIELD_NUMBER: _ClassVar[int]
@@ -41,14 +40,13 @@ class ExecuteItem(_message.Message):
     work_id: str
     request_id: str
     phase: _core_pb2.WorkPhase
-    prompt: str
-    has_prompt: bool
-    prompt_tokens: int
+    token_ids: _containers.RepeatedScalarFieldContainer[int]
+    last_chunk: bool
     computed_tokens: int
     generated_tokens: int
     num_new_tokens: int
     kv_blocks: _block_pb2.KVBlockMetadata
-    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., prompt: _Optional[str] = ..., has_prompt: _Optional[bool] = ..., prompt_tokens: _Optional[int] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ...) -> None: ...
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., token_ids: _Optional[_Iterable[int]] = ..., last_chunk: _Optional[bool] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ...) -> None: ...
 
 class ExecuteResult(_message.Message):
     __slots__ = ("work_id", "request_id", "output_text", "done", "finish_reason", "computed_tokens", "generated_tokens", "execution_ms", "error_message")

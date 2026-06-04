@@ -136,7 +136,7 @@ func nextPhase(item *model.WorkItem, err error) v1.EventType {
 		return v1.EventTypeRequestFailed
 	}
 	if item.Phase == v1.WorkPhasePrefill {
-		if item.PrefillOffset+item.NumNewTokens >= item.PromptTokens {
+		if item.PrefillOffset+item.NumNewTokens >= item.TokenCntTotal {
 			return v1.EventTypePrefillFinished
 		}
 		return v1.EventTypePrefillChunk

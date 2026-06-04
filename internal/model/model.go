@@ -54,14 +54,18 @@ type WorkItem struct {
 	WorkId    string
 	RequestId string
 	Phase     v1.WorkPhase
-
-	Model     string
-	Prompt    string
-	MaxTokens uint32
 	Deadline  time.Time
+	MaxTokens uint32
+	Model     string
 
-	PromptTokens uint32
-	TokenIDs     []uint32
+	CacheHit bool
+
+	// TokenIDs in WorkItem is a part of TokenIDs in Request.
+	TokenIDs      []uint32
+	TokenCntTotal uint32
+
+	// LastChunk is the flag of whether prefill will be finished or not in current Step.
+	//LastChunk bool
 
 	// BlockAllocation is the KV block reservation made for this WorkItem.
 	// It is committed after successful execution or rolled back if the work is not executed.
@@ -73,8 +77,6 @@ type WorkItem struct {
 	GeneratedTokens uint32
 	// NumNewTokens is the number of tokens this WorkItem plans to process.
 	NumNewTokens uint32
-
-	CacheHit bool
 
 	EnqueuedAt time.Time
 	ReadyAt    time.Time

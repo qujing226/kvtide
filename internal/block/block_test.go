@@ -99,7 +99,7 @@ func TestAllocateSlotsOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) 
 		WorkId:          "decode-1",
 		RequestId:       "req-1",
 		Phase:           v1.WorkPhaseDecode,
-		PromptTokens:    16,
+		TokenCntTotal:   16,
 		GeneratedTokens: 0,
 		NumNewTokens:    1,
 	}
@@ -114,7 +114,7 @@ func TestAllocateSlotsOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) 
 		WorkId:          "decode-2",
 		RequestId:       "req-1",
 		Phase:           v1.WorkPhaseDecode,
-		PromptTokens:    16,
+		TokenCntTotal:   16,
 		GeneratedTokens: 1,
 		NumNewTokens:    1,
 	}

@@ -74,21 +74,21 @@ func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, 
 	return s
 }
 
-func (s *scheduler) Enqueue(input *model.WorkItem) error {
-	input.EnqueuedAt = time.Now()
+func (s *scheduler) Enqueue(workItem *model.WorkItem) error {
+	workItem.EnqueuedAt = time.Now()
 	var err error
-	switch input.Phase {
+	switch workItem.Phase {
 	case v1.WorkPhasePrefill:
-		if input.PromptTokens <= s.longPrefillThreshold {
-			err = s.prefillQueueSmall.Enqueue(input)
+		if workItem.TokenCntTotal <= s.longPrefillThreshold {
+			err = s.prefillQueueSmall.Enqueue(workItem)
 		} else {
-			err = s.prefillQueueLarge.Enqueue(input)
+			err = s.prefillQueueLarge.Enqueue(workItem)
 		}
 		if err == nil {
 			s.trySchedule()
 		}
 	case v1.WorkPhaseDecode:
-		err = s.decodeQueue.Enqueue(input)
+		err = s.decodeQueue.Enqueue(workItem)
 		if err == nil {
 			s.trySchedule()
 		}
@@ -99,8 +99,8 @@ func (s *scheduler) Enqueue(input *model.WorkItem) error {
 	if err != nil {
 		// metrics: injected request
 		s.metrics.IncQueueRejected()
-		s.requestManager.Fail(input.RequestId, err)
-		s.l.Errorw("enqueue failed", "phase", input.Phase, "error", err)
+		s.requestManager.Fail(workItem.RequestId, err)
+		s.l.Errorw("enqueue failed", "phase", workItem.Phase, "error", err)
 		return err
 	}
 
@@ -203,7 +203,7 @@ func (s *scheduler) requeueWork(workItems ...*model.WorkItem) {
 		case v1.WorkPhaseDecode:
 			s.decodeQueue.Requeue(work)
 		case v1.WorkPhasePrefill:
-			if work.PromptTokens <= s.longPrefillThreshold {
+			if work.TokenCntTotal <= s.longPrefillThreshold {
 				s.prefillQueueSmall.Requeue(work)
 			} else {
 				s.prefillQueueLarge.Requeue(work)

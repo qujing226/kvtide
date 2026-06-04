@@ -37,15 +37,24 @@ func testSchedulerWork(t *testing.T, s *scheduler, id string, phase v1.WorkPhase
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testTokenIDs(promptTokens),
 		PromptTokens: promptTokens,
 		Deadline:     time.Now().Add(time.Minute),
 	})
 	require.NoError(t, err)
 	work.WorkId = id
 	work.Phase = phase
-	work.PromptTokens = promptTokens
+	work.TokenCntTotal = promptTokens
 	work.NumNewTokens = prefillTokens
 	return work
+}
+
+func testTokenIDs(n uint32) []uint32 {
+	tokens := make([]uint32, n)
+	for i := range tokens {
+		tokens[i] = uint32(i + 1)
+	}
+	return tokens
 }
 
 func requirePickBatchReturns(t *testing.T, s *scheduler) ([]*model.WorkItem, int) {
@@ -224,6 +233,7 @@ func TestPickBatchDropsCanceledWork(t *testing.T) {
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testTokenIDs(2),
 		PromptTokens: 2,
 	}
 
@@ -247,6 +257,7 @@ func TestPickBatchDropsTimedOutWork(t *testing.T) {
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testTokenIDs(2),
 		PromptTokens: 2,
 		Deadline:     time.Now().Add(-time.Second),
 	}
