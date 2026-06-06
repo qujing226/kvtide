@@ -24,11 +24,11 @@ const (
 type GenerateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	Model         string                 `protobuf:"bytes,2,opt,name=model,proto3" json:"model,omitempty"`
-	Prompt        string                 `protobuf:"bytes,3,opt,name=prompt,proto3" json:"prompt,omitempty"`
-	MaxTokens     uint32                 `protobuf:"varint,4,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"` // mock inference can determine sleep time, output_length by this.
-	TimeoutMs     uint32                 `protobuf:"varint,5,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
-	CacheKey      string                 `protobuf:"bytes,6,opt,name=cache_key,json=cacheKey,proto3" json:"cache_key,omitempty"`
+	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	Prompt        string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
+	MaxTokens     uint32                 `protobuf:"varint,5,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"` // mock inference can determine sleep time, output_length by this.
+	TimeoutMs     uint32                 `protobuf:"varint,6,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
 	Labels        map[string]string      `protobuf:"bytes,10,rep,name=labels,proto3" json:"labels,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -71,6 +71,13 @@ func (x *GenerateRequest) GetRequestId() string {
 	return ""
 }
 
+func (x *GenerateRequest) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 func (x *GenerateRequest) GetModel() string {
 	if x != nil {
 		return x.Model
@@ -97,13 +104,6 @@ func (x *GenerateRequest) GetTimeoutMs() uint32 {
 		return x.TimeoutMs
 	}
 	return 0
-}
-
-func (x *GenerateRequest) GetCacheKey() string {
-	if x != nil {
-		return x.CacheKey
-	}
-	return ""
 }
 
 func (x *GenerateRequest) GetLabels() map[string]string {
@@ -509,17 +509,17 @@ var File_mini_llm_serve_v1_service_proto protoreflect.FileDescriptor
 
 const file_mini_llm_serve_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1fmini_llm_serve/v1/service.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"\xbc\x02\n" +
+	"\x1fmini_llm_serve/v1/service.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"\xb8\x02\n" +
 	"\x0fGenerateRequest\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12\x14\n" +
-	"\x05model\x18\x02 \x01(\tR\x05model\x12\x16\n" +
-	"\x06prompt\x18\x03 \x01(\tR\x06prompt\x12\x1d\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12\x17\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
+	"\x05model\x18\x03 \x01(\tR\x05model\x12\x16\n" +
+	"\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n" +
 	"\n" +
-	"max_tokens\x18\x04 \x01(\rR\tmaxTokens\x12\x1d\n" +
+	"max_tokens\x18\x05 \x01(\rR\tmaxTokens\x12\x1d\n" +
 	"\n" +
-	"timeout_ms\x18\x05 \x01(\rR\ttimeoutMs\x12\x1b\n" +
-	"\tcache_key\x18\x06 \x01(\tR\bcacheKey\x12F\n" +
+	"timeout_ms\x18\x06 \x01(\rR\ttimeoutMs\x12F\n" +
 	"\x06labels\x18\n" +
 	" \x03(\v2..mini_llm_serve.v1.GenerateRequest.LabelsEntryR\x06labels\x1a9\n" +
 	"\vLabelsEntry\x12\x10\n" +

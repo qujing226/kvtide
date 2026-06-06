@@ -39,6 +39,7 @@ func TestWorkBudgetCostDecodeIsOneTokenPerStep(t *testing.T) {
 func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 	work := &model.WorkItem{
 		Phase:         v1.WorkPhasePrefill,
+		TokenIDs:      testBudgetTokenIDs(500),
 		TokenCntTotal: 1000,
 		PrefillOffset: 500,
 		NumNewTokens:  500,
@@ -55,6 +56,7 @@ func TestSplitPrefillChunkReturnsOnlyChunkWhenComplete(t *testing.T) {
 func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 	work := &model.WorkItem{
 		Phase:         v1.WorkPhasePrefill,
+		TokenIDs:      testBudgetTokenIDs(800),
 		TokenCntTotal: 1000,
 		PrefillOffset: 200,
 		NumNewTokens:  800,
@@ -68,11 +70,16 @@ func TestSplitPrefillChunkReturnsRemainingWork(t *testing.T) {
 	require.Equal(t, uint32(300), chunk.NumNewTokens)
 	require.Equal(t, uint32(500), rest.PrefillOffset)
 	require.Equal(t, uint32(500), rest.NumNewTokens)
+	require.Len(t, chunk.TokenIDs, 300)
+	require.Len(t, rest.TokenIDs, 500)
+	require.Equal(t, uint32(1), chunk.TokenIDs[0])
+	require.Equal(t, uint32(301), rest.TokenIDs[0])
 }
 
 func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
 	work := &model.WorkItem{
 		Phase:         v1.WorkPhasePrefill,
+		TokenIDs:      testBudgetTokenIDs(300),
 		TokenCntTotal: 1000,
 		PrefillOffset: 700,
 		NumNewTokens:  300,
@@ -84,4 +91,12 @@ func TestSplitPrefillChunkCapsTokensAtRemainingCost(t *testing.T) {
 	require.Nil(t, rest)
 	require.Equal(t, uint32(700), chunk.PrefillOffset)
 	require.Equal(t, uint32(300), chunk.NumNewTokens)
+}
+
+func testBudgetTokenIDs(n uint32) []uint32 {
+	tokens := make([]uint32, n)
+	for i := range tokens {
+		tokens[i] = uint32(i + 1)
+	}
+	return tokens
 }

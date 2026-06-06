@@ -8,7 +8,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class GenerateRequest(_message.Message):
-    __slots__ = ("request_id", "model", "prompt", "max_tokens", "timeout_ms", "cache_key", "labels")
+    __slots__ = ("request_id", "user_id", "model", "prompt", "max_tokens", "timeout_ms", "labels")
     class LabelsEntry(_message.Message):
         __slots__ = ("key", "value")
         KEY_FIELD_NUMBER: _ClassVar[int]
@@ -17,20 +17,20 @@ class GenerateRequest(_message.Message):
         value: str
         def __init__(self, key: _Optional[str] = ..., value: _Optional[str] = ...) -> None: ...
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
+    USER_ID_FIELD_NUMBER: _ClassVar[int]
     MODEL_FIELD_NUMBER: _ClassVar[int]
     PROMPT_FIELD_NUMBER: _ClassVar[int]
     MAX_TOKENS_FIELD_NUMBER: _ClassVar[int]
     TIMEOUT_MS_FIELD_NUMBER: _ClassVar[int]
-    CACHE_KEY_FIELD_NUMBER: _ClassVar[int]
     LABELS_FIELD_NUMBER: _ClassVar[int]
     request_id: str
+    user_id: str
     model: str
     prompt: str
     max_tokens: int
     timeout_ms: int
-    cache_key: str
     labels: _containers.ScalarMap[str, str]
-    def __init__(self, request_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., cache_key: _Optional[str] = ..., labels: _Optional[_Mapping[str, str]] = ...) -> None: ...
+    def __init__(self, request_id: _Optional[str] = ..., user_id: _Optional[str] = ..., model: _Optional[str] = ..., prompt: _Optional[str] = ..., max_tokens: _Optional[int] = ..., timeout_ms: _Optional[int] = ..., labels: _Optional[_Mapping[str, str]] = ...) -> None: ...
 
 class GenerateResponse(_message.Message):
     __slots__ = ("request_id", "output_text", "finish_reason", "usage", "timing", "batch", "executor_id", "error_message")

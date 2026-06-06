@@ -7,7 +7,6 @@ import (
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/block"
-	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -35,21 +34,18 @@ type requestStateManager struct {
 	subscribeCh map[string]chan *model.Event
 	mu          sync.RWMutex
 
-	prefixCache cache.PrefixCache
-	// blockManager is used for free blocks.
 	blockManager block.Manager
 
 	activeRequests atomic.Int64
 	metrics        metrics.Metrics
 }
 
-func NewRequestLifecycleStateManager(l *zap.SugaredLogger, prefixCache cache.PrefixCache, blockManager block.Manager,
+func NewRequestLifecycleStateManager(l *zap.SugaredLogger, blockManager block.Manager,
 	metrics metrics.Metrics) RequestStateManager {
 	r := &requestStateManager{
 		l:            l,
 		requests:     make(map[string]*model.Request),
 		subscribeCh:  make(map[string]chan *model.Event),
-		prefixCache:  prefixCache,
 		blockManager: blockManager,
 		metrics:      metrics,
 	}
@@ -68,48 +64,33 @@ func (r *requestStateManager) Create(req *model.Request) (*model.WorkItem, error
 	r.subscribeCh[req.RequestId] = make(chan *model.Event, 5)
 
 	// prefix cache
-	cachedTokens, hit := r.prefixCache.Lookup(req.CacheKey, req.PromptTokens)
-	req.CachedTokens = cachedTokens
-	req.CacheHit = hit
-	req.ComputedTokens = cachedTokens
+	prefixMatch := r.blockManager.MatchPrefix(req)
+
+	req.ComputedTokens = prefixMatch.CachedTokens
 
 	// metrics: add active requests
-	r.increaseActiveRequestAndCacheHit(hit, cachedTokens)
+	r.increaseActiveRequestAndCacheHit(prefixMatch.Hit, prefixMatch.CachedTokens)
 
 	now := time.Now()
-	var workItem *model.WorkItem
-	if req.CachedTokens >= req.PromptTokens {
-		workItem = &model.WorkItem{
-			WorkId:        utils.MustGenerateUUIDv7(),
-			RequestId:     req.RequestId,
-			Phase:         v1.WorkPhaseDecode,
-			Model:         req.Model,
-			TokenIDs:      req.TokenIDs,
-			TokenCntTotal: uint32(len(req.TokenIDs)),
-			MaxTokens:     req.MaxTokens,
-			Deadline:      req.Deadline,
-			PrefillOffset: req.CachedTokens,
-			NumNewTokens:  1,
-			CacheHit:      req.CacheHit,
-			ReadyAt:       now,
-		}
-	} else {
-		workItem = &model.WorkItem{
-			WorkId:        utils.MustGenerateUUIDv7(),
-			RequestId:     req.RequestId,
-			Phase:         v1.WorkPhasePrefill,
-			Model:         req.Model,
-			TokenIDs:      req.TokenIDs,
-			TokenCntTotal: uint32(len(req.TokenIDs)),
-			MaxTokens:     req.MaxTokens,
-			Deadline:      req.Deadline,
-			PrefillOffset: req.CachedTokens,
-			NumNewTokens:  req.PromptTokens - req.CachedTokens,
-			CacheHit:      req.CacheHit,
-			ReadyAt:       now,
-		}
+	workItem := &model.WorkItem{
+		WorkId:        utils.MustGenerateUUIDv7(),
+		RequestId:     req.RequestId,
+		Phase:         v1.WorkPhasePrefill,
+		Deadline:      req.Deadline,
+		MaxTokens:     req.MaxTokens,
+		Model:         req.Model,
+		Cache:         prefixMatch,
+		TokenIDs:      req.TokenIDs[prefixMatch.CachedTokens:],
+		TokenCntTotal: uint32(len(req.TokenIDs)),
+		PrefillOffset: prefixMatch.CachedTokens,
+		NumNewTokens:  req.PromptTokens - prefixMatch.CachedTokens,
+		ReadyAt:       now,
 	}
-
+	// all prompt tokens had prefilled
+	if prefixMatch.CachedTokens >= req.PromptTokens {
+		workItem.Phase = v1.WorkPhaseDecode
+		workItem.NumNewTokens = 1
+	}
 	return workItem, nil
 }
 
@@ -194,14 +175,14 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 			WorkId:        utils.MustGenerateUUIDv7(),
 			RequestId:     e.RequestId,
 			Phase:         v1.WorkPhasePrefill,
+			Deadline:      req.Deadline,
+			MaxTokens:     req.MaxTokens,
 			Model:         req.Model,
+			Cache:         req.Cache,
 			TokenIDs:      req.TokenIDs[prefillOffset : prefillOffset+numNewTokens],
 			TokenCntTotal: req.PromptTokens,
-			MaxTokens:     req.MaxTokens,
-			Deadline:      req.Deadline,
 			PrefillOffset: prefillOffset,
 			NumNewTokens:  numNewTokens,
-			CacheHit:      false,
 			ReadyAt:       now,
 		}
 		onWorkItems = append(onWorkItems, prefillItem)
@@ -218,22 +199,16 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 			WorkId:          utils.MustGenerateUUIDv7(),
 			RequestId:       e.RequestId,
 			Phase:           v1.WorkPhaseDecode,
-			Model:           req.Model,
-			TokenIDs:        nil,
-			TokenCntTotal:   req.PromptTokens,
-			MaxTokens:       req.MaxTokens,
 			Deadline:        req.Deadline,
+			MaxTokens:       req.MaxTokens,
+			Model:           req.Model,
+			Cache:           req.Cache,
+			TokenCntTotal:   req.PromptTokens,
 			GeneratedTokens: req.GeneratedTokens,
 			NumNewTokens:    1,
-			CacheHit:        false,
 			ReadyAt:         now,
 		}
 		onWorkItems = append(onWorkItems, decodeItem)
-
-		// update prefix cache
-		if req.ComputedTokens >= req.PromptTokens {
-			r.prefixCache.Put(req.CacheKey, req.PromptTokens)
-		}
 	case v1.EventTypeDecodeChunk:
 		req.GeneratedTokens += e.Usage.OutputTokens
 		req.Usage.InputTokens = req.PromptTokens
@@ -257,13 +232,13 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 				RequestId:       e.RequestId,
 				Phase:           v1.WorkPhaseDecode,
 				Model:           req.Model,
+				Cache:           req.Cache,
 				TokenIDs:        nil,
 				TokenCntTotal:   req.PromptTokens,
 				MaxTokens:       req.MaxTokens,
 				Deadline:        req.Deadline,
 				GeneratedTokens: req.GeneratedTokens,
 				NumNewTokens:    1,
-				CacheHit:        false,
 				ReadyAt:         now,
 			}
 			onWorkItems = append(onWorkItems, decodeItem)

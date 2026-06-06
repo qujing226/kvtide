@@ -1,29 +1,18 @@
 package block
 
+import "github.com/qujing226/mini-llm-serve/internal/model"
+
 func (m *manager) pushFree(id uint32) {
-	if int(id) >= len(m.blocks) {
-		return
-	}
 	b := &m.blocks[id]
-	if b.InFreeQueue {
+	if b.RefCount == 0 {
 		return
 	}
+	b.RefCount--
 
-	b.RefCount = 0
-	b.TokenCount = 0
-	b.InFreeQueue = true
-	b.PrevFree = m.freeTail
-	b.NextFree = -1
-
-	// Append the block to the free queue tail. If the queue is empty, the block
-	// becomes both head and tail.
-	if m.freeTail >= 0 {
-		m.blocks[m.freeTail].NextFree = int32(id)
-	} else {
-		m.freeHead = int32(id)
+	if b.RefCount > 0 {
+		return
 	}
-	m.freeTail = int32(id)
-	m.freeCount++
+	m.appendFreeBlock(b)
 }
 
 func (m *manager) popFree() (uint32, bool) {
@@ -34,6 +23,14 @@ func (m *manager) popFree() (uint32, bool) {
 	// Allocate from the free queue head.
 	id := uint32(m.freeHead)
 	b := &m.blocks[id]
+	if b.Cached {
+		delete(m.cachedBlocks, b.Hash)
+		b.Cached = false
+	}
+	b.Hash = ""
+	b.TokenCount = 0
+	b.RefCount = 1
+
 	next := b.NextFree
 
 	m.freeHead = next
@@ -51,4 +48,20 @@ func (m *manager) popFree() (uint32, bool) {
 	m.freeCount--
 
 	return id, true
+}
+
+func (m *manager) appendFreeBlock(b *model.Block) {
+	b.RefCount = 0
+	b.InFreeQueue = true
+	b.PrevFree = m.freeTail
+	b.NextFree = -1
+
+	if m.freeTail >= 0 {
+		m.blocks[m.freeTail].NextFree = int32(b.ID)
+	} else {
+		m.freeHead = int32(b.ID)
+	}
+
+	m.freeTail = int32(b.ID)
+	m.freeCount++
 }

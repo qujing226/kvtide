@@ -1,5 +1,7 @@
 package model
 
+import v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+
 // Block stores control-plane metadata for a fixed-size KV cache block.
 // The actual K/V tensors live in the executor runtime; this struct only tracks
 // ownership, cache identity, and free-list state.
@@ -9,7 +11,7 @@ type Block struct {
 	// Hash identifies the token content of this block and its prefix chain.
 	Hash string
 
-	// RefCount is the number of active requests or cached entries referencing this block.
+	// RefCount is the number of active requests referencing this block.
 	RefCount uint32
 	// TokenCount is the number of valid tokens stored in this block.
 	TokenCount uint32
@@ -17,7 +19,6 @@ type Block struct {
 	// Cached marks whether this block is indexed by prefix cache metadata.
 	Cached      bool
 	InFreeQueue bool
-
 	// PrevFree and NextFree use -1 as the empty sentinel.
 	// They link free blocks without allocating an extra queue node.
 	PrevFree int32
@@ -32,17 +33,17 @@ type BlockAllocation struct {
 	WorkID    string
 	BlockSize uint32
 
+	// Phase records the work phase for commit-time cache policy.
+	// Prefill can index prompt blocks into prefix cache.
+	// Decode only extends the request block table until generated token ids are modeled.
+	Phase v1.WorkPhase
+
 	// BlockTable is the full block table visible to this request after allocation.
-	BlockTable []uint32
+	BlockTable  []uint32
+	BlockHashes []string
 	// AllocatedBlocks are blocks newly reserved for this WorkItem.
 	AllocatedBlocks []uint32
 
-	// CachedTokens is the number of prompt tokens reused from prefix cache.
-	CachedTokens uint32
-	// RequiredTokens is the number of new tokens this WorkItem needs to place in KV cache.
-	RequiredTokens uint32
-	// RequiredBlocks is the number of additional blocks needed for RequiredTokens.
-	RequiredBlocks uint32
 	// TokensAfterCommit is the number of tokens after an allocation succeed.
 	TokensAfterCommit uint32
 }

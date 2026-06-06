@@ -296,7 +296,7 @@ func buildGenerateRequest(scenario Scenario, index int) *v1.GenerateRequest {
 		Prompt:    scenario.promptFor(index),
 		MaxTokens: scenario.MaxTokens,
 		TimeoutMs: durationToMilliseconds(scenario.Timeout),
-		CacheKey:  scenario.cacheKeyFor(index),
+		UserId:    scenario.userId(index),
 		Labels: map[string]string{
 			"scenario": scenario.Name,
 		},
@@ -310,7 +310,7 @@ func (s Scenario) promptFor(index int) string {
 	return s.Prompts[index%len(s.Prompts)]
 }
 
-func (s Scenario) cacheKeyFor(index int) string {
+func (s Scenario) userId(index int) string {
 	switch s.CacheKeyMode {
 	case CacheKeyModeShared:
 		if s.CacheKey != "" {

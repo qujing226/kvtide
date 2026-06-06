@@ -2,7 +2,6 @@ package main
 
 import (
 	"github.com/qujing226/mini-llm-serve/internal/block"
-	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/executor"
 	"github.com/qujing226/mini-llm-serve/internal/handler"
@@ -59,7 +58,6 @@ func main() {
 			metrics.NewMetrics,
 			executor.NewExecutors,
 			executor.NewExecutorManager,
-			cache.NewPrefixCache,
 			state.NewRequestLifecycleStateManager,
 			handler.NewInferenceHandle,
 			connect.NewLLMServingServer,

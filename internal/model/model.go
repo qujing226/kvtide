@@ -8,16 +8,19 @@ import (
 
 type Request struct {
 	RequestId string
+	UserId    string
 	Model     string
 	Prompt    string
 	MaxTokens uint32
 	Timeout   time.Duration
 	Deadline  time.Time
 
-	CacheKey     string
-	CachedTokens uint32
-	CacheHit     bool
-	TokenIDs     []uint32
+	// CacheSalt is used for distinguish different user and originate.
+	// for now, it equals with UserId, but it can be more complex such as
+	// "userId + origin(e.g. Codex, ChatGPT desktop)"
+	CacheSalt string
+	Cache     *PrefixMatch
+	TokenIDs  []uint32
 
 	PromptTokens    uint32
 	ComputedTokens  uint32
@@ -57,8 +60,7 @@ type WorkItem struct {
 	Deadline  time.Time
 	MaxTokens uint32
 	Model     string
-
-	CacheHit bool
+	Cache     *PrefixMatch
 
 	// TokenIDs in WorkItem is a part of TokenIDs in Request.
 	TokenIDs      []uint32

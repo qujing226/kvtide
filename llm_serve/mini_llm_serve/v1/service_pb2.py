@@ -25,7 +25,7 @@ _sym_db = _symbol_database.Default()
 from mini_llm_serve.v1 import core_pb2 as mini__llm__serve_dot_v1_dot_core__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fmini_llm_serve/v1/service.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"\xbc\x02\n\x0fGenerateRequest\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x14\n\x05model\x18\x02 \x01(\tR\x05model\x12\x16\n\x06prompt\x18\x03 \x01(\tR\x06prompt\x12\x1d\n\nmax_tokens\x18\x04 \x01(\rR\tmaxTokens\x12\x1d\n\ntimeout_ms\x18\x05 \x01(\rR\ttimeoutMs\x12\x1b\n\tcache_key\x18\x06 \x01(\tR\x08\x63\x61\x63heKey\x12\x46\n\x06labels\x18\n \x03(\x0b\x32..mini_llm_serve.v1.GenerateRequest.LabelsEntryR\x06labels\x1a\x39\n\x0bLabelsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xf5\x02\n\x10GenerateResponse\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n\x0boutput_text\x18\x02 \x01(\tR\noutputText\x12\x44\n\rfinish_reason\x18\x03 \x01(\x0e\x32\x1f.mini_llm_serve.v1.FinishReasonR\x0c\x66inishReason\x12.\n\x05usage\x18\x04 \x01(\x0b\x32\x18.mini_llm_serve.v1.UsageR\x05usage\x12\x31\n\x06timing\x18\x05 \x01(\x0b\x32\x19.mini_llm_serve.v1.TimingR\x06timing\x12\x32\n\x05\x62\x61tch\x18\x06 \x01(\x0b\x32\x1c.mini_llm_serve.v1.BatchInfoR\x05\x62\x61tch\x12\x1f\n\x0b\x65xecutor_id\x18\x07 \x01(\tR\nexecutorId\x12#\n\rerror_message\x18\x08 \x01(\tR\x0c\x65rrorMessage\"\x9a\x02\n\x15GenerateResponseChunk\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x14\n\x05index\x18\x02 \x01(\rR\x05index\x12\x1d\n\ndelta_text\x18\x03 \x01(\tR\tdeltaText\x12\x12\n\x04\x64one\x18\x04 \x01(\x08R\x04\x64one\x12\x44\n\rfinish_reason\x18\x05 \x01(\x0e\x32\x1f.mini_llm_serve.v1.FinishReasonR\x0c\x66inishReason\x12.\n\x05usage\x18\x06 \x01(\x0b\x32\x18.mini_llm_serve.v1.UsageR\x05usage\x12#\n\rerror_message\x18\x07 \x01(\tR\x0c\x65rrorMessage\"\x0f\n\rHealthRequest\"(\n\x0eHealthResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"\x18\n\x16GetRuntimeStatsRequest\"\x95\x02\n\x17GetRuntimeStatsResponse\x12*\n\x11prefill_queue_len\x18\x01 \x01(\rR\x0fprefillQueueLen\x12(\n\x10\x64\x65\x63ode_queue_len\x18\x02 \x01(\rR\x0e\x64\x65\x63odeQueueLen\x12+\n\x11inflight_requests\x18\x03 \x01(\rR\x10inflightRequests\x12)\n\x10inflight_batches\x18\x04 \x01(\rR\x0finflightBatches\x12%\n\x0e\x62usy_executors\x18\x05 \x01(\rR\rbusyExecutors\x12%\n\x0eidle_executors\x18\x06 \x01(\rR\ridleExecutors2\xc9\x01\n\x10InferenceService\x12S\n\x08Generate\x12\".mini_llm_serve.v1.GenerateRequest\x1a#.mini_llm_serve.v1.GenerateResponse\x12`\n\x0eGenerateStream\x12\".mini_llm_serve.v1.GenerateRequest\x1a(.mini_llm_serve.v1.GenerateResponseChunk0\x01\x32\xc7\x01\n\x0c\x41\x64minService\x12M\n\x06Health\x12 .mini_llm_serve.v1.HealthRequest\x1a!.mini_llm_serve.v1.HealthResponse\x12h\n\x0fGetRuntimeStats\x12).mini_llm_serve.v1.GetRuntimeStatsRequest\x1a*.mini_llm_serve.v1.GetRuntimeStatsResponseB\xd1\x01\n\x15\x63om.mini_llm_serve.v1B\x0cServiceProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1fmini_llm_serve/v1/service.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"\xb8\x02\n\x0fGenerateRequest\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x17\n\x07user_id\x18\x02 \x01(\tR\x06userId\x12\x14\n\x05model\x18\x03 \x01(\tR\x05model\x12\x16\n\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n\nmax_tokens\x18\x05 \x01(\rR\tmaxTokens\x12\x1d\n\ntimeout_ms\x18\x06 \x01(\rR\ttimeoutMs\x12\x46\n\x06labels\x18\n \x03(\x0b\x32..mini_llm_serve.v1.GenerateRequest.LabelsEntryR\x06labels\x1a\x39\n\x0bLabelsEntry\x12\x10\n\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n\x05value\x18\x02 \x01(\tR\x05value:\x02\x38\x01\"\xf5\x02\n\x10GenerateResponse\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x1f\n\x0boutput_text\x18\x02 \x01(\tR\noutputText\x12\x44\n\rfinish_reason\x18\x03 \x01(\x0e\x32\x1f.mini_llm_serve.v1.FinishReasonR\x0c\x66inishReason\x12.\n\x05usage\x18\x04 \x01(\x0b\x32\x18.mini_llm_serve.v1.UsageR\x05usage\x12\x31\n\x06timing\x18\x05 \x01(\x0b\x32\x19.mini_llm_serve.v1.TimingR\x06timing\x12\x32\n\x05\x62\x61tch\x18\x06 \x01(\x0b\x32\x1c.mini_llm_serve.v1.BatchInfoR\x05\x62\x61tch\x12\x1f\n\x0b\x65xecutor_id\x18\x07 \x01(\tR\nexecutorId\x12#\n\rerror_message\x18\x08 \x01(\tR\x0c\x65rrorMessage\"\x9a\x02\n\x15GenerateResponseChunk\x12\x1d\n\nrequest_id\x18\x01 \x01(\tR\trequestId\x12\x14\n\x05index\x18\x02 \x01(\rR\x05index\x12\x1d\n\ndelta_text\x18\x03 \x01(\tR\tdeltaText\x12\x12\n\x04\x64one\x18\x04 \x01(\x08R\x04\x64one\x12\x44\n\rfinish_reason\x18\x05 \x01(\x0e\x32\x1f.mini_llm_serve.v1.FinishReasonR\x0c\x66inishReason\x12.\n\x05usage\x18\x06 \x01(\x0b\x32\x18.mini_llm_serve.v1.UsageR\x05usage\x12#\n\rerror_message\x18\x07 \x01(\tR\x0c\x65rrorMessage\"\x0f\n\rHealthRequest\"(\n\x0eHealthResponse\x12\x16\n\x06status\x18\x01 \x01(\tR\x06status\"\x18\n\x16GetRuntimeStatsRequest\"\x95\x02\n\x17GetRuntimeStatsResponse\x12*\n\x11prefill_queue_len\x18\x01 \x01(\rR\x0fprefillQueueLen\x12(\n\x10\x64\x65\x63ode_queue_len\x18\x02 \x01(\rR\x0e\x64\x65\x63odeQueueLen\x12+\n\x11inflight_requests\x18\x03 \x01(\rR\x10inflightRequests\x12)\n\x10inflight_batches\x18\x04 \x01(\rR\x0finflightBatches\x12%\n\x0e\x62usy_executors\x18\x05 \x01(\rR\rbusyExecutors\x12%\n\x0eidle_executors\x18\x06 \x01(\rR\ridleExecutors2\xc9\x01\n\x10InferenceService\x12S\n\x08Generate\x12\".mini_llm_serve.v1.GenerateRequest\x1a#.mini_llm_serve.v1.GenerateResponse\x12`\n\x0eGenerateStream\x12\".mini_llm_serve.v1.GenerateRequest\x1a(.mini_llm_serve.v1.GenerateResponseChunk0\x01\x32\xc7\x01\n\x0c\x41\x64minService\x12M\n\x06Health\x12 .mini_llm_serve.v1.HealthRequest\x1a!.mini_llm_serve.v1.HealthResponse\x12h\n\x0fGetRuntimeStats\x12).mini_llm_serve.v1.GetRuntimeStatsRequest\x1a*.mini_llm_serve.v1.GetRuntimeStatsResponseB\xd1\x01\n\x15\x63om.mini_llm_serve.v1B\x0cServiceProtoP\x01ZMgithub.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1;mini_llm_servev1\xa2\x02\x03MXX\xaa\x02\x0fMiniLlmServe.V1\xca\x02\x0fMiniLlmServe\\V1\xe2\x02\x1bMiniLlmServe\\V1\\GPBMetadata\xea\x02\x10MiniLlmServe::V1b\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -36,23 +36,23 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_GENERATEREQUEST_LABELSENTRY']._loaded_options = None
   _globals['_GENERATEREQUEST_LABELSENTRY']._serialized_options = b'8\001'
   _globals['_GENERATEREQUEST']._serialized_start=85
-  _globals['_GENERATEREQUEST']._serialized_end=401
-  _globals['_GENERATEREQUEST_LABELSENTRY']._serialized_start=344
-  _globals['_GENERATEREQUEST_LABELSENTRY']._serialized_end=401
-  _globals['_GENERATERESPONSE']._serialized_start=404
-  _globals['_GENERATERESPONSE']._serialized_end=777
-  _globals['_GENERATERESPONSECHUNK']._serialized_start=780
-  _globals['_GENERATERESPONSECHUNK']._serialized_end=1062
-  _globals['_HEALTHREQUEST']._serialized_start=1064
-  _globals['_HEALTHREQUEST']._serialized_end=1079
-  _globals['_HEALTHRESPONSE']._serialized_start=1081
-  _globals['_HEALTHRESPONSE']._serialized_end=1121
-  _globals['_GETRUNTIMESTATSREQUEST']._serialized_start=1123
-  _globals['_GETRUNTIMESTATSREQUEST']._serialized_end=1147
-  _globals['_GETRUNTIMESTATSRESPONSE']._serialized_start=1150
-  _globals['_GETRUNTIMESTATSRESPONSE']._serialized_end=1427
-  _globals['_INFERENCESERVICE']._serialized_start=1430
-  _globals['_INFERENCESERVICE']._serialized_end=1631
-  _globals['_ADMINSERVICE']._serialized_start=1634
-  _globals['_ADMINSERVICE']._serialized_end=1833
+  _globals['_GENERATEREQUEST']._serialized_end=397
+  _globals['_GENERATEREQUEST_LABELSENTRY']._serialized_start=340
+  _globals['_GENERATEREQUEST_LABELSENTRY']._serialized_end=397
+  _globals['_GENERATERESPONSE']._serialized_start=400
+  _globals['_GENERATERESPONSE']._serialized_end=773
+  _globals['_GENERATERESPONSECHUNK']._serialized_start=776
+  _globals['_GENERATERESPONSECHUNK']._serialized_end=1058
+  _globals['_HEALTHREQUEST']._serialized_start=1060
+  _globals['_HEALTHREQUEST']._serialized_end=1075
+  _globals['_HEALTHRESPONSE']._serialized_start=1077
+  _globals['_HEALTHRESPONSE']._serialized_end=1117
+  _globals['_GETRUNTIMESTATSREQUEST']._serialized_start=1119
+  _globals['_GETRUNTIMESTATSREQUEST']._serialized_end=1143
+  _globals['_GETRUNTIMESTATSRESPONSE']._serialized_start=1146
+  _globals['_GETRUNTIMESTATSRESPONSE']._serialized_end=1423
+  _globals['_INFERENCESERVICE']._serialized_start=1426
+  _globals['_INFERENCESERVICE']._serialized_end=1627
+  _globals['_ADMINSERVICE']._serialized_start=1630
+  _globals['_ADMINSERVICE']._serialized_end=1829
 # @@protoc_insertion_point(module_scope)

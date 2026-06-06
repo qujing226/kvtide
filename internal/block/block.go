@@ -1,6 +1,9 @@
 package block
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"sync"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
@@ -18,7 +21,7 @@ const (
 type Manager interface {
 	MatchPrefix(req *model.Request) *model.PrefixMatch
 	AllocateBlocks(work *model.WorkItem) bool
-	Commit(workID string)
+	Commit(workId string)
 	Rollback(workID string)
 	FreeRequest(requestID string)
 	Stats() model.BlockStats
@@ -72,79 +75,123 @@ func NewManager(l *zap.SugaredLogger) Manager {
 }
 
 func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
-	return &model.PrefixMatch{
-		RequestID: req.RequestId,
+	var (
+		blockIDs []uint32
+		hit      bool
+	)
+
+	hashes := m.blockHashes(req)
+
+	m.mu.Lock()
+	for _, hash := range hashes {
+		blockId, exists := m.cachedBlocks[hash]
+		if !exists {
+			// cached block must be coherent
+			break
+		}
+		blockIDs = append(blockIDs, blockId)
+		hit = true
+
+		m.touch(blockId)
 	}
+	m.requestBlocks[req.RequestId] = append([]uint32(nil), blockIDs...)
+	m.mu.Unlock()
+
+	cache := &model.PrefixMatch{
+		Hit:          hit,
+		CachedTokens: uint32(len(blockIDs)) * m.blockSize,
+		BlockIDs:     blockIDs,
+		HashesTotal:  hashes,
+	}
+	req.Cache = cache
+	return cache
 }
 
 func (m *manager) AllocateBlocks(work *model.WorkItem) bool {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	currentBlocks := uint32(len(m.requestBlocks[work.RequestId]))
+	existBlocks, exist := m.requestBlocks[work.RequestId]
+	if !exist {
+		if len(work.Cache.BlockIDs) > 0 {
+			existBlocks = work.Cache.BlockIDs
+			m.requestBlocks[work.RequestId] = existBlocks
+		}
+	}
 	requiredKVToken := requiredKVTokens(work)
 	requiredTotalBlocks := ceilDiv(requiredKVToken, m.blockSize)
 	requiredBlocks := uint32(0)
 	// protect uint32
-	if requiredTotalBlocks > currentBlocks {
-		requiredBlocks = requiredTotalBlocks - currentBlocks
+	if requiredTotalBlocks > uint32(len(existBlocks)) {
+		requiredBlocks = requiredTotalBlocks - uint32(len(existBlocks))
 	}
-	if requiredBlocks > m.freeCount {
-		return false
-	}
-	existBlocks := m.requestBlocks[work.RequestId]
 
-	blocks, ok := m.allocate(requiredBlocks)
+	allocatedBlockIds, ok := m.allocate(requiredBlocks)
 	if !ok {
 		m.l.Errorw("allocate blocks error", "blocks:", requiredBlocks)
 		return false
 	}
 
-	blockTable := make([]uint32, 0, len(existBlocks)+len(blocks))
+	blockTable := make([]uint32, 0, len(existBlocks)+len(allocatedBlockIds))
 	blockTable = append(blockTable, existBlocks...)
-	blockTable = append(blockTable, blocks...)
+	blockTable = append(blockTable, allocatedBlockIds...)
 	m.requestBlocks[work.RequestId] = blockTable
 
 	work.BlockAllocation = &model.BlockAllocation{
 		RequestID:         work.RequestId,
 		WorkID:            work.WorkId,
+		Phase:             work.Phase,
 		BlockSize:         m.blockSize,
 		BlockTable:        append([]uint32(nil), blockTable...),
-		AllocatedBlocks:   blocks,
-		CachedTokens:      work.PrefillOffset,
-		RequiredTokens:    work.NumNewTokens,
-		RequiredBlocks:    requiredBlocks,
+		BlockHashes:       work.Cache.HashesTotal,
+		AllocatedBlocks:   allocatedBlockIds,
 		TokensAfterCommit: requiredKVToken,
 	}
 	m.pendingAllocations[work.WorkId] = work.BlockAllocation
-
 	return true
 }
 
-func (m *manager) Commit(workID string) {
+func (m *manager) Commit(workId string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	allocation, exists := m.pendingAllocations[workID]
+	allocation, exists := m.pendingAllocations[workId]
 	if !exists {
 		return
 	}
-	delete(m.pendingAllocations, workID)
+	delete(m.pendingAllocations, workId)
 
 	// update tokenCount
-	for idx, blockID := range allocation.BlockTable {
+	for idx, blockId := range allocation.BlockTable {
 		start := uint32(idx) * m.blockSize
+		block := &m.blocks[blockId]
 		if allocation.TokensAfterCommit <= start {
-			m.blocks[blockID].TokenCount = 0
+			block.TokenCount = 0
 			continue
 		}
 
 		remaining := allocation.TokensAfterCommit - start
 		if remaining >= m.blockSize {
-			m.blocks[blockID].TokenCount = m.blockSize
+			block.TokenCount = m.blockSize
 		} else {
-			m.blocks[blockID].TokenCount = remaining
+			block.TokenCount = remaining
 		}
+	}
+
+	// update cached block
+	for idx, blockID := range allocation.BlockTable {
+		block := &m.blocks[blockID]
+
+		if allocation.Phase != v1.WorkPhasePrefill ||
+			block.Cached ||
+			block.TokenCount != allocation.BlockSize ||
+			idx >= len(allocation.BlockHashes) {
+			continue
+		}
+
+		block.Hash = allocation.BlockHashes[idx]
+		block.Cached = true
+		m.cachedBlocks[block.Hash] = blockID
 	}
 }
 
@@ -228,6 +275,66 @@ func (m *manager) allocate(n uint32) ([]uint32, bool) {
 		ids = append(ids, id)
 	}
 	return ids, true
+}
+
+func (m *manager) blockHashes(req *model.Request) []string {
+	// don't use m.ceilDiv because we generally won't cache the last block if it is not full.
+	fullBlocks := uint32(len(req.TokenIDs)) / m.blockSize
+	hashes := make([]string, 0, fullBlocks)
+	prev := req.CacheSalt
+	for i := uint32(0); i < fullBlocks; i++ {
+		start := i * m.blockSize
+		end := start + m.blockSize
+		curr := hashBlock(prev, req.TokenIDs[start:end])
+		prev = curr
+		hashes = append(hashes, curr)
+	}
+	return hashes
+}
+
+func (m *manager) touch(blockIds ...uint32) {
+	for _, bId := range blockIds {
+		b := &m.blocks[bId]
+		if b.InFreeQueue {
+			m.removeFreeBlock(b)
+		}
+		b.RefCount++
+	}
+}
+
+func (m *manager) removeFreeBlock(b *model.Block) {
+	if !b.InFreeQueue {
+		return
+	}
+
+	if b.PrevFree >= 0 {
+		m.blocks[b.PrevFree].NextFree = b.NextFree
+	} else {
+		m.freeHead = b.NextFree
+	}
+
+	if b.NextFree >= 0 {
+		m.blocks[b.NextFree].PrevFree = b.PrevFree
+	} else {
+		m.freeTail = b.PrevFree
+	}
+
+	b.InFreeQueue = false
+	b.NextFree = -1
+	b.PrevFree = -1
+	m.freeCount--
+}
+
+func hashBlock(prevHash string, tokens []uint32) string {
+	b := make([]byte, 0, len(prevHash)+len(tokens)*4)
+	b = append(b, prevHash...)
+	tokenBytes := make([]byte, 4)
+	for _, token := range tokens {
+		binary.BigEndian.PutUint32(tokenBytes, token)
+		b = append(b, tokenBytes...)
+	}
+	hash := sha256.Sum256(b)
+	return hex.EncodeToString(hash[:])
 }
 
 func requiredKVTokens(work *model.WorkItem) uint32 {

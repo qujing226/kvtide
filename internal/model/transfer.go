@@ -7,14 +7,21 @@ import (
 )
 
 func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
+	var (
+		CacheSalt string
+	)
+	if in.UserId == "" {
+		CacheSalt = "request:" + in.RequestId
+	}
 	out := &Request{
 		RequestId:       in.RequestId,
+		UserId:          in.UserId,
 		Model:           in.Model,
 		Prompt:          in.Prompt,
 		MaxTokens:       in.MaxTokens,
 		Timeout:         time.Duration(int64(in.TimeoutMs)) * time.Millisecond,
 		Deadline:        time.Now().Add(time.Duration(in.TimeoutMs) * time.Millisecond),
-		CacheKey:        in.CacheKey,
+		CacheSalt:       CacheSalt,
 		PromptTokens:    0,
 		ComputedTokens:  0,
 		GeneratedTokens: 0,

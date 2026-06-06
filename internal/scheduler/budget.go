@@ -43,15 +43,18 @@ func splitPrefillChunk(item *model.WorkItem, tokens uint32) (*model.WorkItem, *m
 	chunk := *item
 	chunk.NumNewTokens = tokens
 
-	processed := item.PrefillOffset + tokens
 	remainCost := cost - tokens
 	if remainCost == 0 {
 		return &chunk, nil
 	}
 
 	rest := *item
-	rest.PrefillOffset = processed
+	rest.PrefillOffset = item.PrefillOffset + tokens
 	rest.NumNewTokens = remainCost
+
+	// Important: rest and chunk need to split
+	rest.TokenIDs = rest.TokenIDs[tokens:]
+	chunk.TokenIDs = chunk.TokenIDs[:tokens]
 	return &chunk, &rest
 }
 

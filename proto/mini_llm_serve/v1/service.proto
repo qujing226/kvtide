@@ -16,11 +16,11 @@ service AdminService{
 
 message GenerateRequest{
   string request_id = 1;
-  string model = 2;
-  string prompt = 3;
-  uint32 max_tokens = 4; // mock inference can determine sleep time, output_length by this.
-  uint32 timeout_ms = 5;
-  string cache_key = 6;
+  string user_id = 2;
+  string model = 3;
+  string prompt = 4;
+  uint32 max_tokens = 5; // mock inference can determine sleep time, output_length by this.
+  uint32 timeout_ms = 6;
   map<string, string> labels = 10;
 }
 

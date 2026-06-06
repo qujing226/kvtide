@@ -6,7 +6,6 @@ import (
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/block"
-	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -24,7 +23,7 @@ func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
 				},
 			},
 		},
-	}, state.NewRequestLifecycleStateManager(zap.S(), cache.NewPrefixCache(), block.NewManager(zap.S()), metrics.NewMetrics())
+	}, state.NewRequestLifecycleStateManager(zap.S(), block.NewManager(zap.S()), metrics.NewMetrics())
 }
 
 func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, phase v1.WorkPhase) *model.WorkItem {
@@ -35,6 +34,7 @@ func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, p
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     []uint32{1, 2},
 		PromptTokens: 2,
 		Deadline:     time.Now().Add(time.Minute),
 	})

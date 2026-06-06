@@ -172,7 +172,7 @@ func TestBuildGenerateRequestUsesStage2ScenarioFields(t *testing.T) {
 	require.Equal(t, "a much longer prompt used by the mixed prompt benchmark", req.Prompt)
 	require.Equal(t, uint32(128), req.MaxTokens)
 	require.Equal(t, uint32(10000), req.TimeoutMs)
-	require.Equal(t, "bench-cache_miss-cache-000001", req.CacheKey)
+	require.Equal(t, "bench-cache_miss-cache-000001", req.UserId)
 	require.Equal(t, "cache_miss", req.Labels["scenario"])
 }
 
@@ -190,6 +190,6 @@ func TestBuildGenerateRequestUsesSharedCacheKey(t *testing.T) {
 	req0 := buildGenerateRequest(scenario, 0)
 	req1 := buildGenerateRequest(scenario, 1)
 
-	require.Equal(t, "shared-prefix", req0.CacheKey)
-	require.Equal(t, "shared-prefix", req1.CacheKey)
+	require.Equal(t, "shared-prefix", req0.UserId)
+	require.Equal(t, "shared-prefix", req1.UserId)
 }

@@ -6,24 +6,36 @@ import (
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/block"
-	"github.com/qujing226/mini-llm-serve/internal/cache"
 	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
-func newTestRequestStateManager(prefixCache cache.PrefixCache, m metrics.Metrics) RequestStateManager {
-	return NewRequestLifecycleStateManager(zap.NewNop().Sugar(), prefixCache, block.NewManager(zap.NewNop().Sugar()), m)
+type testStateFixture struct {
+	manager     RequestStateManager
+	blockManger block.Manager
+	metrics     metrics.Metrics
+}
+
+func newTestRequestStateManager(m metrics.Metrics) testStateFixture {
+	blockManager := block.NewManager(zap.NewNop().Sugar())
+	return testStateFixture{
+		manager:     NewRequestLifecycleStateManager(zap.NewNop().Sugar(), blockManager, m),
+		blockManger: blockManager,
+		metrics:     m,
+	}
 }
 
 func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
-	manager := newTestRequestStateManager(cache.NewPrefixCache(), metrics.NewMetrics())
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-stale",
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testStateTokenIDs(2),
 		PromptTokens: 2,
 	}
 
@@ -45,12 +57,14 @@ func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
 }
 
 func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
-	manager := newTestRequestStateManager(cache.NewPrefixCache(), metrics.NewMetrics())
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-canceled",
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testStateTokenIDs(2),
 		PromptTokens: 2,
 	}
 
@@ -62,12 +76,14 @@ func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
 }
 
 func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
-	manager := newTestRequestStateManager(cache.NewPrefixCache(), metrics.NewMetrics())
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-timeout",
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testStateTokenIDs(2),
 		PromptTokens: 2,
 		Deadline:     time.Now().Add(-time.Second),
 	}
@@ -93,12 +109,14 @@ func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
 
 func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 	m := metrics.NewMetrics()
-	manager := newTestRequestStateManager(cache.NewPrefixCache(), m)
+	fixture := newTestRequestStateManager(m)
+	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-duplicate",
 		Model:        "mock",
 		Prompt:       "hello",
 		MaxTokens:    8,
+		TokenIDs:     testStateTokenIDs(2),
 		PromptTokens: 2,
 	}
 
@@ -114,14 +132,15 @@ func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 }
 
 func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
-	prefixCache := cache.NewPrefixCache()
-	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-cache-miss",
 		Model:        "mock",
 		Prompt:       "hello world",
 		MaxTokens:    8,
-		CacheKey:     "shared-prefix",
+		CacheSalt:    "shared-prefix",
+		TokenIDs:     testStateTokenIDs(8),
 		PromptTokens: 8,
 	}
 
@@ -131,83 +150,87 @@ func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
 	require.Equal(t, v1.WorkPhasePrefill, work.Phase)
 	require.Equal(t, uint32(0), work.PrefillOffset)
 	require.Equal(t, uint32(8), work.NumNewTokens)
-	require.False(t, work.CacheHit)
-	require.False(t, req.CacheHit)
-	require.Equal(t, uint32(0), req.CachedTokens)
+	require.False(t, work.Cache.Hit)
+	require.Equal(t, uint32(0), work.Cache.CachedTokens)
 	require.Equal(t, uint32(0), req.ComputedTokens)
 }
 
 func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
-	prefixCache := cache.NewPrefixCache()
-	prefixCache.Put("shared-prefix", 5)
-	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
+	seedPrefixCache(t, fixture, "seed-partial", "shared-prefix", testStateTokenIDs(16))
+
 	req := &model.Request{
 		RequestId:    "req-cache-partial-hit",
 		Model:        "mock",
 		Prompt:       "hello world",
 		MaxTokens:    8,
-		CacheKey:     "shared-prefix",
-		PromptTokens: 8,
+		CacheSalt:    "shared-prefix",
+		TokenIDs:     testStateTokenIDs(24),
+		PromptTokens: 24,
 	}
 
 	work, err := manager.Create(req)
 
 	require.NoError(t, err)
 	require.Equal(t, v1.WorkPhasePrefill, work.Phase)
-	require.Equal(t, uint32(5), work.PrefillOffset)
-	require.Equal(t, uint32(3), work.NumNewTokens)
-	require.True(t, work.CacheHit)
-	require.True(t, req.CacheHit)
-	require.Equal(t, uint32(5), req.CachedTokens)
-	require.Equal(t, uint32(5), req.ComputedTokens)
+	require.Equal(t, uint32(16), work.PrefillOffset)
+	require.Equal(t, uint32(8), work.NumNewTokens)
+	require.True(t, work.Cache.Hit)
+	require.Equal(t, uint32(16), work.Cache.CachedTokens)
+	require.Equal(t, uint32(16), req.ComputedTokens)
 }
 
 func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
-	prefixCache := cache.NewPrefixCache()
-	prefixCache.Put("shared-prefix", 8)
-	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
+	seedPrefixCache(t, fixture, "seed-full", "shared-prefix", testStateTokenIDs(16))
+
 	req := &model.Request{
 		RequestId:    "req-cache-full-hit",
 		Model:        "mock",
 		Prompt:       "hello world",
 		MaxTokens:    8,
-		CacheKey:     "shared-prefix",
-		PromptTokens: 8,
+		CacheSalt:    "shared-prefix",
+		TokenIDs:     testStateTokenIDs(16),
+		PromptTokens: 16,
 	}
 
 	work, err := manager.Create(req)
 
 	require.NoError(t, err)
 	require.Equal(t, v1.WorkPhaseDecode, work.Phase)
-	require.Equal(t, uint32(8), work.PrefillOffset)
+	require.Equal(t, uint32(16), work.PrefillOffset)
 	require.Equal(t, uint32(1), work.NumNewTokens)
-	require.True(t, work.CacheHit)
-	require.True(t, req.CacheHit)
-	require.Equal(t, uint32(8), req.CachedTokens)
-	require.Equal(t, uint32(8), req.ComputedTokens)
+	require.True(t, work.Cache.Hit)
+	require.Equal(t, uint32(16), work.Cache.CachedTokens)
+	require.Equal(t, uint32(16), req.ComputedTokens)
 }
 
-func TestPrefillFinishedStoresPrefixCacheMetadata(t *testing.T) {
-	prefixCache := cache.NewPrefixCache()
-	manager := newTestRequestStateManager(prefixCache, metrics.NewMetrics())
+func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
+	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-cache-store",
 		Model:        "mock",
 		Prompt:       "hello world",
 		MaxTokens:    8,
-		CacheKey:     "shared-prefix",
-		PromptTokens: 8,
+		CacheSalt:    "shared-prefix",
+		TokenIDs:     testStateTokenIDs(16),
+		PromptTokens: 16,
 	}
 
 	work, err := manager.Create(req)
 	require.NoError(t, err)
+	require.True(t, fixture.blockManger.AllocateBlocks(work))
+	fixture.blockManger.Commit(work.WorkId)
 
 	next, err := manager.OnEvent(&model.Event{
 		WorkId:    work.WorkId,
 		RequestId: req.RequestId,
 		Type:      v1.EventTypePrefillFinished,
 		Usage: model.Usage{
-			InputTokens: 8,
+			InputTokens: 16,
 		},
 	})
 
@@ -215,7 +238,46 @@ func TestPrefillFinishedStoresPrefixCacheMetadata(t *testing.T) {
 	require.Len(t, next, 1)
 	require.Equal(t, v1.WorkPhaseDecode, next[0].Phase)
 
-	tokens, hit := prefixCache.Lookup("shared-prefix", 8)
-	require.True(t, hit)
-	require.Equal(t, uint32(8), tokens)
+	manager.Finish(req.RequestId)
+	followup := &model.Request{
+		RequestId:    "req-cache-store-followup",
+		Model:        "mock",
+		Prompt:       "hello world",
+		MaxTokens:    8,
+		CacheSalt:    "shared-prefix",
+		TokenIDs:     testStateTokenIDs(16),
+		PromptTokens: 16,
+	}
+	followupWork, err := manager.Create(followup)
+	require.NoError(t, err)
+	require.Equal(t, v1.WorkPhaseDecode, followupWork.Phase)
+	require.True(t, followupWork.Cache.Hit)
+	require.Equal(t, uint32(16), followupWork.Cache.CachedTokens)
+}
+
+func seedPrefixCache(t *testing.T, fixture testStateFixture, requestId, cacheSalt string, tokens []uint32) {
+	t.Helper()
+
+	req := &model.Request{
+		RequestId:    requestId,
+		Model:        "mock",
+		Prompt:       "seed",
+		MaxTokens:    8,
+		CacheSalt:    cacheSalt,
+		TokenIDs:     tokens,
+		PromptTokens: uint32(len(tokens)),
+	}
+	work, err := fixture.manager.Create(req)
+	require.NoError(t, err)
+	require.True(t, fixture.blockManger.AllocateBlocks(work))
+	fixture.blockManger.Commit(work.WorkId)
+	fixture.manager.Finish(req.RequestId)
+}
+
+func testStateTokenIDs(n uint32) []uint32 {
+	tokens := make([]uint32, n)
+	for i := range tokens {
+		tokens[i] = uint32(i + 1)
+	}
+	return tokens
 }
