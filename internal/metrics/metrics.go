@@ -10,18 +10,17 @@ import (
 )
 
 type Metrics interface {
+	RuntimeStats
+	Block
+
 	IncRequest(status string, executorID string)
 	ObserveRequestDuration(s float64)
 	ObserveTTFT(s float64)
 	ObserveTBT(s float64)
 	ObserveQueueWait(s float64)
 	ObserveExecution(s float64, executorID string)
-	ObserveBatchSize(size int)
+	ObserveBatch(size int, prefillItems int, decodeItems int)
 	IncBatches(executorID string)
-	SetPrefillQueueLength(n int)
-	SetDecodeQueueLength(n int)
-	SetActiveRequests(n int)
-	SetInflightBatches(n int)
 	IncQueueRejected()
 	IncExecutorErrors(executorID string)
 
@@ -37,29 +36,35 @@ type Metrics interface {
 type metrics struct {
 	re *prometheus.Registry
 
+	*block
+
 	requestsTotal          *prometheus.CounterVec
 	requestDurationSeconds prometheus.Histogram
 	ttftSeconds            prometheus.Histogram
 	tbtSeconds             prometheus.Histogram
 	queueWaitSeconds       prometheus.Histogram
 	executionSeconds       *prometheus.HistogramVec
-	batchSize              *prometheus.HistogramVec
-	batchesTotal           *prometheus.CounterVec
-	prefillQueueLength     prometheus.Gauge
-	decodeQueueLength      prometheus.Gauge
-	activeRequests         prometheus.Gauge
+
+	batchSize                   *prometheus.HistogramVec
+	batchItemsTotal             *prometheus.CounterVec
+	batchesTotal                *prometheus.CounterVec
+	prefillQueueLength          prometheus.Gauge
+	decodeQueueLength           prometheus.Gauge
+	activeRequests              prometheus.Gauge
 	inflightBatches             prometheus.Gauge
 	prefixCacheRequestsTotal    *prometheus.CounterVec
 	prefixCacheTokensSavedTotal prometheus.Counter
 	queueRejectedTotal          prometheus.Counter
-	executorErrorsTotal    *prometheus.CounterVec
+	executorErrorsTotal         *prometheus.CounterVec
 
-	mu sync.RWMutex
-	m  *model.RuntimeStats
+	mu           sync.RWMutex
+	runtimeStats *model.RuntimeStats
 }
 
 func NewMetrics() Metrics {
 	m := &metrics{
+		block: newBlock(),
+
 		requestsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "llm_requests_total",
 			Help: "Total number of requests",
@@ -87,12 +92,15 @@ func NewMetrics() Metrics {
 		executionSeconds: prometheus.NewHistogramVec(prometheus.HistogramOpts{
 			Name: "llm_execution_seconds",
 			Help: "Execution time in seconds",
-		},
-			[]string{"executor"},
-		),
+		}, []string{"executor"}),
 		batchSize: prometheus.NewHistogramVec(prometheus.HistogramOpts{
-			Name: "llm_batch_size",
-			Help: "Number of tasks in a batch",
+			Name:    "llm_batch_size",
+			Help:    "Number of tasks in a batch",
+			Buckets: []float64{1, 2, 4, 8, 16, 32, 64},
+		}, []string{"phase"}),
+		batchItemsTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "llm_batch_items_total",
+			Help: "Total number of work items scheduled in batches",
 		}, []string{"phase"}),
 		batchesTotal: prometheus.NewCounterVec(prometheus.CounterOpts{
 			Name: "llm_batches_total",
@@ -130,7 +138,7 @@ func NewMetrics() Metrics {
 			Name: "llm_executor_errors_total",
 			Help: "Total Number of executor errors",
 		}, []string{"executor"}),
-		m: &model.RuntimeStats{
+		runtimeStats: &model.RuntimeStats{
 			PrefillQueueLength: 0,
 			ActiveRequests:     0,
 			InflightBatches:    0,
@@ -140,6 +148,10 @@ func NewMetrics() Metrics {
 	}
 	m.re = prometheus.NewRegistry()
 	m.re.MustRegister(
+		m.block.kvBlocks,
+		m.block.evictedBlocksTotal,
+		m.block.allocationFailuresTotal,
+
 		m.requestsTotal,
 		m.requestDurationSeconds,
 		m.ttftSeconds,
@@ -147,6 +159,7 @@ func NewMetrics() Metrics {
 		m.queueWaitSeconds,
 		m.executionSeconds,
 		m.batchSize,
+		m.batchItemsTotal,
 		m.batchesTotal,
 		m.prefillQueueLength,
 		m.decodeQueueLength,
@@ -185,42 +198,16 @@ func (m *metrics) ObserveExecution(s float64, executorID string) {
 
 }
 
-func (m *metrics) ObserveBatchSize(size int) {
+func (m *metrics) ObserveBatch(size int, prefillItems int, decodeItems int) {
 	//m.batchSize.WithLabelValues(phase.String()).Observe(float64(size))
 	m.batchSize.WithLabelValues("mixed").Observe(float64(size))
+	m.batchItemsTotal.WithLabelValues("prefill").Add(float64(prefillItems))
+	m.batchItemsTotal.WithLabelValues("decode").Add(float64(decodeItems))
 }
 
 func (m *metrics) IncBatches(executorID string) {
 	//m.batchesTotal.WithLabelValues(executorID, phase.String()).Inc()
 	m.batchesTotal.WithLabelValues(executorID, "mixed").Inc()
-}
-
-func (m *metrics) SetPrefillQueueLength(n int) {
-	m.prefillQueueLength.Set(float64(n))
-	m.mu.Lock()
-	m.m.PrefillQueueLength = uint64(n)
-	m.mu.Unlock()
-}
-
-func (m *metrics) SetDecodeQueueLength(n int) {
-	m.decodeQueueLength.Set(float64(n))
-	m.mu.Lock()
-	m.m.DecodeQueueLength = uint64(n)
-	m.mu.Unlock()
-}
-
-func (m *metrics) SetActiveRequests(n int) {
-	m.activeRequests.Set(float64(n))
-	m.mu.Lock()
-	m.m.ActiveRequests = uint64(n)
-	m.mu.Unlock()
-}
-
-func (m *metrics) SetInflightBatches(n int) {
-	m.inflightBatches.Set(float64(n))
-	m.mu.Lock()
-	m.m.InflightBatches = uint64(n)
-	m.mu.Unlock()
 }
 
 func (m *metrics) IncQueueRejected() {
@@ -251,6 +238,6 @@ func (m *metrics) Handler() http.Handler {
 func (m *metrics) Snapshot() model.RuntimeStats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
-	s := *m.m
+	s := *m.runtimeStats
 	return s
 }

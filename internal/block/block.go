@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"go.uber.org/zap"
 )
@@ -24,7 +25,6 @@ type Manager interface {
 	Commit(workId string)
 	Rollback(workID string)
 	FreeRequest(requestID string)
-	Stats() model.BlockStats
 }
 
 type manager struct {
@@ -44,10 +44,11 @@ type manager struct {
 	// pendingAllocations maps a work.ID to a BlockAllocation which is waiting for commit or rollback.
 	pendingAllocations map[string]*model.BlockAllocation
 
-	mu sync.RWMutex
+	mu      sync.RWMutex
+	metrics metrics.Metrics
 }
 
-func NewManager(l *zap.SugaredLogger) Manager {
+func NewManager(l *zap.SugaredLogger, metrics metrics.Metrics) Manager {
 	m := &manager{
 		l:                  l,
 		blocks:             make([]model.Block, TmpTotalBlocks),
@@ -58,6 +59,8 @@ func NewManager(l *zap.SugaredLogger) Manager {
 		requestBlocks:      make(map[string][]uint32),
 		cachedBlocks:       make(map[string]uint32),
 		pendingAllocations: make(map[string]*model.BlockAllocation),
+
+		metrics: metrics,
 	}
 	for i := range m.blocks {
 		// Blocks start in a doubly linked free queue.
@@ -71,6 +74,9 @@ func NewManager(l *zap.SugaredLogger) Manager {
 	// -1 is the empty sentinel for free-list links.
 	m.blocks[0].PrevFree = -1
 	m.blocks[len(m.blocks)-1].NextFree = -1
+
+	// set free block
+	m.observeBlockStats()
 	return m
 }
 
@@ -95,6 +101,8 @@ func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
 		m.touch(blockId)
 	}
 	m.requestBlocks[req.RequestId] = append([]uint32(nil), blockIDs...)
+
+	m.observeBlockStats()
 	m.mu.Unlock()
 
 	cache := &model.PrefixMatch{
@@ -128,6 +136,7 @@ func (m *manager) AllocateBlocks(work *model.WorkItem) bool {
 
 	allocatedBlockIds, ok := m.allocate(requiredBlocks)
 	if !ok {
+		m.metrics.IncAllocationFailure()
 		m.l.Errorw("allocate blocks error", "blocks:", requiredBlocks)
 		return false
 	}
@@ -148,6 +157,7 @@ func (m *manager) AllocateBlocks(work *model.WorkItem) bool {
 		TokensAfterCommit: requiredKVToken,
 	}
 	m.pendingAllocations[work.WorkId] = work.BlockAllocation
+	m.observeBlockStats()
 	return true
 }
 
@@ -189,10 +199,15 @@ func (m *manager) Commit(workId string) {
 			continue
 		}
 
+		if _, exists := m.cachedBlocks[allocation.BlockHashes[idx]]; exists {
+			continue
+		}
+
 		block.Hash = allocation.BlockHashes[idx]
 		block.Cached = true
 		m.cachedBlocks[block.Hash] = blockID
 	}
+	m.observeBlockStats()
 }
 
 func (m *manager) Rollback(workID string) {
@@ -218,6 +233,7 @@ func (m *manager) Rollback(workID string) {
 	for _, id := range allocation.AllocatedBlocks {
 		m.pushFree(id)
 	}
+	m.observeBlockStats()
 }
 
 func (m *manager) FreeRequest(requestID string) {
@@ -234,26 +250,14 @@ func (m *manager) FreeRequest(requestID string) {
 	for _, id := range blocks {
 		m.pushFree(id)
 	}
+	m.observeBlockStats()
 }
 
-func (m *manager) Stats() model.BlockStats {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-
-	cachedBlocks := uint64(0)
-	for i := range m.blocks {
-		if m.blocks[i].Cached {
-			cachedBlocks++
-		}
-	}
-	freeBlocks := uint64(m.freeCount)
-	totalBlocks := uint64(len(m.blocks))
-	return model.BlockStats{
-		TotalBlocks:  totalBlocks,
-		UsedBlocks:   totalBlocks - freeBlocks,
-		FreeBlocks:   freeBlocks,
-		CachedBlocks: cachedBlocks,
-	}
+func (m *manager) observeBlockStats() {
+	free := uint64(m.freeCount)
+	active := uint64(len(m.blocks)) - free
+	cached := uint64(len(m.cachedBlocks))
+	m.metrics.ObserveBlockStats(active, free, cached)
 }
 
 func (m *manager) allocate(n uint32) ([]uint32, bool) {

@@ -26,6 +26,8 @@ func (m *manager) popFree() (uint32, bool) {
 	if b.Cached {
 		delete(m.cachedBlocks, b.Hash)
 		b.Cached = false
+		// metrics: evicted block
+		m.metrics.IncEvictedBlock()
 	}
 	b.Hash = ""
 	b.TokenCount = 0

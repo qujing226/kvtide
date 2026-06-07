@@ -6,6 +6,7 @@ import (
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
 	"github.com/qujing226/mini-llm-serve/internal/block"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -25,7 +26,7 @@ func newTestScheduler() *scheduler {
 		prefillQueueLarge:    NewPrefillQueue(cfg, manager),
 		decodeQueue:          NewDecodeQueue(cfg, manager),
 		requestManager:       manager,
-		blockManager:         block.NewManager(zap.NewNop().Sugar()),
+		blockManager:         block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()),
 	}
 }
 

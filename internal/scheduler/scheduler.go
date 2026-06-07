@@ -180,11 +180,7 @@ func (s *scheduler) patchExecute(ctx context.Context) {
 	}
 
 	// metrics: observe batch batchSize & infight batch number
-	s.metrics.ObserveBatchSize(batchLength)
-	// metrics: observe prefillQueue wait ms
-	for i := 0; i < batchLength; i++ {
-		s.metrics.ObserveQueueWait(batchCreateAt.Sub(batch[i].EnqueuedAt).Seconds())
-	}
+	s.observeBatchStatsAndTimeWait(batch, batchCreateAt)
 }
 
 func (s *scheduler) pickBatch() []*model.WorkItem {
@@ -226,4 +222,27 @@ func (s *scheduler) trySchedule() {
 	// metrics: queueLength
 	s.metrics.SetPrefillQueueLength(int(s.prefillQueueSmall.Length() + s.prefillQueueLarge.Length()))
 	s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
+}
+
+func (s *scheduler) observeBatchStatsAndTimeWait(batch []*model.WorkItem, now time.Time) {
+	prefillItems := 0
+	decodeItems := 0
+
+	batchLength := len(batch)
+
+	for _, work := range batch {
+		switch work.Phase {
+		case v1.WorkPhasePrefill:
+			prefillItems++
+		case v1.WorkPhaseDecode:
+			decodeItems++
+		}
+	}
+
+	s.metrics.ObserveBatch(batchLength, prefillItems, decodeItems)
+
+	// metrics: observe prefillQueue wait ms
+	for i := 0; i < batchLength; i++ {
+		s.metrics.ObserveQueueWait(now.Sub(batch[i].EnqueuedAt).Seconds())
+	}
 }

@@ -12,6 +12,8 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 	)
 	if in.UserId == "" {
 		CacheSalt = "request:" + in.RequestId
+	} else {
+		CacheSalt = "user:" + in.UserId
 	}
 	out := &Request{
 		RequestId:       in.RequestId,

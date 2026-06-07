@@ -19,7 +19,7 @@ type testStateFixture struct {
 }
 
 func newTestRequestStateManager(m metrics.Metrics) testStateFixture {
-	blockManager := block.NewManager(zap.NewNop().Sugar())
+	blockManager := block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics())
 	return testStateFixture{
 		manager:     NewRequestLifecycleStateManager(zap.NewNop().Sugar(), blockManager, m),
 		blockManger: blockManager,

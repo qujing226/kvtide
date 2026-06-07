@@ -15,6 +15,7 @@ import (
 )
 
 func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
+	m := metrics.NewMetrics()
 	return &conf.Conf{
 		Server: conf.ServerConf{
 			ScheduleConf: conf.ScheduleConf{
@@ -23,7 +24,7 @@ func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
 				},
 			},
 		},
-	}, state.NewRequestLifecycleStateManager(zap.S(), block.NewManager(zap.S()), metrics.NewMetrics())
+	}, state.NewRequestLifecycleStateManager(zap.S(), block.NewManager(zap.S(), m), m)
 }
 
 func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, phase v1.WorkPhase) *model.WorkItem {

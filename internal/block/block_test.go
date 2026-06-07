@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/mini-llm-serve/internal/metrics"
 	"github.com/qujing226/mini-llm-serve/internal/model"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
 
 func TestAllocateBlocksForPrefillUsesTotalKVLength(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 
 	work := prefillWork("work-1", "req-1", 0, 40)
 
@@ -29,13 +30,12 @@ func TestAllocateBlocksForPrefillUsesTotalKVLength(t *testing.T) {
 	require.Equal(t, uint32(16), m.blocks[1].TokenCount)
 	require.Equal(t, uint32(8), m.blocks[2].TokenCount)
 
-	stats := m.Stats()
-	require.Equal(t, uint64(TmpTotalBlocks-3), stats.FreeBlocks)
-	require.Equal(t, uint64(3), stats.UsedBlocks)
+	require.Equal(t, uint32(TmpTotalBlocks-3), m.freeCount)
+	require.Equal(t, 2, len(m.cachedBlocks))
 }
 
 func TestAllocateBlocksReusesPartiallyFilledPrefillBlock(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 
 	firstWork := prefillWork("work-1", "req-1", 0, 8)
 	ok := m.AllocateBlocks(firstWork)
@@ -61,7 +61,7 @@ func TestAllocateBlocksReusesPartiallyFilledPrefillBlock(t *testing.T) {
 }
 
 func TestAllocateBlocksOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 
 	firstWork := prefillWork("prefill", "req-1", 0, 16)
 	ok := m.AllocateBlocks(firstWork)
@@ -87,7 +87,7 @@ func TestAllocateBlocksOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T)
 }
 
 func TestFreeRequestReturnsNonCachedBlocksToFreeQueue(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 
 	work := prefillWork("work-1", "req-1", 0, 8)
 	ok := m.AllocateBlocks(work)
@@ -98,13 +98,12 @@ func TestFreeRequestReturnsNonCachedBlocksToFreeQueue(t *testing.T) {
 	m.FreeRequest("req-1")
 	m.FreeRequest("req-1")
 
-	stats := m.Stats()
-	require.Equal(t, uint64(TmpTotalBlocks), stats.FreeBlocks)
-	require.Equal(t, uint64(0), stats.UsedBlocks)
+	require.Equal(t, 0, len(m.cachedBlocks))
+	require.Equal(t, uint32(TmpTotalBlocks), m.freeCount)
 }
 
 func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 	tokens := tokenIDs(32)
 
 	firstReq := request("req-1", "user-1", tokens)
@@ -149,7 +148,7 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 }
 
 func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 
 	oldHash := "cached-free-block"
 	m.blocks[0].Cached = true
@@ -167,7 +166,7 @@ func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testin
 }
 
 func TestMatchPrefixUsesCacheSaltIsolation(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar()).(*manager)
+	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
 	tokens := tokenIDs(16)
 
 	req := request("req-1", "user-1", tokens)
