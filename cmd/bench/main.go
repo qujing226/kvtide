@@ -11,20 +11,14 @@ import (
 
 func main() {
 	var (
-		mode        string
+		profileName string
 		target      string
 		metricsURL  string
-		requests    int
-		concurrency int
-		timeoutMs   int
 	)
 
-	pflag.StringVarP(&mode, "mode", "m", "mixed_prompt", "benchmark scenario name")
+	pflag.StringVarP(&profileName, "profile", "p", "quick", "benchmark profile: quick or report")
 	pflag.StringVarP(&target, "target", "t", "http://127.0.0.1:8800", "benchmark inference target address")
 	pflag.StringVar(&metricsURL, "metrics-url", "", "metrics endpoint address, default is <target>/metrics")
-	pflag.IntVarP(&requests, "requests", "r", 0, "request count override")
-	pflag.IntVarP(&concurrency, "concurrency", "c", 0, "concurrency override")
-	pflag.IntVar(&timeoutMs, "timeout-ms", 0, "request timeout override in ms")
 	pflag.Parse()
 
 	logger, err := zap.NewProduction()
@@ -32,32 +26,29 @@ func main() {
 		panic(err)
 	}
 
-	scenario, err := ScenarioPreset(mode)
+	profile, err := ProfilePreset(profileName)
 	if err != nil {
-		logger.Fatal("invalid scenario", zap.Error(err))
+		logger.Fatal("invalid profile", zap.Error(err))
 	}
-	scenario.Target = target
 	if metricsURL == "" {
-		scenario.MetricsURL = fmt.Sprintf("%s/metrics", target)
-	} else {
+		metricsURL = fmt.Sprintf("%s/metrics", target)
+	}
+
+	for _, scenario := range ScenariosForProfile(profile) {
+		scenario.Target = target
 		scenario.MetricsURL = metricsURL
-	}
-	if requests > 0 {
-		scenario.Requests = requests
-	}
-	if concurrency > 0 {
-		scenario.Concurrency = concurrency
-	}
-	if timeoutMs > 0 {
-		scenario.Timeout = time.Duration(timeoutMs) * time.Millisecond
-	}
 
-	result, err := RunScenario(logger, scenario)
-	if err != nil {
-		logger.Fatal("benchmark failed", zap.Error(err))
+		result, runErr := RunScenario(logger, scenario)
+		if runErr != nil {
+			logger.Fatal("benchmark failed", zap.String("scenario", scenario.Name), zap.Error(runErr))
+		}
+		printResult(os.Stdout, result)
+		if profile.Name == "quick" {
+			if validationErr := ValidateQuickResult(result); validationErr != nil {
+				logger.Fatal("benchmark regression", zap.Error(validationErr))
+			}
+		}
 	}
-
-	printResult(os.Stdout, result)
 	logger.Sync()
 	time.Sleep(50 * time.Millisecond)
 }

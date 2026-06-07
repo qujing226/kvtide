@@ -24,19 +24,27 @@ const (
 )
 
 type Scenario struct {
-	Name           string
-	Target         string
-	MetricsURL     string
-	Requests       int
-	Concurrency    int
-	Timeout        time.Duration
-	Model          string
-	Prompt         string
-	Prompts        []string
-	MaxTokens      uint32
-	CacheKeyMode   string
-	CacheKey       string
-	WarmupRequests int
+	Name         string
+	Target       string
+	MetricsURL   string
+	Requests     int
+	Concurrency  int
+	Timeout      time.Duration
+	Model        string
+	Prompt       string
+	Prompts      []string
+	MaxTokens    uint32
+	CacheKeyMode string
+	CacheKey     string
+	CacheUsers   int
+}
+
+type Profile struct {
+	Name        string
+	Requests    int
+	Concurrency int
+	MaxTokens   uint32
+	Timeout     time.Duration
 }
 
 type BenchMetrics struct {
@@ -54,6 +62,13 @@ type BenchMetrics struct {
 	PrefixCacheHits        float64
 	PrefixCacheMisses      float64
 	PrefixCacheTokensSaved float64
+	PrefillItemsTotal      float64
+	DecodeItemsTotal       float64
+	KVBlocksActiveFinal    float64
+	KVBlocksFreeFinal      float64
+	KVBlocksCachedFinal    float64
+	KVAllocationFailures   float64
+	PrefixCacheEvictions   float64
 
 	batchSizeSum   float64
 	batchSizeCount float64
@@ -80,80 +95,68 @@ type Result struct {
 	Metrics       BenchMetrics
 }
 
-func ScenarioPreset(name string) (Scenario, error) {
+func ProfilePreset(name string) (Profile, error) {
 	switch name {
-	case "smoke":
-		return Scenario{
+	case "quick":
+		return Profile{
 			Name:        name,
 			Requests:    100,
-			Concurrency: 10,
-			Timeout:     3 * time.Second,
-			Model:       "deepseek",
-			Prompt:      "this is the prompt text....",
-			MaxTokens:   128,
+			Concurrency: 20,
+			MaxTokens:   8,
+			Timeout:     20 * time.Second,
 		}, nil
-	case "baseline_no_batching":
-		return Scenario{
-			Name:        name,
-			Requests:    300,
-			Concurrency: 10,
-			Timeout:     30 * time.Second,
-			Model:       "deepseek",
-			Prompt:      "this is the prompt text....",
-			MaxTokens:   128,
-		}, nil
-	case "dynamic_default", "dynamic_fastflush":
-		return Scenario{
+	case "report":
+		return Profile{
 			Name:        name,
 			Requests:    1000,
 			Concurrency: 100,
-			Timeout:     10 * time.Second,
-			Model:       "deepseek",
-			Prompt:      "this is the prompt text....",
 			MaxTokens:   128,
-		}, nil
-	case "cache_miss":
-		return Scenario{
-			Name:         name,
-			Requests:     1000,
-			Concurrency:  100,
-			Timeout:      60 * time.Second,
-			Model:        "deepseek",
-			Prompt:       prompt(),
-			MaxTokens:    128,
-			CacheKeyMode: CacheKeyModeUnique,
-		}, nil
-	case "cache_hit":
-		return Scenario{
-			Name:           name,
-			Requests:       1000,
-			Concurrency:    100,
-			Timeout:        60 * time.Second,
-			Model:          "deepseek",
-			Prompt:         prompt(),
-			MaxTokens:      128,
-			CacheKeyMode:   CacheKeyModeShared,
-			CacheKey:       "shared-prefix",
-			WarmupRequests: 1,
-		}, nil
-	case "mixed_prompt":
-		return Scenario{
-			Name:        name,
-			Requests:    1000,
-			Concurrency: 100,
 			Timeout:     60 * time.Second,
-			Model:       "deepseek",
-			Prompts: []string{
-				"short prompt",
-				"medium prompt with enough content to create a different prefill cost profile for the scheduler",
-				prompt(),
-			},
-			MaxTokens:    128,
-			CacheKeyMode: CacheKeyModeUnique,
 		}, nil
 	default:
-		return Scenario{}, fmt.Errorf("unsupported mode: %s", name)
+		return Profile{}, fmt.Errorf("unsupported profile: %s", name)
 	}
+}
+
+func ScenariosForProfile(profile Profile) []Scenario {
+	scenario := func(name string) Scenario {
+		return Scenario{
+			Name:        name,
+			Requests:    profile.Requests,
+			Concurrency: profile.Concurrency,
+			Timeout:     profile.Timeout,
+			Model:       "deepseek",
+			MaxTokens:   profile.MaxTokens,
+		}
+	}
+
+	cacheMiss := scenario("cache_miss")
+	cacheMiss.Prompt = benchmarkPrompt()
+	cacheMiss.CacheKeyMode = CacheKeyModeUnique
+
+	cacheHit := scenario("cache_hit")
+	cacheHit.Prompt = benchmarkPrompt()
+	cacheHit.CacheKeyMode = CacheKeyModeShared
+	cacheHit.CacheKey = "shared-prefix"
+	cacheHit.CacheUsers = 10
+
+	mixedPrompt := scenario("mixed_prompt")
+	mixedPrompt.Prompts = []string{
+		"short prompt",
+		"medium prompt with enough content to create a different prefill cost profile for the scheduler",
+		benchmarkPrompt(),
+	}
+	mixedPrompt.CacheKeyMode = CacheKeyModeUnique
+
+	blockPressure := scenario("block_pressure")
+	blockPressure.Prompt = strings.Repeat(benchmarkPrompt()+" ", 4)
+	blockPressure.CacheKeyMode = CacheKeyModeUnique
+	// Keep pressure below the current 1024-block allocator's deadlock boundary.
+	// The scheduler does not yet preempt requests when every active sequence
+	// needs another decode block.
+	blockPressure.Concurrency = min(profile.Concurrency, 32)
+
+	return []Scenario{cacheMiss, cacheHit, mixedPrompt, blockPressure}
 }
 
 func RunScenario(logger *zap.Logger, scenario Scenario) (Result, error) {
@@ -219,7 +222,7 @@ func RunScenario(logger *zap.Logger, scenario Scenario) (Result, error) {
 				)
 				return
 			}
-			if resp.FinishReason != v1.FinishReasonStop {
+			if !isSuccessfulFinishReason(resp.FinishReason) {
 				failed++
 				sugar.Errorw("request returned unexpected finish reason",
 					"index", i,
@@ -261,7 +264,7 @@ type generateClient interface {
 }
 
 func runWarmupRequests(inferenceClient generateClient, scenario Scenario) error {
-	for i := 0; i < scenario.WarmupRequests; i++ {
+	for i := 0; i < scenario.CacheUsers; i++ {
 		req := buildGenerateRequest(scenario, i)
 		req.RequestId = fmt.Sprintf("bench-%s-warmup-%06d", scenario.Name, i)
 
@@ -275,11 +278,15 @@ func runWarmupRequests(inferenceClient generateClient, scenario Scenario) error 
 		if resp.ErrorMessage != "" {
 			return fmt.Errorf("warmup request returned error response: %s", resp.ErrorMessage)
 		}
-		if resp.FinishReason != v1.FinishReasonStop {
+		if !isSuccessfulFinishReason(resp.FinishReason) {
 			return fmt.Errorf("warmup request returned unexpected finish reason: %s", resp.FinishReason.String())
 		}
 	}
 	return nil
+}
+
+func isSuccessfulFinishReason(reason v1.FinishReason) bool {
+	return reason == v1.FinishReasonStop || reason == v1.FinishReasonLength
 }
 
 func durationToMilliseconds(d time.Duration) uint32 {
@@ -291,7 +298,7 @@ func durationToMilliseconds(d time.Duration) uint32 {
 
 func buildGenerateRequest(scenario Scenario, index int) *v1.GenerateRequest {
 	return &v1.GenerateRequest{
-		RequestId: fmt.Sprintf("bench-%s-%06d", scenario.Name, index),
+		RequestId: fmt.Sprintf("bench-%s-measured-%06d", scenario.Name, index),
 		Model:     scenario.Model,
 		Prompt:    scenario.promptFor(index),
 		MaxTokens: scenario.MaxTokens,
@@ -313,10 +320,12 @@ func (s Scenario) promptFor(index int) string {
 func (s Scenario) userId(index int) string {
 	switch s.CacheKeyMode {
 	case CacheKeyModeShared:
-		if s.CacheKey != "" {
-			return s.CacheKey
+		cacheKey := s.CacheKey
+		if cacheKey == "" {
+			cacheKey = fmt.Sprintf("bench-%s-cache", s.Name)
 		}
-		return fmt.Sprintf("bench-%s-cache-shared", s.Name)
+		cacheUsers := max(s.CacheUsers, 1)
+		return fmt.Sprintf("%s-%03d", cacheKey, index%cacheUsers)
 	case CacheKeyModeUnique:
 		return fmt.Sprintf("bench-%s-cache-%06d", s.Name, index)
 	default:
@@ -324,7 +333,7 @@ func (s Scenario) userId(index int) string {
 	}
 }
 
-func prompt() string {
+func benchmarkPrompt() string {
 	return "Currently, vLLM utilizes its own implementation of a multi-head query attention kernel. This benchmark prompt is intentionally longer so prefill work is visible in the scheduler and cache metrics. Currently, vLLM utilizes its own implementation of a multi-head query attention kernel. This benchmark prompt is intentionally longer so prefill work is visible in the scheduler and cache metrics. Currently, vLLM utilizes its own implementation of a multi-head query attention kernel. This benchmark prompt is intentionally longer so prefill work is visible in the scheduler and cache metrics."
 }
 
@@ -405,6 +414,26 @@ func parseBenchMetrics(body string) BenchMetrics {
 			}
 		case name == "llm_prefix_cache_tokens_saved_total":
 			metrics.PrefixCacheTokensSaved = value
+		case strings.HasPrefix(name, "llm_batch_items_total"):
+			if strings.Contains(name, `phase="prefill"`) {
+				metrics.PrefillItemsTotal += value
+			}
+			if strings.Contains(name, `phase="decode"`) {
+				metrics.DecodeItemsTotal += value
+			}
+		case strings.HasPrefix(name, "llm_kv_blocks"):
+			switch {
+			case strings.Contains(name, `state="active"`):
+				metrics.KVBlocksActiveFinal = value
+			case strings.Contains(name, `state="free"`):
+				metrics.KVBlocksFreeFinal = value
+			case strings.Contains(name, `state="cached"`):
+				metrics.KVBlocksCachedFinal = value
+			}
+		case name == "llm_kv_allocation_failures_total":
+			metrics.KVAllocationFailures = value
+		case name == "llm_prefix_cache_evictions_total":
+			metrics.PrefixCacheEvictions = value
 		case name == "llm_active_requests":
 			metrics.ActiveRequestsFinal = value
 		case name == "llm_inflight_batches":
@@ -436,6 +465,13 @@ func deltaBenchMetrics(before, after BenchMetrics) BenchMetrics {
 		PrefixCacheHits:        counterDelta(before.PrefixCacheHits, after.PrefixCacheHits),
 		PrefixCacheMisses:      counterDelta(before.PrefixCacheMisses, after.PrefixCacheMisses),
 		PrefixCacheTokensSaved: counterDelta(before.PrefixCacheTokensSaved, after.PrefixCacheTokensSaved),
+		PrefillItemsTotal:      counterDelta(before.PrefillItemsTotal, after.PrefillItemsTotal),
+		DecodeItemsTotal:       counterDelta(before.DecodeItemsTotal, after.DecodeItemsTotal),
+		KVBlocksActiveFinal:    after.KVBlocksActiveFinal,
+		KVBlocksFreeFinal:      after.KVBlocksFreeFinal,
+		KVBlocksCachedFinal:    after.KVBlocksCachedFinal,
+		KVAllocationFailures:   counterDelta(before.KVAllocationFailures, after.KVAllocationFailures),
+		PrefixCacheEvictions:   counterDelta(before.PrefixCacheEvictions, after.PrefixCacheEvictions),
 		batchSizeSum:           counterDelta(before.batchSizeSum, after.batchSizeSum),
 		batchSizeCount:         counterDelta(before.batchSizeCount, after.batchSizeCount),
 		queueWaitSum:           counterDelta(before.queueWaitSum, after.queueWaitSum),
@@ -474,6 +510,61 @@ func counterDelta(before, after float64) float64 {
 		return after
 	}
 	return after - before
+}
+
+func ValidateQuickResult(result Result) error {
+	var failures []string
+	expectedRequests := float64(result.Scenario.Requests)
+	expectedDecodeItems := expectedRequests * float64(result.Scenario.MaxTokens)
+
+	if result.Success != result.Scenario.Requests {
+		failures = append(failures, fmt.Sprintf("successful requests: got %d want %d", result.Success, result.Scenario.Requests))
+	}
+	if result.Failed != 0 {
+		failures = append(failures, fmt.Sprintf("failed requests: got %d want 0", result.Failed))
+	}
+	if result.Metrics.RequestCountObserved != expectedRequests {
+		failures = append(failures, fmt.Sprintf("observed requests: got %.0f want %.0f", result.Metrics.RequestCountObserved, expectedRequests))
+	}
+	if result.Metrics.DecodeItemsTotal != expectedDecodeItems {
+		failures = append(failures, fmt.Sprintf("decode work items: got %.0f want %.0f", result.Metrics.DecodeItemsTotal, expectedDecodeItems))
+	}
+	if result.Scenario.Name != "cache_hit" && result.Metrics.PrefillItemsTotal == 0 {
+		failures = append(failures, "prefill work items: got 0 want > 0")
+	}
+
+	expectedHits := float64(0)
+	expectedMisses := expectedRequests
+	if result.Scenario.Name == "cache_hit" {
+		expectedHits = expectedRequests
+		expectedMisses = 0
+	}
+	if result.Metrics.PrefixCacheHits != expectedHits {
+		failures = append(failures, fmt.Sprintf("cache hits: got %.0f want %.0f", result.Metrics.PrefixCacheHits, expectedHits))
+	}
+	if result.Metrics.PrefixCacheMisses != expectedMisses {
+		failures = append(failures, fmt.Sprintf("cache misses: got %.0f want %.0f", result.Metrics.PrefixCacheMisses, expectedMisses))
+	}
+	if result.Metrics.QueueRejectedTotal != 0 {
+		failures = append(failures, fmt.Sprintf("queue rejections: got %.0f want 0", result.Metrics.QueueRejectedTotal))
+	}
+	if result.Metrics.ActiveRequestsFinal != 0 {
+		failures = append(failures, fmt.Sprintf("active requests: got %.0f want 0", result.Metrics.ActiveRequestsFinal))
+	}
+	if result.Metrics.InflightBatchesFinal != 0 {
+		failures = append(failures, fmt.Sprintf("inflight batches: got %.0f want 0", result.Metrics.InflightBatchesFinal))
+	}
+	if result.Metrics.KVBlocksActiveFinal != 0 {
+		failures = append(failures, fmt.Sprintf("active KV blocks: got %.0f want 0", result.Metrics.KVBlocksActiveFinal))
+	}
+	if result.Scenario.Name != "block_pressure" && result.Metrics.KVAllocationFailures != 0 {
+		failures = append(failures, fmt.Sprintf("allocation failures: got %.0f want 0", result.Metrics.KVAllocationFailures))
+	}
+
+	if len(failures) > 0 {
+		return fmt.Errorf("quick validation failed for %s: %s", result.Scenario.Name, strings.Join(failures, "; "))
+	}
+	return nil
 }
 
 func metricBaseName(name string) string {
@@ -559,5 +650,14 @@ func printResult(w io.Writer, result Result) {
 		result.Metrics.PrefixCacheHits,
 		result.Metrics.PrefixCacheMisses,
 		result.Metrics.PrefixCacheTokensSaved,
+	)
+	fmt.Fprintf(w, "work_items prefill=%.0f decode=%.0f kv_blocks active=%.0f free=%.0f cached=%.0f allocation_failures=%.0f evictions=%.0f\n",
+		result.Metrics.PrefillItemsTotal,
+		result.Metrics.DecodeItemsTotal,
+		result.Metrics.KVBlocksActiveFinal,
+		result.Metrics.KVBlocksFreeFinal,
+		result.Metrics.KVBlocksCachedFinal,
+		result.Metrics.KVAllocationFailures,
+		result.Metrics.PrefixCacheEvictions,
 	)
 }
