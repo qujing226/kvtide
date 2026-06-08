@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <strong>A small LLM serving control plane for learning batching, streaming, token scheduling, and cache-aware inference systems.</strong>
+  <strong>A Go-based LLM serving control plane for token-aware scheduling, streaming observability, prefix cache, and KV block-aware inference experiments.</strong>
 </p>
 
 <p align="center">
@@ -22,103 +22,103 @@
   <a href="./docs">Docs</a>
   ·
   <a href="#quick-start">Quick Start</a>
+  ·
+  <a href="./docs/benchmarks/stage3_en.md">Benchmark Report</a>
 </p>
 
 ---
 
-## Overview
+## What This Is
 
-`mini-llm-serve` is a compact LLM serving system focused on the **serving control plane** around model execution.
+`mini-llm-serve` isolates the scheduling and control-plane layer of LLM serving.
 
-It does not try to replace vLLM, TensorRT-LLM, SGLang, or llama.cpp. Instead, it isolates the scheduling and systems layer so the core serving problems are easier to study end-to-end:
+It turns each inference request into lifecycle-managed prefill/decode work, schedules work by token budget, streams generated tokens, tracks TTFT/TBT separately, and models prefix-cache/KV-block behavior with reproducible benchmarks.
 
-- request lifecycle management
-- prefill / decode separation
-- token-budget-based scheduling
-- streaming response delivery
-- TTFT / TBT observability
-- prefix cache metadata
-- executor dispatch and result routing
-- reproducible benchmark scenarios
+It is not a model runtime and does not try to replace vLLM, SGLang, TensorRT-LLM, llama.cpp, or Ollama. The execution backend is intentionally mocked in Python so the Go serving control plane can be inspected, tested, and evolved without requiring a GPU.
 
-The execution backend is currently a Python mock executor. The point is to make scheduler behavior visible and testable before introducing real GPU inference.
+The project is designed to make these serving questions visible:
 
-## Motivation
+- How does a request move through prefill, decode, streaming, and cleanup?
+- Why is `Request != WorkItem` in an LLM serving system?
+- How do token budgets change batching behavior compared with request-level FIFO?
+- How do TTFT and TBT expose different bottlenecks?
+- What does prefix cache save, and what does it not save?
+- How does KV block pressure affect batching efficiency and cache churn?
 
-Modern LLM serving stacks are powerful, but they are also large and difficult to understand from first principles.
+## What It Implements
 
-This project takes the opposite approach:
-
-- small enough to read
-- real enough to expose serving tradeoffs
-- structured enough to extend toward production-style components
-
-The design goal is not "toy demo". It is a minimal, runnable model of the control plane behind LLM inference serving.
-
-## Feature Highlights
-
-| Area | What exists today |
+| Area | Current implementation |
 |---|---|
-| API | Connect RPC inference service and admin/metrics endpoints |
-| Control plane | Go request lifecycle, scheduler, executor manager, metrics |
-| Execution backend | Python mock LLM executor over Connect RPC |
-| Scheduling | prefill/decode separation, token budget, small/large prefill queues |
-| Streaming | unary and server-streaming generation paths |
-| Observability | Prometheus metrics, runtime stats, TTFT, TBT, queue wait, batch size |
-| Cache model | prefix cache metadata with hit/miss and saved-token metrics |
-| Benchmarks | cache miss, cache hit, mixed prompt workloads |
+| API | Connect RPC inference service, streaming generation, admin endpoints |
+| Request lifecycle | Go state machine for queued, prefill, decode, finished, timeout, canceled, failed |
+| Scheduling | prefill/decode separation, token budget, small/large prefill queues, mixed batches |
+| Execution | executor manager dispatching batches to Python mock inference executors |
+| Streaming | unary and server-streaming generation paths with chunk-level metrics |
+| Tokenization | mock tokenizer that converts prompt text into stable token IDs |
+| Prefix cache | per-user cache salt, full-block hash matching, hit/miss/saved-token metrics |
+| KV block model | block table, free queue, cached blocks, eviction counters, allocation failure metrics |
+| Observability | Prometheus metrics for queue wait, execution time, TTFT, TBT, batch size, work items, KV blocks |
+| Benchmarks | quick regression profile and report profile for cache miss, cache hit, mixed prompt, block pressure |
 
 ## Architecture
 
-Mini LLM Serve uses token-aware work scheduling. A request is represented as a lifecycle object, while prefill and decode are scheduled as separate work items.
+Mini LLM Serve uses token-aware work scheduling. A request is a lifecycle object; prefill and decode are separate schedulable work items.
 
 ![Mini LLM Serve Architecture](./assets/Stage2_Architecture.svg)
 
-The important internal loop is:
+The core loop is:
 
 ```text
 GenerateRequest
-  -> Request
-  -> WorkItem
-  -> Scheduler
+  -> tokenizer
+  -> Request lifecycle manager
+  -> prefix cache lookup
+  -> prefill/decode WorkItem
+  -> token budget scheduler
   -> ExecutorManager
-  -> Python Mock Executor
+  -> Python mock executor
   -> Event
   -> next WorkItem or final response
+  -> KV block cleanup
 ```
 
-This split keeps responsibilities clear:
+Key boundaries:
 
-- `Request` owns the user-visible lifecycle.
-- `WorkItem` is one schedulable unit of execution.
-- `Event` drives the state machine after executor output.
-- `Scheduler` chooses work by sequence and token budget.
-- `ExecutorManager` dispatches batches to backend executors.
+- `Request` owns the user-visible lifecycle and final response.
+- `WorkItem` is the unit that the scheduler can batch and dispatch.
+- `Event` is executor output that advances the lifecycle state machine.
+- `Scheduler` chooses mixed prefill/decode work under sequence and token budgets.
+- `BlockManager` models prefix hits, block allocation, free-list reuse, and eviction.
+- `ExecutorManager` abstracts backend executors from the scheduler.
 
 ## Benchmark Highlights
 
-The benchmark uses a Python mock executor, so the results should be read as **control-plane behavior**, not GPU inference performance.
+Benchmarks use a Python mock executor. Results should be read as **serving control-plane behavior**, not GPU inference performance.
 
-![Mini LLM Serve Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
+![Mini LLM Serve Benchmark Summary](./assets/Stage3_Benchmark_Summary.svg)
 
-Workload:
+Workloads:
 
-- `1000` requests per scenario
-- `100` concurrency
-- Go server + Python mock executor
-- metrics computed as per-run deltas
+- `cache_miss`: 1000 requests, concurrency 100, unique users
+- `cache_hit`: 1000 requests, concurrency 100, 10 warmed cache users
+- `mixed_prompt`: 1000 requests, concurrency 100, short/medium/long prompts
+- `block_pressure`: 320 requests, concurrency 32, long prompts under KV block pressure
 
-| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Prefix Hits | Tokens Saved |
-|---|---:|---:|---:|---:|---:|---:|
-| `cache_miss` | 3.28 req/s | 30.502s | 1.7322s | 0.4109s | 0 | 0 |
-| `cache_hit` | 4.10 req/s | 24.341s | 0.3250s | 0.3430s | 1000 | 147000 |
-| `mixed_prompt` | 4.22 req/s | 23.682s | 1.2117s | 0.3209s | 0 | 0 |
+| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Avg Batch | Prefix Hits | Tokens Saved | Evictions |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `cache_miss` | 4.40 req/s | 22.693s | 1.6175s | 0.3010s | 5.50 | 0 | 0 | 4490 |
+| `cache_hit` | 4.90 req/s | 20.380s | 0.8390s | 0.2791s | 5.95 | 1000 | 80000 | 460 |
+| `mixed_prompt` | 4.91 req/s | 20.363s | 1.3555s | 0.2715s | 6.17 | 0 | 0 | 1475 |
+| `block_pressure` | 2.38 req/s | 13.428s | 2.1182s | 0.1615s | 3.38 | 0 | 0 | 6164 |
 
-Key observation:
+Key observations:
 
-> Prefix cache metadata reduced average TTFT from `1.7322s` to `0.3250s`, about an `81%` reduction in this mock workload.
+- Prefix cache hit reduced average TTFT from `1.6175s` to `0.8390s`, about `48%`.
+- Cache hit improved throughput from `4.40 req/s` to `4.90 req/s` by reducing prefill pressure.
+- Block pressure reduced average batch size to `3.38` and increased cache evictions to `6164`, exposing KV churn.
+- Queue wait stayed around `5ms`; end-to-end latency is dominated by lifecycle phase behavior and repeated decode steps.
 
-Detailed benchmark notes and reports are available under [`docs`](./docs).
+Read the full report: [`docs/benchmarks/stage3_en.md`](./docs/benchmarks/stage3_en.md).
 
 ## Quick Start
 
@@ -151,17 +151,11 @@ curl http://127.0.0.1:8801/metrics
 ### 4. Run benchmarks
 
 ```bash
-make bench-smoke
-make bench-cache-miss
-make bench-cache-hit
-make bench-mixed-prompt
+make bench-quick
+make bench-report
 ```
 
-Override benchmark parameters directly through the CLI:
-
-```bash
-go run ./cmd/bench --mode mixed_prompt --requests 1000 --concurrency 50 --timeout-ms 15000
-```
+`bench-quick` is a fast behavioral regression profile. `bench-report` runs the full benchmark profile used for documentation.
 
 ## Project Layout
 
@@ -171,35 +165,34 @@ cmd/
   client/       simple client wrapper
   server/       Go serving process
 internal/
-  cache/        prefix cache metadata
+  block/        KV block table, prefix matching, free queue, eviction model
   executor/     executor manager and Connect backend
-  handler/      request admission
+  handler/      request admission and streaming output
   metrics/      Prometheus metrics and runtime stats
-  model/        Request, WorkItem, Event, Batch
-  scheduler/    token-budget scheduler and queues
+  model/        Request, WorkItem, Event, Batch, block metadata
+  scheduler/    token-budget scheduler and prefill/decode queues
   state/        request lifecycle state machine
+  tokenizer/    mock tokenizer
   transport/    Connect RPC transport handlers
 llm_serve/      Python mock executor
 proto/          protobuf API definitions
 docs/           reports, plans, benchmark notes
+k8s/            local Kubernetes manifests
 ```
 
-## Documentation
+## Scope Boundaries
 
-Detailed reports, benchmark notes, and implementation plans are available under [`docs`](./docs).
+This repository intentionally focuses on the serving control plane. It does not implement:
 
-## Non-Goals
-
-This repository intentionally does not implement:
-
-- real GPU kernels
-- real KV block allocation
-- PagedAttention or FlashAttention
-- distributed multi-node inference
+- CUDA kernels
+- PagedAttention kernels
+- FlashAttention kernels
+- real GPU KV tensors
+- tensor parallel communication
 - production autoscaling
 - full OpenAI API compatibility
 
-Those are inference-engine or production-platform concerns. This project focuses on the serving control plane.
+Those belong to inference engines or production platforms. This project models the control-plane layer around inference execution: lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
 
 ## Related Systems
 

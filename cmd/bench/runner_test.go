@@ -202,6 +202,7 @@ func TestReportBlockPressureCapsConcurrencyBelowKVDeadlockBoundary(t *testing.T)
 	require.Equal(t, 100, scenarios[1].Concurrency)
 	require.Equal(t, 100, scenarios[2].Concurrency)
 	require.Equal(t, 32, scenarios[3].Concurrency)
+	require.Equal(t, 320, scenarios[3].Requests)
 }
 
 func TestBuildGenerateRequestUsesScenarioFields(t *testing.T) {

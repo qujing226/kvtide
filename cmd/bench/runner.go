@@ -155,6 +155,9 @@ func ScenariosForProfile(profile Profile) []Scenario {
 	// The scheduler does not yet preempt requests when every active sequence
 	// needs another decode block.
 	blockPressure.Concurrency = min(profile.Concurrency, 32)
+	if profile.Name == "report" {
+		blockPressure.Requests = 320
+	}
 
 	return []Scenario{cacheMiss, cacheHit, mixedPrompt, blockPressure}
 }

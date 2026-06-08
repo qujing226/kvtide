@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <strong>一个用于学习 batching、streaming、token scheduling 和 cache-aware inference system 的小型 LLM serving control plane。</strong>
+  <strong>一个 Go 实现的 LLM serving control plane，用于研究 token-aware scheduling、streaming observability、prefix cache 和 KV block-aware inference behavior。</strong>
 </p>
 
 <p align="center">
@@ -22,103 +22,103 @@
   <a href="./docs">文档</a>
   ·
   <a href="#快速开始">快速开始</a>
+  ·
+  <a href="./docs/benchmarks/stage3_zh.md">Benchmark 报告</a>
 </p>
 
 ---
 
-## 项目概览
+## 项目定位
 
-`mini-llm-serve` 是一个紧凑的 LLM serving system，重点放在模型执行外围的 **serving control plane**。
+`mini-llm-serve` 聚焦 LLM serving 中的调度与控制平面。
 
-它不是 vLLM、TensorRT-LLM、SGLang 或 llama.cpp 的替代品。它的目标是把调度与系统层抽出来，让 LLM serving 的核心问题可以被端到端地学习、运行和观测：
+它会把一个推理请求拆成由生命周期管理的 prefill/decode work，通过 token budget 做 mixed batching，流式返回生成结果，并分别观测 TTFT/TBT。同时，它用 mock tokenizer、prefix cache 和 KV block manager 模拟现代推理系统里的 cache-aware 行为。
 
-- 请求生命周期管理
-- prefill / decode separation
-- token-budget-based scheduling
-- streaming response delivery
-- TTFT / TBT 可观测性
-- prefix cache metadata
-- executor dispatch 与结果回流
-- 可复现 benchmark 场景
+它不是模型 runtime，也不是 vLLM、SGLang、TensorRT-LLM、llama.cpp 或 Ollama 的替代品。当前执行后端是 Python mock executor，目的是让 Go serving control plane 的行为可以被阅读、测试、压测和解释，而不是依赖 GPU 才能看清系统。
 
-当前执行后端是 Python mock executor。这样做的目的是先让 scheduler 行为变得清晰、可测，再考虑真实 GPU 推理。
+这个项目要回答的问题是：
 
-## 设计动机
+- 一个请求如何经历 prefill、decode、streaming 和 cleanup？
+- 为什么 LLM serving 里 `Request != WorkItem`？
+- token budget 相比 request-level FIFO 改变了什么？
+- TTFT 和 TBT 分别暴露什么瓶颈？
+- prefix cache 到底节省了什么？
+- KV block pressure 如何影响 batch efficiency 和 cache churn？
 
-现代 LLM serving stack 很强，但也很大，很难从第一性原理完整理解。
+## 当前能力
 
-这个项目采取相反的方式：
-
-- 足够小，方便阅读
-- 足够真实，能暴露 serving tradeoff
-- 结构足够清晰，后续可以继续扩展生产系统组件
-
-设计目标不是 toy demo，而是一个最小可运行的 LLM inference serving control plane。
-
-## 功能亮点
-
-| 方向 | 当前能力 |
+| 方向 | 当前实现 |
 |---|---|
-| API | Connect RPC inference service 与 admin/metrics endpoint |
-| Control plane | Go 请求生命周期、scheduler、executor manager、metrics |
-| Execution backend | 通过 Connect RPC 调用的 Python mock LLM executor |
-| Scheduling | prefill/decode separation、token budget、small/large prefill queues |
-| Streaming | unary 和 server-streaming generation path |
-| Observability | Prometheus metrics、runtime stats、TTFT、TBT、queue wait、batch size |
-| Cache model | prefix cache metadata、hit/miss、saved-token metrics |
-| Benchmarks | cache miss、cache hit、mixed prompt workload |
+| API | Connect RPC inference service、streaming generation、admin endpoints |
+| Request lifecycle | Go 状态机管理 queued、prefill、decode、finished、timeout、canceled、failed |
+| Scheduling | prefill/decode separation、token budget、small/large prefill queues、mixed batch |
+| Execution | executor manager 将 batch 分发给 Python mock inference executor |
+| Streaming | unary 与 server-streaming generation path，按 chunk 记录指标 |
+| Tokenization | mock tokenizer 将 prompt 转成稳定 token ID |
+| Prefix cache | user_id 作为 cache salt，完整 block hash 匹配，记录 hit/miss/saved tokens |
+| KV block model | block table、free queue、cached blocks、eviction counter、allocation failure metrics |
+| Observability | Prometheus 指标：queue wait、execution time、TTFT、TBT、batch size、work items、KV blocks |
+| Benchmarks | quick regression profile 与 report profile，覆盖 cache miss、cache hit、mixed prompt、block pressure |
 
 ## 架构
 
-Mini LLM Serve 的调度机制是 token-aware work scheduling。请求由生命周期状态机管理，prefill 和 decode 则作为不同的 work item 进入调度器。
+Mini LLM Serve 的调度机制是 token-aware work scheduling。请求是生命周期对象，prefill 和 decode 是不同的可调度 work item。
 
 ![Mini LLM Serve Architecture](./assets/Stage2_Architecture.svg)
 
-最核心的内部循环是：
+核心链路：
 
 ```text
 GenerateRequest
-  -> Request
-  -> WorkItem
-  -> Scheduler
+  -> tokenizer
+  -> Request lifecycle manager
+  -> prefix cache lookup
+  -> prefill/decode WorkItem
+  -> token budget scheduler
   -> ExecutorManager
-  -> Python Mock Executor
+  -> Python mock executor
   -> Event
   -> next WorkItem or final response
+  -> KV block cleanup
 ```
 
-这个拆分让职责边界更清楚：
+关键边界：
 
-- `Request` 表示用户请求的完整生命周期。
-- `WorkItem` 表示一次可调度执行单元。
-- `Event` 表示 executor 输出，并驱动状态机继续推进。
-- `Scheduler` 根据 sequence 和 token budget 选择 work。
-- `ExecutorManager` 将 batch 分发给后端 executor。
+- `Request` 负责用户可见的完整生命周期和最终响应。
+- `WorkItem` 是 scheduler 可以打包和分发的执行单元。
+- `Event` 是 executor 的输出，用于驱动状态机继续推进。
+- `Scheduler` 在 sequence budget 和 token budget 下选择 mixed prefill/decode work。
+- `BlockManager` 模拟 prefix hit、block allocation、free-list reuse 和 eviction。
+- `ExecutorManager` 将后端 executor 与 scheduler 解耦。
 
-## Benchmark
+## Benchmark 摘要
 
-Benchmark 使用 Python mock executor，因此结果应该理解为 **control-plane behavior**，不是真实 GPU 推理性能。
+Benchmark 使用 Python mock executor，因此结果应理解为 **serving control-plane behavior**，不是真实 GPU 推理性能。
 
-![Mini LLM Serve Benchmark Summary](./assets/Stage2_Benchmark_Summary.svg)
+![Mini LLM Serve Benchmark Summary](./assets/Stage3_Benchmark_Summary.svg)
 
 工作负载：
 
-- 每个场景 `1000` 请求
-- 并发 `100`
-- Go server + Python mock executor
-- metrics 使用单次运行 delta
+- `cache_miss`：1000 请求，并发 100，唯一用户
+- `cache_hit`：1000 请求，并发 100，10 个已 warmup 的 cache user
+- `mixed_prompt`：1000 请求，并发 100，混合 short/medium/long prompt
+- `block_pressure`：320 请求，并发 32，长 prompt 下的 KV block pressure
 
-| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Prefix Hits | Tokens Saved |
-|---|---:|---:|---:|---:|---:|---:|
-| `cache_miss` | 3.28 req/s | 30.502s | 1.7322s | 0.4109s | 0 | 0 |
-| `cache_hit` | 4.10 req/s | 24.341s | 0.3250s | 0.3430s | 1000 | 147000 |
-| `mixed_prompt` | 4.22 req/s | 23.682s | 1.2117s | 0.3209s | 0 | 0 |
+| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Avg Batch | Prefix Hits | Tokens Saved | Evictions |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `cache_miss` | 4.40 req/s | 22.693s | 1.6175s | 0.3010s | 5.50 | 0 | 0 | 4490 |
+| `cache_hit` | 4.90 req/s | 20.380s | 0.8390s | 0.2791s | 5.95 | 1000 | 80000 | 460 |
+| `mixed_prompt` | 4.91 req/s | 20.363s | 1.3555s | 0.2715s | 6.17 | 0 | 0 | 1475 |
+| `block_pressure` | 2.38 req/s | 13.428s | 2.1182s | 0.1615s | 3.38 | 0 | 0 | 6164 |
 
 关键观察：
 
-> 在当前 mock workload 下，prefix cache metadata 将平均 TTFT 从 `1.7322s` 降到 `0.3250s`，约 `81%` 降低。
+- Prefix cache hit 将平均 TTFT 从 `1.6175s` 降到 `0.8390s`，约 `48%`。
+- Cache hit 将吞吐从 `4.40 req/s` 提升到 `4.90 req/s`，原因是 prefill pressure 下降。
+- Block pressure 将平均 batch size 压低到 `3.38`，并将 eviction 提高到 `6164`，暴露出明显 KV churn。
+- Queue wait 基本保持在 `5ms` 左右，端到端延迟主要来自请求阶段行为和反复 decode。
 
-更详细的报告和 benchmark 记录位于 [`docs`](./docs)。
+完整报告见：[`docs/benchmarks/stage3_zh.md`](./docs/benchmarks/stage3_zh.md)。
 
 ## 快速开始
 
@@ -151,17 +151,11 @@ curl http://127.0.0.1:8801/metrics
 ### 4. 运行 benchmark
 
 ```bash
-make bench-smoke
-make bench-cache-miss
-make bench-cache-hit
-make bench-mixed-prompt
+make bench-quick
+make bench-report
 ```
 
-也可以直接通过 CLI 覆盖 benchmark 参数：
-
-```bash
-go run ./cmd/bench --mode mixed_prompt --requests 1000 --concurrency 50 --timeout-ms 15000
-```
+`bench-quick` 用于快速行为回归检查，`bench-report` 用于生成完整报告数据。
 
 ## 项目结构
 
@@ -171,35 +165,34 @@ cmd/
   client/       simple client wrapper
   server/       Go serving process
 internal/
-  cache/        prefix cache metadata
+  block/        KV block table、prefix matching、free queue、eviction model
   executor/     executor manager and Connect backend
-  handler/      request admission
+  handler/      request admission and streaming output
   metrics/      Prometheus metrics and runtime stats
-  model/        Request, WorkItem, Event, Batch
-  scheduler/    token-budget scheduler and queues
+  model/        Request, WorkItem, Event, Batch, block metadata
+  scheduler/    token-budget scheduler and prefill/decode queues
   state/        request lifecycle state machine
+  tokenizer/    mock tokenizer
   transport/    Connect RPC transport handlers
 llm_serve/      Python mock executor
 proto/          protobuf API definitions
 docs/           reports, plans, benchmark notes
+k8s/            local Kubernetes manifests
 ```
 
-## 文档
+## 范围边界
 
-更详细的系统总结、benchmark 记录和实现计划都位于 [`docs`](./docs)。
+这个仓库刻意聚焦 serving control plane，不实现：
 
-## Non-Goals
-
-这个仓库刻意不实现：
-
-- 真实 GPU kernel
-- 真实 KV block allocation
-- PagedAttention 或 FlashAttention
-- 分布式多节点推理
+- CUDA kernel
+- PagedAttention kernel
+- FlashAttention kernel
+- 真实 GPU KV tensor
+- tensor parallel communication
 - 生产级 autoscaling
 - 完整 OpenAI API 兼容
 
-这些属于 inference engine 或生产平台范畴。本项目聚焦 serving control plane。
+这些属于 inference engine 或生产平台范畴。本项目建模的是推理执行外围的控制平面：生命周期、调度、streaming、cache metadata、KV block pressure 和可观测性。
 
 ## 相关系统
 
