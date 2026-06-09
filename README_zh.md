@@ -122,33 +122,53 @@ Benchmark 使用 Python mock executor，因此结果应理解为 **serving contr
 
 ## 快速开始
 
-### 1. 启动 Python mock executor
+### Docker Compose
+
+```bash
+docker compose up --build -d
+```
+
+该命令会启动一组一对一本地拓扑：
+
+```text
+Go control plane -> Python mock executor
+```
+
+可用端点：
+
+- inference service：`http://127.0.0.1:8800`
+- admin / metrics：`http://127.0.0.1:8801`
+
+检查容器状态和 metrics：
+
+```bash
+docker compose ps
+curl http://127.0.0.1:8801/metrics
+```
+
+查看服务日志或停止环境：
+
+```bash
+docker compose logs -f
+docker compose down
+```
+
+### 从源码启动
+
+启动 Python mock executor：
 
 ```bash
 cd llm_serve
 make run
 ```
 
-默认监听：`127.0.0.1:19991`
-
-### 2. 启动 Go server
+在仓库根目录启动 Go server：
 
 ```bash
 make run
 ```
 
-默认端点：
-
-- inference service: `127.0.0.1:8800`
-- admin / metrics: `127.0.0.1:8801`
-
-### 3. 查看 metrics
-
-```bash
-curl http://127.0.0.1:8801/metrics
-```
-
-### 4. 运行 benchmark
+### 运行 Benchmark
 
 ```bash
 make bench-quick

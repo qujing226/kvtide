@@ -1,0 +1,32 @@
+networks:
+  mini-llm:
+    name: mini-llm
+    driver: bridge
+
+services:
+  executor:
+    build:
+      context: .
+      dockerfile: docker/executor.Dockerfile
+    image: mini-llm-executor:local
+    expose:
+      - "19991"
+    networks:
+      - mini-llm
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/server.Dockerfile
+    image: mini-llm-server:local
+    command:
+      - --conf=/etc/mini-llm/server.toml
+    depends_on:
+      - executor
+    ports:
+      - "8800:8800"
+      - "8801:8801"
+    volumes:
+      - ./config/compose-server.toml:/etc/mini-llm/server.toml:ro
+    networks:
+      - mini-llm

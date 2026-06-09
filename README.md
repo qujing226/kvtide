@@ -122,33 +122,53 @@ Read the full report: [`docs/benchmarks/stage3_en.md`](./docs/benchmarks/stage3_
 
 ## Quick Start
 
-### 1. Start the Python mock executor
+### Docker Compose
+
+```bash
+docker compose up --build -d
+```
+
+This starts a one-to-one local topology:
+
+```text
+Go control plane -> Python mock executor
+```
+
+Available endpoints:
+
+- inference service: `http://127.0.0.1:8800`
+- admin / metrics: `http://127.0.0.1:8801`
+
+Check the containers and metrics:
+
+```bash
+docker compose ps
+curl http://127.0.0.1:8801/metrics
+```
+
+Follow service logs or stop the stack:
+
+```bash
+docker compose logs -f
+docker compose down
+```
+
+### Run From Source
+
+Start the Python mock executor:
 
 ```bash
 cd llm_serve
 make run
 ```
 
-The executor listens on `127.0.0.1:19991` by default.
-
-### 2. Start the Go server
+Start the Go server from the repository root:
 
 ```bash
 make run
 ```
 
-Default endpoints:
-
-- inference service: `127.0.0.1:8800`
-- admin / metrics: `127.0.0.1:8801`
-
-### 3. Check metrics
-
-```bash
-curl http://127.0.0.1:8801/metrics
-```
-
-### 4. Run benchmarks
+### Run Benchmarks
 
 ```bash
 make bench-quick

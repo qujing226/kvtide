@@ -11,19 +11,9 @@ bench-quick:
 bench-report:
 	go run ./cmd/bench --profile report --target $(TARGET) --metrics-url $(METRICS_URL)
 
-docker-build-server:
+docker-build:
 	docker build -f docker/server.Dockerfile -t mini-llm-server:local .
-
-docker-build-executor:
 	docker build -f docker/executor.Dockerfile -t mini-llm-executor:local .
-
-docker-build: docker-build-server docker-build-executor
-
-docker-run-executor:
-	docker run --rm -p 19991:19991 mini-llm-executor:local
-
-docker-run-server:
-	docker run --rm --network host -v "$(PWD)/server.toml:/etc/mini-llm/server.toml:ro" mini-llm-server:local --conf=/etc/mini-llm/server.toml
 
 kind-create:
 	kind create cluster --name mini-llm --config k8s/kind/cluster.yaml

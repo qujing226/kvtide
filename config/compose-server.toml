@@ -1,0 +1,20 @@
+[server]
+address = "0.0.0.0:8800"
+adminPort = 8801
+
+[server.scheduleConf]
+maxBatchSeqs = 32
+maxBatchTokens = 2048
+longPrefillTokenThreshold = 512
+maxPartialPrefills = 2
+maxLongPartialPrefills = 1
+maxScheduleDelay = 10 # ms
+
+[server.scheduleConf.queueConf]
+queueLength = 100
+
+[[executors]]
+id = "mock-python"
+kind = "connect"
+address = ["http://executor:19991"]
+enabled = true
