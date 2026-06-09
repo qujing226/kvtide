@@ -33,6 +33,31 @@ spec:
             - name: rpc
               containerPort: 19991
 
+          # kubelet 定期尝试连接容器的 rpc 端口。
+          # 成功：Pod 显式 1/1 Ready，可以加入 Service EndpointSlice
+          # 失败：Pod 显式 0/1 Running，从 Service 后端移除。
+          readinessProbe:
+            tcpSocket:
+              port: rpc
+            # 容器启动两秒后检查
+            initialDelaySeconds: 2
+            # 每三秒检查一次
+            periodSeconds: 3
+            # 一次检查最多等待一秒
+            timeoutSeconds: 1
+            # 连续三次失败判定 NotReady
+            failureThreshold: 3
+
+          # 连接 rpc 端口，失败三次将重启容器，用于处理 “进程还在，但已经无法提供服务”的情况。
+          livenessProbe:
+            tcpSocket:
+              port: rpc
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 1
+            failureThreshold: 3
+
+
 # 装载镜像
 # kind load docker-image mini-llm-executor:local --name mini-llm
 
