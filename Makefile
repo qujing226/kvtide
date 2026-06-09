@@ -18,24 +18,25 @@ docker-save:
 	docker save -o deploy/mini-llm-server.tar mini-llm-server:local
 	docker save -o deploy/mini-llm-executor.tar mini-llm-executor:local
 
-.PHONY: kube-start kube-down kube-forward
+.PHONY: kube-start kube-apply kube-down kube-forward
 
 kube-start:
 	kind create cluster --name mini-llm --config k8s/kind/cluster.yaml
 	kind load docker-image mini-llm-server:local mini-llm-executor:local \
 	  --name mini-llm
-	kubectl apply -f k8s/base/namespace.yaml
-	kubectl apply -f k8s/base/executor-deployment.yaml
-	kubectl apply -f k8s/base/executor-service.yaml
-	kubectl apply -f k8s/base/server-config.yaml
-	kubectl apply -f k8s/base/server-deployment.yaml
-	kubectl apply -f k8s/base/server-service.yaml
+	kubectl apply -k k8s/base
 	kubectl rollout status deployment/executor -n mini-llm
 	kubectl rollout status deployment/server -n mini-llm
 
+kube-apply:
+	kind load docker-image mini-llm-server:local mini-llm-executor:local \
+	  --name mini-llm
+	kubectl apply -k k8s/base
+	kubectl rollout restart deployment/executor deployment/server -n mini-llm
+	kubectl rollout status deployment/executor -n mini-llm
+	kubectl rollout status deployment/server -n mini-llm
 
 kube-down:
-	# kubectl delete namespace mini-llm
 	kind delete cluster --name mini-llm
 
 kube-forward:

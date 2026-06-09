@@ -168,6 +168,19 @@ make run
 make run
 ```
 
+### 使用 kind 部署 Kubernetes
+
+在本地三节点 Kubernetes 集群中运行一对一 Server/Executor 拓扑：
+
+```bash
+make docker-build
+make kube-start
+make kube-forward
+```
+
+拓扑结构、资源模型、验证命令和 rollout 流程见
+[`k8s/README.md`](./k8s/README.md)。
+
 ### 运行 Benchmark
 
 ```bash

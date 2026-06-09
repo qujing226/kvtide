@@ -168,6 +168,20 @@ Start the Go server from the repository root:
 make run
 ```
 
+### Kubernetes With kind
+
+Run the one-to-one Server/Executor topology in a local three-node Kubernetes
+cluster:
+
+```bash
+make docker-build
+make kube-start
+make kube-forward
+```
+
+See [`k8s/README.md`](./k8s/README.md) for the topology, resource model,
+verification commands, and rollout workflow.
+
 ### Run Benchmarks
 
 ```bash
