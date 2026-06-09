@@ -40,7 +40,7 @@ spec:
             tcpSocket:
               port: rpc
             # 容器启动两秒后检查
-            initialDelaySeconds: 2
+            initialDelaySeconds: 5
             # 每三秒检查一次
             periodSeconds: 3
             # 一次检查最多等待一秒
@@ -56,6 +56,25 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 1
             failureThreshold: 3
+
+          # Kubernetes QoS 分三类：
+          # Guaranteed：所有容器的 CPU/内存 request 等于 limit。
+          # Burstable：至少配置了部分 requests/limits，但不满足 Guaranteed。
+          # BestEffort：完全没有配置 requests/limits。
+          # 内存压力下，通常优先驱逐：
+          # BestEffort -> Burstable -> Guaranteed
+          resources:
+            # Scheduler 做容量核算时，该 Pod 声明需要占用的调度资源。
+            requests:
+              # 0.1 个CPU核心
+              cpu: "100m"
+              # 128 MiB内存
+              memory: "128Mi"
+            # 容器允许使用的资源上限。
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+
 
 
 # 装载镜像
