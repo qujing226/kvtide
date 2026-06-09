@@ -18,7 +18,16 @@ docker-save:
 	docker save -o deploy/mini-llm-server.tar mini-llm-server:local
 	docker save -o deploy/mini-llm-executor.tar mini-llm-executor:local
 
-.PHONY: kube-start kube-apply kube-down kube-forward
+.PHONY: web-dev web-test web-build kube-start kube-apply kube-down kube-forward
+
+web-dev:
+	cd web && npm run dev
+
+web-test:
+	cd web && npm run test:run
+
+web-build:
+	cd web && npm run build
 
 kube-start:
 	kind create cluster --name mini-llm --config k8s/kind/cluster.yaml

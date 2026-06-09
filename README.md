@@ -210,6 +210,7 @@ internal/
   transport/    Connect RPC transport handlers
 llm_serve/      Python mock executor
 proto/          protobuf API definitions
+web/            benchmark report and scheduler lab
 docs/           reports, plans, benchmark notes
 k8s/            local Kubernetes manifests
 ```

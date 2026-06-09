@@ -12,3 +12,9 @@ notes
 __pycache__/
 
 deploy
+
+node_modules
+dist
+*.tsbuildinfo
+
+superpowers
