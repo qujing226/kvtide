@@ -1,6 +1,29 @@
+# 描述 kind 集群，Kubernetes IN Docker。 除了 Cluster 之外还有 Mapping 是kind内部配置转换类型。
 kind: Cluster
+# kind 配置文件的api版本。对于 kind 来说长期固定。kind.x-k8s.io是 API group，v1alpha4 是该配置结构的版本。
 apiVersion: kind.x-k8s.io/v1alpha4
+# kind 会把每个节点创建成一个docker容器。role 标注了节点的角色类型
 nodes:
+  # 运行 k8s API server、scheduler 等控制组件。
   - role: control-plane
+  # 运行项目的业务 Pod
   - role: worker
   - role: worker
+
+# kind Cluster 配置
+#    ↓
+# 创建 Docker 容器
+#    ↓
+# 每个容器成为 Kubernetes Node
+#    ↓
+# role 决定 Node 是 control-plane 还是 worker
+
+# 创建集群
+# kind create cluster --name mini-llm --config k8s/kind/cluster.yaml
+
+# 验证集群
+# kubectl cluster-info --context kind-mini-llm
+# docker ps --filter name=mini-llm
+
+# 观察 Pod 最终位于哪个节点。
+# kubectl get pods -n mini-llm -o wide

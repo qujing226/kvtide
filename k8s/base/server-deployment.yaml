@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: server
+  namespace: mini-llm
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app: server
+
+  template:
+    metadata:
+      labels:
+        app: server
+
+    spec:
+      volumes:
+        - name: config
+          configMap:
+            name: server-config
+
+      containers:
+        - name: server
+          image: mini-llm-server:local
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: server
+              containerPort: 8800
+            - name: metrics
+              containerPort: 8801
+
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mini-llm
+              readOnly: true
+
+          args:
+            - --conf=/etc/mini-llm/server.toml

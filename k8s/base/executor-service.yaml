@@ -1,0 +1,38 @@
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: executor
+  namespace: mini-llm
+
+# Service 提供稳定的：
+# DNS: executor.mini-llm.svc.cluster.local
+# 短名称: executor
+# ClusterIP: 例如 10.96.x.x
+# 端口: 19991
+spec:
+  # ClusterIP：仅集群内部访问，默认类型。只在集群内部的意思是宿主机不能直接访问这个 ClusterIP,但是其他 Pod 可以访问。
+  # NodePort：通过任意节点的 NodeIP:固定端口 访问。
+  # LoadBalancer：请求云厂商创建外部负载均衡器；kind 默认没有云 LB。
+  # ExternalName：把 Service DNS 映射到外部域名，不代理流量。
+  type: ClusterIP
+
+  # 选择当前 namespace 中所有具有 app=executor label 的 Pod。
+  selector:
+    app: executor
+
+  # Service 自己监听的端口，转发到Pod中名为 rpc 的容器端口。
+  # targetPort 使用名称是为了避免端口数字在多个文件中重复耦合。
+  ports:
+    - name: "rpc"
+      port: 19991
+      targetPort: rpc
+
+# 应用
+# kubectl apply -f k8s/base/executor-service.yaml
+# 验证
+# kubectl get services -n mini-llm
+# kubectl get endpointslices -n mini-llm
+
+# 映射端口
+# kubectl port-forward -n mini-llm service/server 8800:8800 8801:8801

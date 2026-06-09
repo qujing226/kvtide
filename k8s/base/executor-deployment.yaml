@@ -1,0 +1,44 @@
+# Deployment 属于 apps group，所以写 apps/v1
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: executor
+  namespace: mini-llm
+
+spec:
+  # 1 个运行 executor container 的 Pod
+  replicas: 1
+
+  selector:
+    # Deployment 用该标签识别自己管理的 Pod。
+    matchLabels:
+      app: executor
+
+  # Pod 模板，ReplicaSet 根据它创建 Pod。
+  template:
+    metadata:
+      # 必须匹配 selector 中的 Label
+      labels:
+        app: executor
+
+    spec:
+      # 每个 Pod 中运行的容器列表
+      containers:
+        - name: executor
+          image: mini-llm-executor:local
+          imagePullPolicy: IfNotPresent
+
+          ports:
+            - name: rpc
+              containerPort: 19991
+
+# 装载镜像
+# kind load docker-image mini-llm-executor:local --name mini-llm
+
+# 应用
+# kubectl apply -f k8s/base/executor-deployment.yaml
+# 检查
+# kubectl get deployments -n mini-llm
+# kubectl get replicasets -n mini-llm
+# kubectl get pods -n mini-llm -o wide
