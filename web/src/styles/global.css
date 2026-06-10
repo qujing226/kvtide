@@ -28,6 +28,29 @@
   box-sizing: border-box;
 }
 
+html {
+  scrollbar-color: rgba(61, 72, 67, 0.72) #ddd8ca;
+  scrollbar-width: thin;
+}
+
+html::-webkit-scrollbar {
+  width: 10px;
+}
+
+html::-webkit-scrollbar-track {
+  background: #ddd8ca;
+}
+
+html::-webkit-scrollbar-thumb {
+  background: rgba(61, 72, 67, 0.72);
+  border: 2px solid #ddd8ca;
+  border-radius: 999px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background: #28332f;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -148,14 +171,8 @@ button {
 .brand-mark {
   width: 38px;
   height: 38px;
-  display: grid;
-  place-items: center;
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 650;
-  color: #17201d;
-  background: var(--orange);
-  border-radius: 50% 50% 50% 12%;
+  flex: 0 0 auto;
+  border-radius: 9px;
 }
 
 .brand strong,
@@ -647,6 +664,26 @@ h2 {
   padding: 28px 24px;
   overflow-y: auto;
   overflow-wrap: anywhere;
+  scrollbar-color: #6c7973 #121916;
+  scrollbar-width: thin;
+}
+
+.response-body::-webkit-scrollbar {
+  width: 9px;
+}
+
+.response-body::-webkit-scrollbar-track {
+  background: #121916;
+}
+
+.response-body::-webkit-scrollbar-thumb {
+  background: #6c7973;
+  border: 2px solid #121916;
+  border-radius: 999px;
+}
+
+.response-body::-webkit-scrollbar-thumb:hover {
+  background: #9bad9f;
 }
 
 .response-body {
@@ -718,6 +755,8 @@ h2 {
   overflow-x: auto;
   background: #0d1311;
   border: 1px solid rgba(255, 255, 255, 0.1);
+  scrollbar-color: #6c7973 #0d1311;
+  scrollbar-width: thin;
 }
 
 .response-body pre code {

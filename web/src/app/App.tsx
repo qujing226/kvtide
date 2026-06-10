@@ -20,7 +20,12 @@ export function App() {
     >
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark">M</span>
+          <img
+            className="brand-mark"
+            src="/favicon.svg"
+            alt=""
+            aria-hidden="true"
+          />
           <div className="brand-copy">
             <strong>MINI LLM SERVE</strong>
             <small>{text.lab}</small>
