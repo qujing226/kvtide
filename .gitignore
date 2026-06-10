@@ -18,3 +18,4 @@ dist
 *.tsbuildinfo
 
 superpowers
+.superpowers

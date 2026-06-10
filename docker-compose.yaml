@@ -5,6 +5,7 @@ networks:
 
 services:
   executor:
+    container_name: executor
     build:
       context: .
       dockerfile: docker/executor.Dockerfile
@@ -15,6 +16,7 @@ services:
       - mini-llm
 
   server:
+    container_name: server
     build:
       context: .
       dockerfile: docker/server.Dockerfile

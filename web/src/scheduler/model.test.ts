@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { scheduleStep, type WorkItem } from "./model";
+import { completeBatch, scheduleStep, type WorkItem } from "./model";
 
 const work = (
-  id: string,
+  workId: string,
   phase: WorkItem["phase"],
   tokens: number,
+  decodeRound: WorkItem["decodeRound"] = phase === "decode" ? 1 : 0,
 ): WorkItem => ({
-  id,
-  label: id,
+  workId,
+  requestId: workId.split("-").slice(0, 2).join("-"),
+  parentWorkId: null,
+  requestLabel: workId,
   phase,
   tokens,
+  decodeRound,
 });
 
 describe("scheduleStep", () => {
@@ -24,7 +28,7 @@ describe("scheduleStep", () => {
       { maxSequences: 2, maxTokens: 12 },
     );
 
-    expect(result.selected.map((item) => item.id)).toEqual([
+    expect(result.selected.map((item) => item.workId)).toEqual([
       "decode-1",
       "decode-2",
     ]);
@@ -54,12 +58,49 @@ describe("scheduleStep", () => {
       { maxSequences: 3, maxTokens: 8 },
     );
 
-    expect(result.selected.map((item) => item.id)).toEqual(["decode-1"]);
+    expect(result.selected.map((item) => item.workId)).toEqual(["decode-1"]);
     expect(result.skipped).toEqual([
       {
-        item: expect.objectContaining({ id: "prefill-large" }),
+        item: expect.objectContaining({ workId: "prefill-large" }),
         reason: "token-budget",
       },
+    ]);
+  });
+
+  it("turns completed prefill work into the first decode round", () => {
+    const prefill = work("req-a-prefill", "prefill", 16, 0);
+
+    const result = completeBatch([prefill]);
+
+    expect(result.generated).toEqual([
+      expect.objectContaining({
+        requestId: prefill.requestId,
+        parentWorkId: prefill.workId,
+        phase: "decode",
+        decodeRound: 1,
+        tokens: 1,
+      }),
+    ]);
+    expect(result.finishedRequestIds).toEqual([]);
+  });
+
+  it("runs decode for two rounds and then finishes the request", () => {
+    const decodeOne = work("req-a-decode-1", "decode", 1, 1);
+
+    const afterFirstRound = completeBatch([decodeOne]);
+    expect(afterFirstRound.generated).toEqual([
+      expect.objectContaining({
+        requestId: decodeOne.requestId,
+        parentWorkId: decodeOne.workId,
+        decodeRound: 2,
+      }),
+    ]);
+    expect(afterFirstRound.finishedRequestIds).toEqual([]);
+
+    const afterSecondRound = completeBatch(afterFirstRound.generated);
+    expect(afterSecondRound.generated).toEqual([]);
+    expect(afterSecondRound.finishedRequestIds).toEqual([
+      decodeOne.requestId,
     ]);
   });
 });

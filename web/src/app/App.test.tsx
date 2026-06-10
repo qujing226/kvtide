@@ -5,20 +5,38 @@ import { describe, expect, it } from "vitest";
 import { App } from "./App";
 
 describe("App", () => {
-  it("navigates between benchmark report and scheduler lab", async () => {
+  it("orders playground, scheduler, and benchmark navigation", async () => {
     const user = userEvent.setup();
     render(<App />);
 
-    expect(
-      screen.getByRole("heading", { name: /serving behavior/i }),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/stage 3/i)).not.toBeInTheDocument();
+    const navigation = screen.getByRole("navigation");
+    const buttons = Array.from(navigation.querySelectorAll("button"));
+    expect(buttons.map((button) => button.textContent)).toEqual([
+      "01Playground",
+      "02Scheduler Lab",
+      "03Benchmark",
+    ]);
 
-    await user.click(screen.getByRole("button", { name: /scheduler lab/i }));
+    await user.click(screen.getByRole("button", { name: /benchmark/i }));
 
-    expect(
-      screen.getByRole("heading", { name: /compose the next batch/i }),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/TTFT REDUCTION/i)).toBeInTheDocument();
+  });
+
+  it("collapses and expands the navigation drawer", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(
+      screen.getByRole("button", { name: /collapse navigation/i }),
+    );
+    expect(document.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
+
+    await user.click(
+      screen.getByRole("button", { name: /expand navigation/i }),
+    );
+    expect(document.querySelector(".app-shell")).not.toHaveClass(
+      "sidebar-collapsed",
+    );
   });
 
   it("localizes scheduler controls in Chinese", async () => {

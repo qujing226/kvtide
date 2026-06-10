@@ -50,25 +50,6 @@ export function BenchmarkReport({ language }: BenchmarkReportProps) {
 
   return (
     <main className="page benchmark-page">
-      <section className="hero-panel">
-        <div>
-          <div className="eyebrow">
-            {isZh ? "推理控制平面 · 性能对照" : "SERVING CONTROL PLANE · PERFORMANCE"}
-          </div>
-          <h1>{isZh ? "服务行为剖面" : "Serving behavior"}</h1>
-          <p>
-            {isZh
-              ? "从首 token 延迟、吞吐、批处理形状和 KV block churn 观察系统在不同负载下的行为。"
-              : "Read the system through first-token latency, throughput, batch shape, and KV block churn across representative workloads."}
-          </p>
-        </div>
-        <div className="hero-stamp">
-          <span>PYTHON</span>
-          <strong>MOCK</strong>
-          <span>EXECUTOR</span>
-        </div>
-      </section>
-
       <section
         className="metric-strip"
         aria-label={isZh ? "性能摘要" : "performance highlights"}

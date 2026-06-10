@@ -18,7 +18,13 @@ docker-save:
 	docker save -o deploy/mini-llm-server.tar mini-llm-server:local
 	docker save -o deploy/mini-llm-executor.tar mini-llm-executor:local
 
-.PHONY: web-dev web-test web-build kube-start kube-apply kube-down kube-forward
+.PHONY: test stress-test web-dev web-test web-build kube-start kube-apply kube-down kube-forward
+
+test:
+	go test ./...
+
+stress-test:
+	go test -tags=stress ./tests -run Stress -count=1
 
 web-dev:
 	cd web && npm run dev

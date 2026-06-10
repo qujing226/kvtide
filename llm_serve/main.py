@@ -48,22 +48,10 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         # In the normal path, this is the remaining prompt tokens selected by the scheduler.
         scheduled_tokens = item.num_new_tokens or len(item.token_ids) or 1
 
-        new_blocks = len(item.kv_blocks.allocated_blocks) or 0
-        block_table_size = len(kv_state.block_table)
-
-        # This mock estimates prefill latency from three factors:
-        # - scheduled_tokens: prompt tokens to compute in this chunk.
-        # - new_blocks: newly allocated KV cache blocks to write.
-        # - block_table_size: metadata/context size overhead.
-        latency_ms = max(
-            10,
-            min(
-                220,
-                scheduled_tokens // 4
-                + new_blocks * 4
-                + block_table_size // 8
-                + random.randint(10, 30),
-            ),
+        latency_ms = prefill_latency_ms(
+            scheduled_tokens,
+            random.randint(30, 70),
+            random.randint(300, 800),
         )
         await asyncio.sleep(latency_ms / 1000)
 
@@ -96,10 +84,10 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
 
         # Decode reads existing KV cache blocks to generate the next token.
         # Longer block tables approximate higher memory-access cost.
-        latency_ms = (
-            random.randint(5, 15)
-            + block_table_size // 16
-            + new_blocks * 2
+        latency_ms = decode_latency_ms(
+            block_table_size,
+            new_blocks,
+            random.randint(70, 120),
         )
         await asyncio.sleep(latency_ms / 1000)
 
@@ -107,17 +95,16 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
         # either the mock runtime state or control-plane state is behind.
         word_index = max(request_state.get_decode_index(item.request_id), item.generated_tokens)
 
-        if word_index >= len(request_state.MOCK_RESPONSE_WORDS):
+        if word_index >= len(request_state.MOCK_RESPONSE_CHUNKS):
             _clear_request(item.request_id)
             output_text = ""
             done = True
             generated_tokens = 0
             finish_reason = core_pb2.FINISH_REASON_STOP
         else:
-            word = request_state.MOCK_RESPONSE_WORDS[word_index]
-            output_text = word if word_index == 0 else f" {word}"
+            output_text = request_state.MOCK_RESPONSE_CHUNKS[word_index]
             word_index += 1
-            done = word_index >= len(request_state.MOCK_RESPONSE_WORDS)
+            done = word_index >= len(request_state.MOCK_RESPONSE_CHUNKS)
             generated_tokens = 1
             finish_reason = (
                 core_pb2.FINISH_REASON_STOP
@@ -146,5 +133,22 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
 def _clear_request(request_id: str) -> None:
     request_state.clear_decode_index(request_id)
     block.clear_runtime(request_id)
+
+
+def prefill_latency_ms(
+    scheduled_tokens: int,
+    per_token_ms: int,
+    fixed_latency_ms: int,
+) -> int:
+    return scheduled_tokens * per_token_ms + fixed_latency_ms
+
+
+def decode_latency_ms(
+    block_table_size: int,
+    new_blocks: int,
+    jitter_ms: int,
+) -> int:
+    estimated = jitter_ms + block_table_size // 32 + new_blocks * 2
+    return max(70, min(130, estimated))
 
 app = execute_connect.ExecuteServiceASGIApplication(ExecuteServiceImpl())

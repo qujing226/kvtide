@@ -2,9 +2,6 @@ package tests
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"sync"
 	"testing"
 	"time"
 
@@ -16,7 +13,7 @@ import (
 
 func TestGenerate(t *testing.T) {
 	requireServer(t, "127.0.0.1:8800")
-	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 20*time.Second)
+	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 30*time.Second)
 
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 		RequestId: "002",
@@ -34,129 +31,4 @@ func TestGenerate(t *testing.T) {
 	}.Marshal(resp)
 	require.NoError(t, err)
 	t.Log(string(r))
-}
-
-func TestStressGenerate(t *testing.T) {
-	requireServer(t, "127.0.0.1:8800")
-	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 20*time.Second)
-	var wg sync.WaitGroup
-
-	msgNumber := 100
-	errCh := make(chan error, msgNumber)
-
-	for i := 0; i < msgNumber; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
-				RequestId: "001" + strconv.Itoa(i),
-				UserId:    "001" + strconv.Itoa(i),
-				Model:     "deepseek-v4",
-				Prompt:    "hello world.",
-				MaxTokens: 8,
-				TimeoutMs: 60000,
-				Labels:    nil,
-			})
-			if err != nil {
-				errCh <- err
-				return
-			}
-			if resp == nil {
-				errCh <- fmt.Errorf("nil response")
-				return
-			}
-			if resp.ErrorMessage != "" {
-				errCh <- fmt.Errorf("requestId: %s err: %s", resp.RequestId, resp.ErrorMessage)
-				return
-			}
-		}(i)
-	}
-	wg.Wait()
-	close(errCh)
-	errNum := 1
-	for err := range errCh {
-		t.Errorf("errNum: %d error: %v", errNum, err)
-		errNum++
-	}
-}
-
-func TestStressGenerateWithPrefixCache(t *testing.T) {
-	requireServer(t, "127.0.0.1:8800")
-	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, 20*time.Second)
-	var wg sync.WaitGroup
-
-	msgNumber := 100
-	errCh := make(chan error, msgNumber*11/10)
-
-	for i := 0; i < msgNumber/10; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
-				RequestId: "measured-" + strconv.Itoa(i),
-				UserId:    "001" + strconv.Itoa(i),
-				Model:     "deepseek-v4",
-				Prompt: "hello world, hello world, hello world, hello world, " +
-					"hello world, hello world, hello world, hello world," +
-					"hello world, hello world, hello world, hello world," +
-					"hello world, hello world, hello world, hello world," +
-					"hello world, hello world, hello world, hello world.",
-				MaxTokens: 8,
-				TimeoutMs: 60000,
-				Labels:    nil,
-			})
-			if err != nil {
-				errCh <- err
-				return
-			}
-			if resp == nil {
-				errCh <- fmt.Errorf("nil response")
-				return
-			}
-			if resp.ErrorMessage != "" {
-				errCh <- fmt.Errorf("requestId: %s err: %s", resp.RequestId, resp.ErrorMessage)
-				return
-			}
-		}(i)
-	}
-	wg.Wait()
-
-	for i := 0; i < msgNumber; i++ {
-		wg.Add(1)
-		go func(i int) {
-			defer wg.Done()
-			resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
-				RequestId: "001" + strconv.Itoa(i),
-				UserId:    "001" + strconv.Itoa(i%10),
-				Model:     "deepseek-v4",
-				Prompt: "hello world, hello world, hello world, hello world, " +
-					"hello world, hello world, hello world, hello world," +
-					"hello world, hello world, hello world, hello world," +
-					"hello world, hello world, hello world, hello world," +
-					"hello world, hello world, hello world, hello world.",
-				MaxTokens: 8,
-				TimeoutMs: 60000,
-				Labels:    nil,
-			})
-			if err != nil {
-				errCh <- err
-				return
-			}
-			if resp == nil {
-				errCh <- fmt.Errorf("nil response")
-				return
-			}
-			if resp.ErrorMessage != "" {
-				errCh <- fmt.Errorf("requestId: %s err: %s", resp.RequestId, resp.ErrorMessage)
-				return
-			}
-		}(i)
-	}
-	wg.Wait()
-	close(errCh)
-	errNum := 1
-	for err := range errCh {
-		t.Errorf("errNum: %d error: %v", errNum, err)
-		errNum++
-	}
 }
