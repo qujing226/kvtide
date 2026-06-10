@@ -1,6 +1,10 @@
 [server]
 address = "0.0.0.0:8800"
 adminPort = 8801
+allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]
 
 [server.scheduleConf]
 maxBatchSeqs = 32

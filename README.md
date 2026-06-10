@@ -128,14 +128,15 @@ Read the full report: [`docs/benchmarks/stage3_en.md`](./docs/benchmarks/stage3_
 docker compose up --build -d
 ```
 
-This starts a one-to-one local topology:
+This starts the web interface and a one-to-one serving topology:
 
 ```text
-Go control plane -> Python mock executor
+Web interface -> Go control plane -> Python mock executor
 ```
 
 Available endpoints:
 
+- web interface: `http://127.0.0.1:5173`
 - inference service: `http://127.0.0.1:8800`
 - admin / metrics: `http://127.0.0.1:8801`
 

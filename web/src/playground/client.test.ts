@@ -6,7 +6,18 @@ import {
   GenerateResponseChunkSchema,
   type GenerateRequest,
 } from "../gen/mini_llm_serve/v1/service_pb";
-import { createGenerationClient } from "./client";
+import { createGenerationClient, resolveInferenceBaseUrl } from "./client";
+
+describe("resolveInferenceBaseUrl", () => {
+  it("targets the backend port on the current browser host", () => {
+    expect(
+      resolveInferenceBaseUrl({
+        protocol: "http:",
+        hostname: "127.0.0.1",
+      }),
+    ).toBe("http://127.0.0.1:8800");
+  });
+});
 
 describe("createGenerationClient", () => {
   it("maps generated stream chunks to the playground boundary", async () => {

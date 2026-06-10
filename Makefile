@@ -13,10 +13,12 @@ bench-report:
 docker-build:
 	docker build -f docker/server.Dockerfile -t mini-llm-server:local .
 	docker build -f docker/executor.Dockerfile -t mini-llm-executor:local .
+	docker build -f docker/web.Dockerfile -t mini-llm-web:local .
 
 docker-save:
 	docker save -o deploy/mini-llm-server.tar mini-llm-server:local
 	docker save -o deploy/mini-llm-executor.tar mini-llm-executor:local
+	docker save -o deploy/mini-llm-web.tar mini-llm-web:local
 
 .PHONY: test stress-test web-dev web-test web-build kube-start kube-apply kube-down kube-forward
 

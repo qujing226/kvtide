@@ -32,3 +32,16 @@ services:
       - ./config/compose-server.toml:/etc/mini-llm/server.toml:ro
     networks:
       - mini-llm
+
+  web:
+    container_name: web
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    image: mini-llm-web:local
+    depends_on:
+      - server
+    ports:
+      - "5173:5173"
+    networks:
+      - mini-llm

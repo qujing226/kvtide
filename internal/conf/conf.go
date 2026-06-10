@@ -18,9 +18,10 @@ type Conf struct {
 }
 
 type ServerConf struct {
-	Address      string `koanf:"address"`
-	AdminPort    uint64 `koanf:"adminPort"`
-	ScheduleConf ScheduleConf
+	Address        string   `koanf:"address"`
+	AdminPort      uint64   `koanf:"adminPort"`
+	AllowedOrigins []string `koanf:"allowedOrigins"`
+	ScheduleConf   ScheduleConf
 }
 
 type ScheduleConf struct {

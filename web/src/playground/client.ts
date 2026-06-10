@@ -55,10 +55,16 @@ export function createGenerationClient(
 }
 
 const transport = createConnectTransport({
-  baseUrl: window.location.origin,
+  baseUrl: resolveInferenceBaseUrl(window.location),
 });
 const inferenceClient = createClient(InferenceService, transport);
 
 export const generationClient = createGenerationClient((request) =>
   inferenceClient.generateStream(request),
 );
+
+export function resolveInferenceBaseUrl(
+  location: Pick<Location, "protocol" | "hostname">,
+): string {
+  return `${location.protocol}//${location.hostname}:8800`;
+}

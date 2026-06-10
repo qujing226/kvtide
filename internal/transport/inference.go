@@ -56,6 +56,7 @@ func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.
 	mux.Handle(path, handler)
 
 	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+	handlerWithCORS := withCORS(serverConf.Server.AllowedOrigins, h2cHandler)
 
 	port, err := utils.ExtractPortNumber(serverConf.Server.Address)
 	if err != nil {
@@ -65,7 +66,7 @@ func NewLLMServingServer(l *zap.SugaredLogger, serverConf *conf.Conf, e handler.
 
 	srv := &http.Server{
 		Addr:                         addr,
-		Handler:                      h2cHandler,
+		Handler:                      handlerWithCORS,
 		DisableGeneralOptionsHandler: false,
 
 		ReadTimeout:       3 * time.Second,
