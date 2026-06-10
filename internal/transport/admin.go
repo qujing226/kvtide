@@ -42,7 +42,8 @@ func NewAdminService(l *zap.SugaredLogger, cfg *conf.Conf, metrics metrics.Metri
 	mux.Handle(path, handler)
 	mux.Handle("/metrics", metrics.Handler())
 
-	h2cHnandler := h2c.NewHandler(mux, &http2.Server{})
+	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
+	handlerWithCORS := withCORS(cfg.Server.AllowedOrigins, h2cHandler)
 
 	port := cfg.Server.AdminPort
 	if port < 1024 || port > 65535 {
@@ -52,7 +53,7 @@ func NewAdminService(l *zap.SugaredLogger, cfg *conf.Conf, metrics metrics.Metri
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           h2cHnandler,
+		Handler:           handlerWithCORS,
 		ReadTimeout:       5 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      5 * time.Second,

@@ -7,172 +7,254 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+" />
   <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12+" />
+  <img src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
-  <img src="https://img.shields.io/badge/Prometheus-Metrics-E6522C?logo=prometheus&logoColor=white" alt="Prometheus metrics" />
   <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
 </p>
 
 <p align="center">
-  <strong>A Go-based LLM serving control plane for token-aware scheduling, streaming observability, prefix cache, and KV block-aware inference experiments.</strong>
+  <strong>An interactive LLM serving control plane for studying request lifecycles, token-aware scheduling, prefix caching, KV block management, and streaming inference.</strong>
 </p>
 
 <p align="center">
   <a href="./README_zh.md">中文</a>
   ·
-  <a href="./docs">Docs</a>
-  ·
   <a href="#quick-start">Quick Start</a>
   ·
-  <a href="./docs/benchmarks/stage3_en.md">Benchmark Report</a>
+  <a href="#architecture">Architecture</a>
+  ·
+  <a href="./k8s/README.md">Kubernetes</a>
 </p>
 
 ---
 
-## What This Is
+## Overview
 
-`mini-llm-serve` isolates the scheduling and control-plane layer of LLM serving.
+`mini-llm-serve` isolates the control-plane mechanics behind modern LLM serving systems.
 
-It turns each inference request into lifecycle-managed prefill/decode work, schedules work by token budget, streams generated tokens, tracks TTFT/TBT separately, and models prefix-cache/KV-block behavior with reproducible benchmarks.
+The Go server turns each inference request into schedulable prefill and decode work, builds mixed batches under sequence and token budgets, models prefix-cache and KV-block metadata, and streams generated chunks back to the client. A Python mock executor provides deterministic inference behavior without requiring a GPU.
 
-It is not a model runtime and does not try to replace vLLM, SGLang, TensorRT-LLM, llama.cpp, or Ollama. The execution backend is intentionally mocked in Python so the Go serving control plane can be inspected, tested, and evolved without requiring a GPU.
+This project is intended to make the following questions observable:
 
-The project is designed to make these serving questions visible:
+- How does a request move through queued, prefill, decode, streaming, and cleanup states?
+- Why are `Request` and `WorkItem` different objects?
+- How does token-aware batching differ from request-level FIFO?
+- What do TTFT and TBT reveal about serving behavior?
+- What does a prefix-cache hit save?
+- How does KV block pressure affect scheduling and cache eviction?
 
-- How does a request move through prefill, decode, streaming, and cleanup?
-- Why is `Request != WorkItem` in an LLM serving system?
-- How do token budgets change batching behavior compared with request-level FIFO?
-- How do TTFT and TBT expose different bottlenecks?
-- What does prefix cache save, and what does it not save?
-- How does KV block pressure affect batching efficiency and cache churn?
+It is not a model runtime and does not replace vLLM, SGLang, TensorRT-LLM, llama.cpp, or Ollama.
 
-## What It Implements
+## Interactive Playground
 
-| Area | Current implementation |
+The web interface sends real Connect RPC streaming requests to the Go control plane. It renders Markdown output, reports browser-observed request measurements, and directly scrapes Prometheus metrics for live queues, KV blocks, cache behavior, batches, work items, and latency.
+
+![Mini LLM Serve playground](./assets/front-generate.png)
+
+The scheduler lab visualizes one scheduling step at a time. Adjust sequence and token budgets, add prefill or decode work, and observe which items enter the selected batch and which remain queued.
+
+![Mini LLM Serve scheduler lab](./assets/front-lab.png)
+
+The third page presents the benchmark profile bundled with the project.
+
+## Features
+
+| Area | Implementation |
 |---|---|
-| API | Connect RPC inference service, streaming generation, admin endpoints |
-| Request lifecycle | Go state machine for queued, prefill, decode, finished, timeout, canceled, failed |
-| Scheduling | prefill/decode separation, token budget, small/large prefill queues, mixed batches |
-| Execution | executor manager dispatching batches to Python mock inference executors |
-| Streaming | unary and server-streaming generation paths with chunk-level metrics |
-| Tokenization | mock tokenizer that converts prompt text into stable token IDs |
-| Prefix cache | per-user cache salt, full-block hash matching, hit/miss/saved-token metrics |
-| KV block model | block table, free queue, cached blocks, eviction counters, allocation failure metrics |
-| Observability | Prometheus metrics for queue wait, execution time, TTFT, TBT, batch size, work items, KV blocks |
-| Benchmarks | quick regression profile and report profile for cache miss, cache hit, mixed prompt, block pressure |
-
-## Architecture
-
-Mini LLM Serve uses token-aware work scheduling. A request is a lifecycle object; prefill and decode are separate schedulable work items.
-
-![Mini LLM Serve Architecture](./assets/Stage2_Architecture.svg)
-
-The core loop is:
-
-```text
-GenerateRequest
-  -> tokenizer
-  -> Request lifecycle manager
-  -> prefix cache lookup
-  -> prefill/decode WorkItem
-  -> token budget scheduler
-  -> ExecutorManager
-  -> Python mock executor
-  -> Event
-  -> next WorkItem or final response
-  -> KV block cleanup
-```
-
-Key boundaries:
-
-- `Request` owns the user-visible lifecycle and final response.
-- `WorkItem` is the unit that the scheduler can batch and dispatch.
-- `Event` is executor output that advances the lifecycle state machine.
-- `Scheduler` chooses mixed prefill/decode work under sequence and token budgets.
-- `BlockManager` models prefix hits, block allocation, free-list reuse, and eviction.
-- `ExecutorManager` abstracts backend executors from the scheduler.
-
-## Benchmark Highlights
-
-Benchmarks use a Python mock executor. Results should be read as **serving control-plane behavior**, not GPU inference performance.
-
-![Mini LLM Serve Benchmark Summary](./assets/Stage3_Benchmark_Summary.svg)
-
-Workloads:
-
-- `cache_miss`: 1000 requests, concurrency 100, unique users
-- `cache_hit`: 1000 requests, concurrency 100, 10 warmed cache users
-- `mixed_prompt`: 1000 requests, concurrency 100, short/medium/long prompts
-- `block_pressure`: 320 requests, concurrency 32, long prompts under KV block pressure
-
-| Scenario | Throughput | Avg Latency | Avg TTFT | Avg TBT | Avg Batch | Prefix Hits | Tokens Saved | Evictions |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| `cache_miss` | 4.40 req/s | 22.693s | 1.6175s | 0.3010s | 5.50 | 0 | 0 | 4490 |
-| `cache_hit` | 4.90 req/s | 20.380s | 0.8390s | 0.2791s | 5.95 | 1000 | 80000 | 460 |
-| `mixed_prompt` | 4.91 req/s | 20.363s | 1.3555s | 0.2715s | 6.17 | 0 | 0 | 1475 |
-| `block_pressure` | 2.38 req/s | 13.428s | 2.1182s | 0.1615s | 3.38 | 0 | 0 | 6164 |
-
-Key observations:
-
-- Prefix cache hit reduced average TTFT from `1.6175s` to `0.8390s`, about `48%`.
-- Cache hit improved throughput from `4.40 req/s` to `4.90 req/s` by reducing prefill pressure.
-- Block pressure reduced average batch size to `3.38` and increased cache evictions to `6164`, exposing KV churn.
-- Queue wait stayed around `5ms`; end-to-end latency is dominated by lifecycle phase behavior and repeated decode steps.
-
-Read the full report: [`docs/benchmarks/stage3_en.md`](./docs/benchmarks/stage3_en.md).
+| API | Connect RPC unary and server-streaming inference endpoints |
+| Request lifecycle | State machine for queued, prefill, decode, finished, timeout, canceled, and failed states |
+| Scheduling | Separate prefill/decode queues, small/large prefill classification, mixed batches, sequence and token budgets |
+| Execution | One Go control plane connected to one Python mock executor |
+| Streaming | Incremental response chunks with TTFT, TBT, usage, and finish-reason tracking |
+| Prefix cache | Per-user cache salt, full-block hash matching, hit/miss counters, and saved-token metrics |
+| KV block model | Block tables, free-list reuse, cached blocks, allocation failures, and eviction counters |
+| Observability | Prometheus metrics and runtime statistics for queues, batches, requests, latency, and KV blocks |
+| Web interface | Request playground, scheduler lab, and benchmark view |
+| Deployment | Docker Compose and local Kubernetes manifests for kind |
 
 ## Quick Start
 
-### Docker Compose
+Docker Compose is the recommended way to run the complete project:
 
 ```bash
 docker compose up --build -d
 ```
 
-This starts the web interface and a one-to-one serving topology:
+It starts a one-to-one topology:
 
 ```text
-Web interface -> Go control plane -> Python mock executor
+Browser
+  -> Web container
+  -> Go control plane
+  -> Python mock executor
+```
+
+Open the web interface:
+
+```text
+http://127.0.0.1:5173
 ```
 
 Available endpoints:
 
-- web interface: `http://127.0.0.1:5173`
-- inference service: `http://127.0.0.1:8800`
-- admin / metrics: `http://127.0.0.1:8801`
+| Endpoint | Address |
+|---|---|
+| Web interface | `http://127.0.0.1:5173` |
+| Inference service | `http://127.0.0.1:8800` |
+| Admin and Prometheus metrics | `http://127.0.0.1:8801` |
 
-Check the containers and metrics:
+Inspect or stop the stack:
 
 ```bash
 docker compose ps
-curl http://127.0.0.1:8801/metrics
-```
-
-Follow service logs or stop the stack:
-
-```bash
 docker compose logs -f
+curl http://127.0.0.1:8801/metrics
 docker compose down
 ```
 
-### Run From Source
+## Architecture
 
-Start the Python mock executor:
+The project separates the user-visible request lifecycle from schedulable execution work:
+
+- `Request` owns lifecycle state, streaming output, usage, and final completion.
+- `WorkItem` represents one prefill or decode unit that can enter a batch.
+- `Scheduler` selects mixed work under sequence and token budgets.
+- `Event` carries executor results back into the lifecycle state machine.
+- `BlockManager` models prefix matching, KV block allocation, reuse, and eviction.
+- `ExecutorManager` dispatches each batch to the configured executor.
+
+![Mini LLM Serve architecture](./assets/Stage2_Architecture.svg)
+
+The main request path is:
+
+```text
+GenerateRequest
+  -> Tokenizer
+  -> Request lifecycle manager
+  -> Prefix-cache lookup and KV block allocation
+  -> Prefill/decode WorkItem
+  -> Token-budget scheduler
+  -> Executor manager
+  -> Python mock executor
+  -> Event
+  -> Next WorkItem or final streamed response
+  -> KV block cleanup
+```
+
+The deployment intentionally uses one logical server and one logical executor. Adding replicas behind a Kubernetes Service would load-balance requests but would not create a coherent distributed KV-aware inference engine.
+
+## Benchmark Profile
+
+The benchmark uses the Python mock executor. The results describe control-plane behavior, not GPU inference performance.
+
+![Mini LLM Serve benchmark summary](./assets/Stage3_Benchmark_Summary.svg)
+
+The bundled scenarios cover cache misses, warmed prefix-cache users, mixed prompt lengths, and KV block pressure. They are designed to expose changes in throughput, latency, TTFT, TBT, batch size, prefix hits, saved tokens, and eviction activity.
+
+Historical benchmark details remain available in [`docs/benchmarks`](./docs/benchmarks).
+
+Run the fast regression profile or the full report profile:
+
+```bash
+make bench-quick
+make bench-report
+```
+
+## Run From Source
+
+The recommended tool versions are declared in [`mise.toml`](./mise.toml). `kubectl` is intentionally not managed by mise because it commonly comes from Docker Desktop or the user's Kubernetes installation.
+
+Install the web dependencies:
+
+```bash
+cd web
+npm install
+cd ..
+```
+
+Start the Python executor:
 
 ```bash
 cd llm_serve
 make run
 ```
 
-Start the Go server from the repository root:
+Before starting the Go server, allow the local web origin in `server.toml`:
+
+```toml
+[server]
+allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]
+```
+
+Start the Go server from the repository root in another terminal:
 
 ```bash
 make run
 ```
 
-### Kubernetes With kind
+Start the Vite development server in a third terminal:
 
-Run the one-to-one Server/Executor topology in a local three-node Kubernetes
-cluster:
+```bash
+make web-dev
+```
+
+The frontend uses the browser hostname and connects directly to port `8800`, so the Go server's CORS allowlist is required in both source and container deployments.
+
+
+## Server Deployment
+
+Assume the server IP is `192.168.1.10`.
+
+The frontend automatically sends inference requests to port `8800` on the hostname used to open the page. With the default Compose mapping, visit:
+
+```text
+http://192.168.1.10:5173
+```
+
+Allow that browser origin in [`config/compose-server.toml`](./config/compose-server.toml):
+
+```toml
+[server]
+allowedOrigins = [
+  "http://192.168.1.10:5173",
+]
+```
+
+To expose the frontend on port `8080`, change only the published port in [`docker-compose.yaml`](./docker-compose.yaml):
+
+```yaml
+web:
+  ports:
+    - "8080:5173"
+```
+
+Then update the allowed origin:
+
+```toml
+allowedOrigins = [
+  "http://192.168.1.10:8080",
+]
+```
+
+Recreate the services:
+
+```bash
+docker compose up --build -d
+```
+
+Open the frontend and backend ports in the host firewall or cloud security group:
+
+- `5173` or the chosen frontend port
+- `8800` for browser-to-server inference traffic
+- `8801` only when remote metrics access is required
+
+
+## Kubernetes With kind
+
+Build the images, create the local three-node cluster, and deploy the one-to-one server/executor topology:
 
 ```bash
 make docker-build
@@ -180,55 +262,45 @@ make kube-start
 make kube-forward
 ```
 
-See [`k8s/README.md`](./k8s/README.md) for the topology, resource model,
-verification commands, and rollout workflow.
-
-### Run Benchmarks
-
-```bash
-make bench-quick
-make bench-report
-```
-
-`bench-quick` is a fast behavioral regression profile. `bench-report` runs the full benchmark profile used for documentation.
+See [`k8s/README.md`](./k8s/README.md) for manifests, verification commands, probes, rollout behavior, and cleanup.
 
 ## Project Layout
 
 ```text
 cmd/
   bench/        benchmark CLI
-  client/       simple client wrapper
-  server/       Go serving process
+  client/       inference, executor, and admin clients
+  server/       Go control-plane process
 internal/
-  block/        KV block table, prefix matching, free queue, eviction model
+  block/        prefix matching, KV block tables, reuse, and eviction
   executor/     executor manager and Connect backend
   handler/      request admission and streaming output
-  metrics/      Prometheus metrics and runtime stats
-  model/        Request, WorkItem, Event, Batch, block metadata
+  metrics/      Prometheus metrics and runtime statistics
+  model/        Request, WorkItem, Event, Batch, and block metadata
   scheduler/    token-budget scheduler and prefill/decode queues
   state/        request lifecycle state machine
-  tokenizer/    mock tokenizer
-  transport/    Connect RPC transport handlers
+  tokenizer/    deterministic mock tokenizer
+  transport/    Connect RPC, admin, and CORS handlers
 llm_serve/      Python mock executor
+web/            React playground, scheduler lab, and benchmark view
 proto/          protobuf API definitions
-web/            benchmark report and scheduler lab
-docs/           reports, plans, benchmark notes
-k8s/            local Kubernetes manifests
+k8s/            kind cluster configuration and Kubernetes manifests
+docs/           historical summaries and benchmark reports
+docker/         server, executor, and web images
 ```
 
-## Scope Boundaries
+## Scope
 
-This repository intentionally focuses on the serving control plane. It does not implement:
+The repository focuses on the serving control plane. It does not implement:
 
-- CUDA kernels
-- PagedAttention kernels
-- FlashAttention kernels
+- CUDA, PagedAttention, or FlashAttention kernels
 - real GPU KV tensors
-- tensor parallel communication
+- tensor or pipeline parallelism
+- a distributed KV cache
 - production autoscaling
 - full OpenAI API compatibility
 
-Those belong to inference engines or production platforms. This project models the control-plane layer around inference execution: lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
+These concerns belong to inference engines or production platforms. Mini LLM Serve models the orchestration around execution: request lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
 
 ## Related Systems
 
@@ -237,4 +309,7 @@ Those belong to inference engines or production platforms. This project models t
 - [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)
 - [Ollama](https://github.com/ollama/ollama)
-- [Ray](https://github.com/ray-project/ray)
+
+## License
+
+[MIT](./LICENSE)
