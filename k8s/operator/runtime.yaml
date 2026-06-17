@@ -1,0 +1,22 @@
+apiVersion: serving.mini-llm.io/v1alpha1
+kind: MiniLLMRuntime
+
+metadata:
+  name: demo
+  namespace: mini-llm
+
+spec:
+  server:
+    image: mini-llm-server:local
+
+  executor:
+    image: mini-llm-executor:local
+
+  scheduler:
+    maxBatchSeqs: 32
+    maxBatchTokens: 2048
+
+  
+# kubectl apply -f k8s/operator/runtime.yaml
+# kubectl get mlr -n mini-llm
+# kubectl get mlr demo -n mini-llm -o yaml
