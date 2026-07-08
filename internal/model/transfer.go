@@ -15,10 +15,14 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 	} else {
 		CacheSalt = "user:" + in.UserId
 	}
+	modelID, err := ParseModelID(in.Model)
+	if err != nil {
+		return nil, err
+	}
 	out := &Request{
 		RequestId:       in.RequestId,
 		UserId:          in.UserId,
-		Model:           in.Model,
+		ModelID:         modelID,
 		Prompt:          in.Prompt,
 		MaxTokens:       in.MaxTokens,
 		Timeout:         time.Duration(int64(in.TimeoutMs)) * time.Millisecond,
@@ -41,9 +45,9 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 
 func ModelToProtoMsg(in *GenerateOutput) (*v1.GenerateResponse, error) {
 	usage := &v1.Usage{
-		InputTokens:  uint32(in.Usage.InputTokens),
-		OutputTokens: uint32(in.Usage.OutputTokens),
-		TotalTokens:  uint32(in.Usage.TotalTokens),
+		InputTokens:  in.Usage.InputTokens,
+		OutputTokens: in.Usage.OutputTokens,
+		TotalTokens:  in.Usage.TotalTokens,
 	}
 
 	timing := &v1.Timing{

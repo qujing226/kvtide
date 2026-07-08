@@ -243,7 +243,7 @@ type ExecuteResult struct {
 	state        protoimpl.MessageState `protogen:"open.v1"`
 	WorkId       string                 `protobuf:"bytes,1,opt,name=work_id,json=workId,proto3" json:"work_id,omitempty"`
 	RequestId    string                 `protobuf:"bytes,2,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	OutputText   string                 `protobuf:"bytes,3,opt,name=output_text,json=outputText,proto3" json:"output_text,omitempty"`
+	TokenId      uint32                 `protobuf:"varint,3,opt,name=token_id,json=tokenId,proto3" json:"token_id,omitempty"`
 	Done         bool                   `protobuf:"varint,4,opt,name=done,proto3" json:"done,omitempty"`
 	FinishReason FinishReason           `protobuf:"varint,5,opt,name=finish_reason,json=finishReason,proto3,enum=mini_llm_serve.v1.FinishReason" json:"finish_reason,omitempty"`
 	// delta of this execution step
@@ -299,11 +299,11 @@ func (x *ExecuteResult) GetRequestId() string {
 	return ""
 }
 
-func (x *ExecuteResult) GetOutputText() string {
+func (x *ExecuteResult) GetTokenId() uint32 {
 	if x != nil {
-		return x.OutputText
+		return x.TokenId
 	}
-	return ""
+	return 0
 }
 
 func (x *ExecuteResult) GetDone() bool {
@@ -370,13 +370,12 @@ const file_mini_llm_serve_v1_execute_proto_rawDesc = "" +
 	"\x0fcomputed_tokens\x18\x05 \x01(\rR\x0ecomputedTokens\x12)\n" +
 	"\x10generated_tokens\x18\x06 \x01(\rR\x0fgeneratedTokens\x12$\n" +
 	"\x0enum_new_tokens\x18\a \x01(\rR\fnumNewTokens\x12?\n" +
-	"\tkv_blocks\x18\b \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\"\xde\x02\n" +
+	"\tkv_blocks\x18\b \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\"\xd8\x02\n" +
 	"\rExecuteResult\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
-	"request_id\x18\x02 \x01(\tR\trequestId\x12\x1f\n" +
-	"\voutput_text\x18\x03 \x01(\tR\n" +
-	"outputText\x12\x12\n" +
+	"request_id\x18\x02 \x01(\tR\trequestId\x12\x19\n" +
+	"\btoken_id\x18\x03 \x01(\rR\atokenId\x12\x12\n" +
 	"\x04done\x18\x04 \x01(\bR\x04done\x12D\n" +
 	"\rfinish_reason\x18\x05 \x01(\x0e2\x1f.mini_llm_serve.v1.FinishReasonR\ffinishReason\x12'\n" +
 	"\x0fcomputed_tokens\x18\x06 \x01(\rR\x0ecomputedTokens\x12)\n" +

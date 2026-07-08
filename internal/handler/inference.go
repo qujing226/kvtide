@@ -36,7 +36,7 @@ func NewInferenceHandle(l *zap.SugaredLogger, tokenizer tokenizer.Tokenizer, s s
 func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Request) (<-chan *model.GenerateOutput, error) {
 	var err error
 	// 1. Tokenize
-	req.TokenIDs, err = e.tokenizer.Encode(req.Prompt)
+	req.TokenIDs, err = e.tokenizer.Encode(req.ModelID, req.Prompt)
 	if err != nil {
 		return nil, err
 	}
@@ -73,16 +73,17 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 				if event.Type == v1.EventTypePrefillChunk || event.Type == v1.EventTypePrefillFinished {
 					continue
 				}
+
 				// 4. deTokenize
-				//text, decodeErr := e.tokenizer.Decode(event.DeltaText)
-				//if event.Err != nil {
-				//	event.Err = decodeErr
-				//}
+				outputText, decodeErr := e.tokenizer.Decode(req.ModelID, []uint32{event.TokenId})
+				if decodeErr != nil {
+					event.Err = decodeErr
+				}
 
 				output := &model.GenerateOutput{
 					RequestId:    event.RequestId,
 					Index:        event.ChunkIndex,
-					DeltaText:    event.DeltaText,
+					DeltaText:    outputText,
 					FinishReason: event.FinishReason,
 					Done:         event.Done,
 					Usage:        event.Usage,

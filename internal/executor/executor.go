@@ -105,7 +105,7 @@ func (m *executor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Ev
 			BatchId:    batch.BatchID,
 			ExecutorId: m.id,
 			Type:       nextPhase(workItem, err),
-			DeltaText:  workRes.OutputText,
+			TokenId:    workRes.TokenId,
 			Done:       workRes.Done,
 			Usage: model.Usage{
 				InputTokens:  workRes.ComputedTokens,

@@ -32,7 +32,7 @@ func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, p
 
 	work, err := manager.Create(&model.Request{
 		RequestId:    "req-" + id,
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     []uint32{1, 2},

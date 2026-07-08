@@ -78,7 +78,7 @@ func (r *requestStateManager) Create(req *model.Request) (*model.WorkItem, error
 		Phase:         v1.WorkPhasePrefill,
 		Deadline:      req.Deadline,
 		MaxTokens:     req.MaxTokens,
-		Model:         req.Model,
+		ModelID:       req.ModelID,
 		Cache:         prefixMatch,
 		TokenIDs:      req.TokenIDs[prefixMatch.CachedTokens:],
 		TokenCntTotal: uint32(len(req.TokenIDs)),
@@ -177,7 +177,7 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 			Phase:         v1.WorkPhasePrefill,
 			Deadline:      req.Deadline,
 			MaxTokens:     req.MaxTokens,
-			Model:         req.Model,
+			ModelID:       req.ModelID,
 			Cache:         req.Cache,
 			TokenIDs:      req.TokenIDs[prefillOffset : prefillOffset+numNewTokens],
 			TokenCntTotal: req.PromptTokens,
@@ -201,9 +201,10 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 			Phase:           v1.WorkPhaseDecode,
 			Deadline:        req.Deadline,
 			MaxTokens:       req.MaxTokens,
-			Model:           req.Model,
+			ModelID:         req.ModelID,
 			Cache:           req.Cache,
-			TokenCntTotal:   req.PromptTokens,
+			TokenIDs:        req.TokenIDs,
+			TokenCntTotal:   uint32(len(req.TokenIDs)),
 			GeneratedTokens: req.GeneratedTokens,
 			NumNewTokens:    1,
 			ReadyAt:         now,
@@ -215,7 +216,7 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 		req.Usage.OutputTokens = req.GeneratedTokens
 		req.Usage.TotalTokens = req.PromptTokens + req.GeneratedTokens
 		e.Usage = req.Usage
-		req.OutputText += e.DeltaText
+		req.TokenIDs = append(req.TokenIDs, e.TokenId)
 		if e.Done || req.GeneratedTokens >= req.MaxTokens {
 			req.Phase = model.RequestPhaseFinished
 			req.FinishedAt = now
@@ -231,10 +232,10 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 				WorkId:          utils.MustGenerateUUIDv7(),
 				RequestId:       e.RequestId,
 				Phase:           v1.WorkPhaseDecode,
-				Model:           req.Model,
+				ModelID:         req.ModelID,
 				Cache:           req.Cache,
-				TokenIDs:        nil,
-				TokenCntTotal:   req.PromptTokens,
+				TokenIDs:        req.TokenIDs,
+				TokenCntTotal:   uint32(len(req.TokenIDs)),
 				MaxTokens:       req.MaxTokens,
 				Deadline:        req.Deadline,
 				GeneratedTokens: req.GeneratedTokens,

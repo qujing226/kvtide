@@ -47,10 +47,10 @@ class ExecuteItem(_message.Message):
     def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., token_ids: _Optional[_Iterable[int]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ...) -> None: ...
 
 class ExecuteResult(_message.Message):
-    __slots__ = ("work_id", "request_id", "output_text", "done", "finish_reason", "computed_tokens", "generated_tokens", "execution_ms", "error_message")
+    __slots__ = ("work_id", "request_id", "token_id", "done", "finish_reason", "computed_tokens", "generated_tokens", "execution_ms", "error_message")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
-    OUTPUT_TEXT_FIELD_NUMBER: _ClassVar[int]
+    TOKEN_ID_FIELD_NUMBER: _ClassVar[int]
     DONE_FIELD_NUMBER: _ClassVar[int]
     FINISH_REASON_FIELD_NUMBER: _ClassVar[int]
     COMPUTED_TOKENS_FIELD_NUMBER: _ClassVar[int]
@@ -59,11 +59,11 @@ class ExecuteResult(_message.Message):
     ERROR_MESSAGE_FIELD_NUMBER: _ClassVar[int]
     work_id: str
     request_id: str
-    output_text: str
+    token_id: int
     done: bool
     finish_reason: _core_pb2.FinishReason
     computed_tokens: int
     generated_tokens: int
     execution_ms: int
     error_message: str
-    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., output_text: _Optional[str] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., execution_ms: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., token_id: _Optional[int] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., execution_ms: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...

@@ -35,7 +35,7 @@ func testSchedulerWork(t *testing.T, s *scheduler, id string, phase v1.WorkPhase
 
 	work, err := s.requestManager.Create(&model.Request{
 		RequestId:    "req-" + id,
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testTokenIDs(promptTokens),
@@ -231,7 +231,7 @@ func TestPickBatchDropsCanceledWork(t *testing.T) {
 	s := newTestScheduler()
 	req := &model.Request{
 		RequestId:    "req-canceled",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testTokenIDs(2),
@@ -255,7 +255,7 @@ func TestPickBatchDropsTimedOutWork(t *testing.T) {
 	s := newTestScheduler()
 	req := &model.Request{
 		RequestId:    "req-timeout",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testTokenIDs(2),

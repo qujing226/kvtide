@@ -32,7 +32,7 @@ func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-stale",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testStateTokenIDs(2),
@@ -61,7 +61,7 @@ func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-canceled",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testStateTokenIDs(2),
@@ -80,7 +80,7 @@ func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-timeout",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testStateTokenIDs(2),
@@ -113,7 +113,7 @@ func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-duplicate",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello",
 		MaxTokens:    8,
 		TokenIDs:     testStateTokenIDs(2),
@@ -136,7 +136,7 @@ func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-cache-miss",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
@@ -162,7 +162,7 @@ func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
 
 	req := &model.Request{
 		RequestId:    "req-cache-partial-hit",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
@@ -188,7 +188,7 @@ func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
 
 	req := &model.Request{
 		RequestId:    "req-cache-full-hit",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
@@ -212,7 +212,7 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-cache-store",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
@@ -237,11 +237,13 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, next, 1)
 	require.Equal(t, v1.WorkPhaseDecode, next[0].Phase)
+	require.Equal(t, req.TokenIDs, next[0].TokenIDs)
+	require.Equal(t, uint32(len(req.TokenIDs)), next[0].TokenCntTotal)
 
 	manager.Finish(req.RequestId)
 	followup := &model.Request{
 		RequestId:    "req-cache-store-followup",
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
@@ -260,7 +262,7 @@ func seedPrefixCache(t *testing.T, fixture testStateFixture, requestId, cacheSal
 
 	req := &model.Request{
 		RequestId:    requestId,
-		Model:        "mock",
+		ModelID:      model.MockModel,
 		Prompt:       "seed",
 		MaxTokens:    8,
 		CacheSalt:    cacheSalt,

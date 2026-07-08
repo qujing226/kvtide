@@ -20,6 +20,7 @@ type Conf struct {
 
 type TokenizerConf struct {
 	Kind                string `koanf:"kind"`
+	Model               string `koanf:"model"`
 	VocabPath           string `koanf:"vocabPath"`
 	MergesPath          string `koanf:"mergesPath"`
 	TokenizerConfigPath string `koanf:"tokenizerConfigPath"`

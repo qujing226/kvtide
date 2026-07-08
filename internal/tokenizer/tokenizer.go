@@ -1,91 +1,88 @@
 package tokenizer
 
 import (
-	"crypto/sha3"
-	"encoding/binary"
-	"fmt"
-	"strings"
-	"sync"
-
-	gotokenizer "github.com/qujing226/gotokenizer"
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
+	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
 type Tokenizer interface {
+	Encode(model model.LLMModelID, text string) ([]uint32, error)
+	Decode(model model.LLMModelID, tokens []uint32) (string, error)
+}
+
+type tokenize interface {
 	Encode(text string) ([]uint32, error)
 	Decode(tokens []uint32) (string, error)
 }
 
-type mockTokenizer struct {
-	mu      sync.RWMutex
-	reverse map[uint32]string
+type tokenizer struct {
+	tokenizers map[model.LLMModelID]tokenize
 }
 
 func NewTokenizer(cfg *conf.Conf) (Tokenizer, error) {
-	for _, tokenzier := range cfg.Tokenizer {
-		switch tokenzier.Kind {
+	t := &tokenizer{
+		tokenizers: make(map[model.LLMModelID]tokenize),
+	}
+	if len(cfg.Tokenizer) == 0 {
+		t.tokenizers[model.MockModel] = newMockTokenizer()
+		return t, nil
+	}
+	for _, tokenzierCfg := range cfg.Tokenizer {
+		modelID, err := tokenizerModelID(tokenzierCfg)
+		if err != nil {
+			return nil, err
+		}
+		switch tokenzierCfg.Kind {
 		case "", "mock":
-			return newMockTokenizer(), nil
+			t.tokenizers[modelID] = newMockTokenizer()
 		case "qwen":
-			return gotokenizer.NewQwenTokenizer(gotokenizer.QwenTokenizerConfig{
-				VocabPath:           tokenzier.VocabPath,
-				MergesPath:          tokenzier.MergesPath,
-				TokenizerConfigPath: tokenzier.TokenizerConfigPath,
-			})
+			tok, err := newQwen3Tokenizer(tokenzierCfg)
+			if err != nil {
+				return nil, err
+			}
+			t.tokenizers[modelID] = tok
 		default:
-			return nil, errors.New(errors.CodeInvalidArgument, "tokenizer: unsupported kind "+tokenzier.Kind)
+			return nil, errors.New(errors.CodeInvalidArgument, "tokenizer: unsupported kind "+tokenzierCfg.Kind)
 		}
 	}
-	return newMockTokenizer(), nil
+	return t, nil
 }
 
-func newMockTokenizer() Tokenizer {
-	return &mockTokenizer{
-		reverse: make(map[uint32]string),
+func tokenizerModelID(cfg conf.TokenizerConf) (model.LLMModelID, error) {
+	if cfg.Model != "" {
+		return model.ParseModelID(cfg.Model)
+	}
+	switch cfg.Kind {
+	case "", "mock":
+		return model.MockModel, nil
+	case "qwen":
+		return model.Qwen3Model, nil
+	default:
+		return "", errors.New(errors.CodeInvalidArgument, "tokenizer: model is required for kind "+cfg.Kind)
 	}
 }
 
-func (m *mockTokenizer) Encode(text string) ([]uint32, error) {
-	fields := strings.Fields(text)
-	tokens := make([]uint32, 0, len(fields))
-	for _, field := range fields {
-		tokenId := m.stableHash32(field)
-		m.mu.Lock()
-		if token, ok := m.reverse[tokenId]; ok && token != field {
-			m.mu.Unlock()
-			return nil, fmt.Errorf("token collision")
-		}
-
-		m.reverse[tokenId] = field
-		m.mu.Unlock()
-		tokens = append(tokens, tokenId)
+func (t *tokenizer) Encode(modelID model.LLMModelID, text string) ([]uint32, error) {
+	tok, ok := t.tokenizers[modelID]
+	if !ok {
+		return nil, errors.New(errors.CodeInvalidArgument, "tokenizer: model not registered "+string(modelID))
 	}
-	if len(tokens) == 0 {
-		tokenId := m.stableHash32("")
-		m.mu.Lock()
-		m.reverse[tokenId] = ""
-		m.mu.Unlock()
-		return []uint32{tokenId}, nil
+	tokens, err := tok.Encode(text)
+	if err != nil {
+		return nil, err
 	}
 	return tokens, nil
 }
 
-func (m *mockTokenizer) Decode(tokens []uint32) (string, error) {
-	words := make([]string, 0, len(tokens))
-	for _, tokenID := range tokens {
-		m.mu.RLock()
-		word, ok := m.reverse[tokenID]
-		m.mu.RUnlock()
-		if !ok {
-			return "", fmt.Errorf("token not found")
-		}
-		words = append(words, word)
+func (t *tokenizer) Decode(modelID model.LLMModelID, tokens []uint32) (string, error) {
+	tok, ok := t.tokenizers[modelID]
+	if !ok {
+		return "", errors.New(errors.CodeInvalidArgument, "tokenizer: model not registered "+string(modelID))
 	}
-	return strings.Join(words, " "), nil
-}
-
-func (m *mockTokenizer) stableHash32(field string) uint32 {
-	sum := sha3.Sum256([]byte(field))
-	return binary.BigEndian.Uint32(sum[:4])
+	str, err := tok.Decode(tokens)
+	if err != nil {
+		return "replace", err
+	}
+	return str, nil
 }

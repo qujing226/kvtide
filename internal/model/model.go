@@ -9,7 +9,7 @@ import (
 type Request struct {
 	RequestId string
 	UserId    string
-	Model     string
+	ModelID   LLMModelID
 	Prompt    string
 	MaxTokens uint32
 	Timeout   time.Duration
@@ -28,7 +28,8 @@ type Request struct {
 	Phase           RequestPhase
 	FinishReason    v1.FinishReason
 
-	OutputText   string
+	OutputText string
+
 	CreatedAt    time.Time
 	FirstTokenAt time.Time
 	FinishedAt   time.Time
@@ -59,7 +60,7 @@ type WorkItem struct {
 	Phase     v1.WorkPhase
 	Deadline  time.Time
 	MaxTokens uint32
-	Model     string
+	ModelID   LLMModelID
 	Cache     *PrefixMatch
 
 	// TokenIDs in WorkItem is a part of TokenIDs in Request.
@@ -90,8 +91,9 @@ type Event struct {
 	Type v1.EventType
 
 	ChunkIndex uint64
-	DeltaText  string
-	Done       bool
+
+	TokenId uint32
+	Done    bool
 
 	Usage        Usage
 	Timing       Timing

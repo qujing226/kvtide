@@ -44,7 +44,7 @@ message ExecuteResult{
   string work_id = 1;
   string request_id =2;
 
-  string output_text = 3;
+  uint32 token_id = 3;
   bool done = 4;
   FinishReason finish_reason = 5;
 
