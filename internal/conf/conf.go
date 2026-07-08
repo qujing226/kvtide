@@ -13,8 +13,16 @@ import (
 )
 
 type Conf struct {
-	Server    ServerConf     `koanf:"server"`
-	Executors []ExecutorConf `koanf:"executors"`
+	Server    ServerConf      `koanf:"server"`
+	Tokenizer []TokenizerConf `koanf:"tokenizer"`
+	Executors []ExecutorConf  `koanf:"executors"`
+}
+
+type TokenizerConf struct {
+	Kind                string `koanf:"kind"`
+	VocabPath           string `koanf:"vocabPath"`
+	MergesPath          string `koanf:"mergesPath"`
+	TokenizerConfigPath string `koanf:"tokenizerConfigPath"`
 }
 
 type ServerConf struct {

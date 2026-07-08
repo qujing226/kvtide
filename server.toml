@@ -13,6 +13,13 @@ maxScheduleDelay = 10 # ms
 [server.scheduleConf.queueConf]
 queueLength = 100
 
+# Leave kind empty or set "mock" to use the deterministic mock tokenizer.
+[tokenizer]
+ kind = "qwen"
+ vocabPath = "./config/tokenizer/qwen3-tokenizer/vocab.json"
+ mergesPath = "./config/tokenizer/qwen3-tokenizer/merges.txt"
+ tokenizerConfigPath = "./config/tokenizer/qwen3-tokenizer/tokenizer_config.json"
+
 [[executors]]
 id = "mock-python"
 kind = "connect"

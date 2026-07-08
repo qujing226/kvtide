@@ -6,6 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"sync"
+
+	gotokenizer "github.com/qujing226/gotokenizer"
+	"github.com/qujing226/mini-llm-serve/internal/conf"
+	"github.com/qujing226/mini-llm-serve/internal/errors"
 )
 
 type Tokenizer interface {
@@ -18,11 +22,28 @@ type mockTokenizer struct {
 	reverse map[uint32]string
 }
 
-func NewTokenizer() Tokenizer {
-	t := &mockTokenizer{
+func NewTokenizer(cfg *conf.Conf) (Tokenizer, error) {
+	for _, tokenzier := range cfg.Tokenizer {
+		switch tokenzier.Kind {
+		case "", "mock":
+			return newMockTokenizer(), nil
+		case "qwen":
+			return gotokenizer.NewQwenTokenizer(gotokenizer.QwenTokenizerConfig{
+				VocabPath:           tokenzier.VocabPath,
+				MergesPath:          tokenzier.MergesPath,
+				TokenizerConfigPath: tokenzier.TokenizerConfigPath,
+			})
+		default:
+			return nil, errors.New(errors.CodeInvalidArgument, "tokenizer: unsupported kind "+tokenzier.Kind)
+		}
+	}
+	return newMockTokenizer(), nil
+}
+
+func newMockTokenizer() Tokenizer {
+	return &mockTokenizer{
 		reverse: make(map[uint32]string),
 	}
-	return t
 }
 
 func (m *mockTokenizer) Encode(text string) ([]uint32, error) {
