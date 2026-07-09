@@ -4,9 +4,8 @@ from connectrpc.request import RequestContext
 from mini_llm_serve.v1 import core_pb2
 from mini_llm_serve.v1 import execute_connect
 from mini_llm_serve.v1 import execute_pb2
-
-from runner.mock import MockRunner
-
+from runner.factory import create_runner
+from setting import load_config
 
 class ExecuteServiceImpl(execute_connect.ExecuteService):
     def __init__(self, runner):
@@ -48,6 +47,7 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
     async def _execute_decode(self, item):
         return await self.runner.decode(item)
 
+
 app = execute_connect.ExecuteServiceASGIApplication(
-    ExecuteServiceImpl(MockRunner())
+    ExecuteServiceImpl(create_runner(load_config().runner))
 )

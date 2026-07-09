@@ -1,0 +1,14 @@
+#[runner]
+#kind = "mock"
+#model_path = "./models/Qwen3-0.6B"
+#dtype = "float32"
+
+[runner]
+kind = "cpu"
+model_path = "/path/to/Qwen3-0.6B"
+dtype = "float32"
+
+[runtime]
+device = "cpu"
+tensor_parallel_size = 1
+gpu_memory_utilization = 0.9

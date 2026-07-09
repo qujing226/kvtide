@@ -6,3 +6,4 @@ class SequenceState:
     token_ids: list[int] = field(default_factory=list)
     generated_tokens: int = 0
     done: bool = False
+
