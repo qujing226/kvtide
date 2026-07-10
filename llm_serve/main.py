@@ -49,5 +49,5 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
 
 
 app = execute_connect.ExecuteServiceASGIApplication(
-    ExecuteServiceImpl(create_runner(load_config().runner))
+    ExecuteServiceImpl(create_runner(load_config()))
 )

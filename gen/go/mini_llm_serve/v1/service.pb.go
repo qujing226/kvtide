@@ -25,7 +25,7 @@ type GenerateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	RequestId     string                 `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
 	UserId        string                 `protobuf:"bytes,2,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Model         string                 `protobuf:"bytes,3,opt,name=model,proto3" json:"model,omitempty"`
+	ModelId       string                 `protobuf:"bytes,3,opt,name=model_id,json=modelId,proto3" json:"model_id,omitempty"`
 	Prompt        string                 `protobuf:"bytes,4,opt,name=prompt,proto3" json:"prompt,omitempty"`
 	MaxTokens     uint32                 `protobuf:"varint,5,opt,name=max_tokens,json=maxTokens,proto3" json:"max_tokens,omitempty"` // mock inference can determine sleep time, output_length by this.
 	TimeoutMs     uint32                 `protobuf:"varint,6,opt,name=timeout_ms,json=timeoutMs,proto3" json:"timeout_ms,omitempty"`
@@ -78,9 +78,9 @@ func (x *GenerateRequest) GetUserId() string {
 	return ""
 }
 
-func (x *GenerateRequest) GetModel() string {
+func (x *GenerateRequest) GetModelId() string {
 	if x != nil {
-		return x.Model
+		return x.ModelId
 	}
 	return ""
 }
@@ -509,12 +509,12 @@ var File_mini_llm_serve_v1_service_proto protoreflect.FileDescriptor
 
 const file_mini_llm_serve_v1_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1fmini_llm_serve/v1/service.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"\xb8\x02\n" +
+	"\x1fmini_llm_serve/v1/service.proto\x12\x11mini_llm_serve.v1\x1a\x1cmini_llm_serve/v1/core.proto\"\xbd\x02\n" +
 	"\x0fGenerateRequest\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12\x17\n" +
-	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x14\n" +
-	"\x05model\x18\x03 \x01(\tR\x05model\x12\x16\n" +
+	"\auser_id\x18\x02 \x01(\tR\x06userId\x12\x19\n" +
+	"\bmodel_id\x18\x03 \x01(\tR\amodelId\x12\x16\n" +
 	"\x06prompt\x18\x04 \x01(\tR\x06prompt\x12\x1d\n" +
 	"\n" +
 	"max_tokens\x18\x05 \x01(\rR\tmaxTokens\x12\x1d\n" +

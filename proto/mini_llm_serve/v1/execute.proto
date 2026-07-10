@@ -16,6 +16,8 @@ message ExecuteBatchRequest{
 
 message ExecuteBatchResponse{
   string batch_id = 1;
+  // executor_id is not equal with model_id, it is a abstract service name
+  // which may assign to multi inference instances.
   string executor_id = 2;
   repeated ExecuteResult results =3;
 }

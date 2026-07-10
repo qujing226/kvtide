@@ -22,13 +22,12 @@ queueLength = 100
  tokenizerConfigPath = "./config/tokenizer/qwen3-tokenizer/tokenizer_config.json"
 
 [[executors]]
-id = "mock-python"
-kind = "connect"
+id = "executor-qwen3-0.6B"
+kind = "qwen"
 address = ["http://127.0.0.1:19991"]
-enabled = true
+timeoutMs = 120000
 
-[[executors]]
-id = "ollama-local"
-kind = "http"
-address = ["http://127.0.0.1:11434"]
-enabled = false
+#[[executors]]
+#id = "ollama-local"
+#kind = "http"
+#address = ["http://127.0.0.1:11434"]

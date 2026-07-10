@@ -15,7 +15,7 @@ func ProtoMsgToModel(in *v1.GenerateRequest) (*Request, error) {
 	} else {
 		CacheSalt = "user:" + in.UserId
 	}
-	modelID, err := ParseModelID(in.Model)
+	modelID, err := ParseModelID(in.ModelId)
 	if err != nil {
 		return nil, err
 	}

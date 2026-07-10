@@ -53,10 +53,10 @@ func (s ScheduleConf) ScheduleDelay() time.Duration {
 }
 
 type ExecutorConf struct {
-	ID      string   `koanf:"id"`
-	Kind    string   `koanf:"kind"`
-	Address []string `koanf:"address"`
-	Enabled bool     `koanf:"enabled"`
+	ID        string   `koanf:"id"`
+	Kind      string   `koanf:"kind"`
+	Address   []string `koanf:"address"`
+	TimeoutMs int      `koanf:"timeoutMs"`
 }
 
 func NewConfFromPath(path string) (*Conf, error) {

@@ -21,9 +21,6 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 	executors := make(map[string]Executor)
 
 	for _, ec := range cfg.Executors {
-		if !ec.Enabled {
-			continue
-		}
 		if ec.ID == "" {
 			return nil, fmt.Errorf("executor.id can not be empty")
 		}
@@ -37,10 +34,8 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 		var exec Executor
 		var err error
 		switch ec.Kind {
-		case "connect":
-			exec, err = newExecutor(logger, ec)
-		case "http":
-			exec, err = newHTTPExecutor(ec)
+		case "qwen":
+			exec, err = newQwenExecutor(logger, ec)
 		default:
 			return nil, fmt.Errorf("unsupported executor.kind: %s", ec.Kind)
 		}
@@ -66,12 +61,12 @@ type executor struct {
 	client    *client.ExecutorClient
 }
 
-func newExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
+func newQwenExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
 	e := &executor{
 		l:         l,
 		id:        cfg.ID,
 		endpoints: cfg.Address,
-		client:    client.NewExecutorClient(cfg.Address),
+		client:    client.NewExecutorClient(cfg.Address, cfg.TimeoutMs),
 	}
 	return e, nil
 }

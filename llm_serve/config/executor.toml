@@ -4,8 +4,10 @@
 #dtype = "float32"
 
 [runner]
-kind = "cpu"
-model_path = "/path/to/Qwen3-0.6B"
+executor_id = "executor-qwen3-0.6B"
+kind = "qwen"
+model_id = "Qwen3-0.6B"
+model_path = "./models/Qwen3-0.6B"
 dtype = "float32"
 
 [runtime]

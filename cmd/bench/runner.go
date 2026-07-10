@@ -302,7 +302,7 @@ func durationToMilliseconds(d time.Duration) uint32 {
 func buildGenerateRequest(scenario Scenario, index int) *v1.GenerateRequest {
 	return &v1.GenerateRequest{
 		RequestId: fmt.Sprintf("bench-%s-measured-%06d", scenario.Name, index),
-		Model:     scenario.Model,
+		ModelId:   scenario.Model,
 		Prompt:    scenario.promptFor(index),
 		MaxTokens: scenario.MaxTokens,
 		TimeoutMs: durationToMilliseconds(scenario.Timeout),

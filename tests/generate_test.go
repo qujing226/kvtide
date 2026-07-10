@@ -17,9 +17,9 @@ func TestGenerate(t *testing.T) {
 
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 		RequestId: "002",
-		Model:     "deepseek-v4",
-		Prompt:    "hello world",
-		MaxTokens: 1024,
+		ModelId:   "qwen3",
+		Prompt:    "what is your name",
+		MaxTokens: 8,
 		TimeoutMs: 60000,
 		Labels:    nil,
 	})
@@ -30,5 +30,7 @@ func TestGenerate(t *testing.T) {
 		EmitUnpopulated: true,
 	}.Marshal(resp)
 	require.NoError(t, err)
+	require.Empty(t, resp.ErrorMessage)
+	require.NotEqual(t, v1.FinishReasonError, resp.FinishReason)
 	t.Log(string(r))
 }

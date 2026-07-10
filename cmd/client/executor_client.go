@@ -15,12 +15,12 @@ type ExecutorClient struct {
 	executor   mini_llm_servev1connect.ExecuteServiceClient
 }
 
-func NewExecutorClient(endpoints []string) *ExecutorClient {
+func NewExecutorClient(endpoints []string, timeoutMs int) *ExecutorClient {
 	transport := newLongConnTransport()
 	e := &ExecutorClient{
 		httpClient: &http.Client{
 			Transport: transport,
-			Timeout:   10 * time.Second,
+			Timeout:   time.Duration(timeoutMs) * time.Millisecond,
 		},
 		endpoints: endpoints,
 	}
