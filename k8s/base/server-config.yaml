@@ -22,8 +22,12 @@ data:
     [server.scheduleConf.queueConf]
     queueLength = 100
 
+    [[models]]
+    modelId = "Qwen/Qwen3-0.6B"
+    modelPath = "/models/Qwen3-0.6B"
+
     [[executors]]
-    id = "mock-python"
-    kind = "connect"
+    id = "executor-qwen3-0.6B"
+    modelId = "Qwen/Qwen3-0.6B"
     address = ["http://executor:19991"]
-    enabled = true
+    timeoutMs = 120000

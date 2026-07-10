@@ -8,13 +8,14 @@ from runner.factory import create_runner
 from setting import load_config
 
 class ExecuteServiceImpl(execute_connect.ExecuteService):
-    def __init__(self, runner):
+    def __init__(self, runner, executor_id: str):
         self.runner = runner
+        self.executor_id = executor_id
 
     async def execute_batch(self, request, ctx: RequestContext) -> execute_pb2.ExecuteBatchResponse:
         response = execute_pb2.ExecuteBatchResponse(
             batch_id=request.batch_id,
-            executor_id="mock-python",
+            executor_id=self.executor_id,
         )
 
         results = await asyncio.gather(
@@ -47,7 +48,7 @@ class ExecuteServiceImpl(execute_connect.ExecuteService):
     async def _execute_decode(self, item):
         return await self.runner.decode(item)
 
-
+cfg = load_config()
 app = execute_connect.ExecuteServiceASGIApplication(
-    ExecuteServiceImpl(create_runner(load_config()))
+    ExecuteServiceImpl(create_runner(cfg), cfg.runner.executor_id)
 )

@@ -1,6 +1,10 @@
 package tokenizer
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+
 	"github.com/qujing226/mini-llm-serve/internal/conf"
 	"github.com/qujing226/mini-llm-serve/internal/errors"
 	"github.com/qujing226/mini-llm-serve/internal/model"
@@ -24,43 +28,53 @@ func NewTokenizer(cfg *conf.Conf) (Tokenizer, error) {
 	t := &tokenizer{
 		tokenizers: make(map[model.LLMModelID]tokenize),
 	}
-	if len(cfg.Tokenizer) == 0 {
+	if len(cfg.Models) == 0 {
 		t.tokenizers[model.MockModel] = newMockTokenizer()
 		return t, nil
 	}
-	for _, tokenzierCfg := range cfg.Tokenizer {
-		modelID, err := tokenizerModelID(tokenzierCfg)
+	for _, modelConf := range cfg.Models {
+		modelID, err := model.ParseModelID(modelConf.ModelID)
 		if err != nil {
 			return nil, err
 		}
-		switch tokenzierCfg.Kind {
-		case "", "mock":
+		modelType, err := readModelType(modelConf.ModelPath)
+		if err != nil {
+			return nil, err
+		}
+		switch modelType {
+		case "mock":
 			t.tokenizers[modelID] = newMockTokenizer()
-		case "qwen":
-			tok, err := newQwen3Tokenizer(tokenzierCfg)
+		case "qwen3":
+			tok, err := newQwen3Tokenizer(modelConf)
 			if err != nil {
 				return nil, err
 			}
 			t.tokenizers[modelID] = tok
 		default:
-			return nil, errors.New(errors.CodeInvalidArgument, "tokenizer: unsupported kind "+tokenzierCfg.Kind)
+			return nil, errors.New(errors.CodeInvalidArgument, "tokenizer: unsupported model_type "+modelType)
 		}
 	}
 	return t, nil
 }
 
-func tokenizerModelID(cfg conf.TokenizerConf) (model.LLMModelID, error) {
-	if cfg.Model != "" {
-		return model.ParseModelID(cfg.Model)
+func readModelType(modelPath string) (string, error) {
+	if modelPath == "" {
+		return "mock", nil
 	}
-	switch cfg.Kind {
-	case "", "mock":
-		return model.MockModel, nil
-	case "qwen":
-		return model.Qwen3Model, nil
-	default:
-		return "", errors.New(errors.CodeInvalidArgument, "tokenizer: model is required for kind "+cfg.Kind)
+	b, err := os.ReadFile(filepath.Join(modelPath, "config.json"))
+	if err != nil {
+		return "", err
 	}
+	var cfg struct {
+		ModelType string `json:"model_type"`
+	}
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		return "", err
+	}
+	if cfg.ModelType == "" {
+		return "", errors.New(errors.CodeInvalidArgument, "model config missing model_type: "+modelPath)
+	}
+	return cfg.ModelType, nil
 }
 
 func (t *tokenizer) Encode(modelID model.LLMModelID, text string) ([]uint32, error) {

@@ -32,7 +32,7 @@
 
 `mini-llm-serve` isolates the control-plane mechanics behind modern LLM serving systems.
 
-The Go server turns each inference request into schedulable prefill and decode work, builds mixed batches under sequence and token budgets, models prefix-cache and KV-block metadata, and streams generated chunks back to the client. A Python mock executor provides deterministic inference behavior without requiring a GPU.
+The Go server turns each inference request into schedulable prefill and decode work, builds mixed batches under sequence and token budgets, models prefix-cache and KV-block metadata, and streams generated chunks back to the client. A Python executor can run either the mock runner or the Qwen Transformers CPU runner.
 
 This project is intended to make the following questions observable:
 
@@ -64,7 +64,7 @@ The third page presents the benchmark profile bundled with the project.
 | API | Connect RPC unary and server-streaming inference endpoints |
 | Request lifecycle | State machine for queued, prefill, decode, finished, timeout, canceled, and failed states |
 | Scheduling | Separate prefill/decode queues, small/large prefill classification, mixed batches, sequence and token budgets |
-| Execution | One Go control plane connected to one Python mock executor |
+| Execution | One Go control plane connected to one Python executor |
 | Streaming | Incremental response chunks with TTFT, TBT, usage, and finish-reason tracking |
 | Prefix cache | Per-user cache salt, full-block hash matching, hit/miss counters, and saved-token metrics |
 | KV block model | Block tables, free-list reuse, cached blocks, allocation failures, and eviction counters |
@@ -77,6 +77,9 @@ The third page presents the benchmark profile bundled with the project.
 Docker Compose is the recommended way to run the complete project:
 
 ```bash
+cd llm_serve
+uv run hf download Qwen/Qwen3-0.6B --local-dir ./models/Qwen3-0.6B
+cd ..
 docker compose up --build -d
 ```
 
@@ -86,7 +89,7 @@ It starts a one-to-one topology:
 Browser
   -> Web container
   -> Go control plane
-  -> Python mock executor
+  -> Python Qwen executor
 ```
 
 Open the web interface:
@@ -135,7 +138,7 @@ GenerateRequest
   -> Prefill/decode WorkItem
   -> Token-budget scheduler
   -> Executor manager
-  -> Python mock executor
+  -> Python executor
   -> Event
   -> Next WorkItem or final streamed response
   -> KV block cleanup
@@ -279,9 +282,9 @@ internal/
   model/        Request, WorkItem, Event, Batch, and block metadata
   scheduler/    token-budget scheduler and prefill/decode queues
   state/        request lifecycle state machine
-  tokenizer/    deterministic mock tokenizer
+  tokenizer/    model-aware tokenizer registry
   transport/    Connect RPC, admin, and CORS handlers
-llm_serve/      Python mock executor
+llm_serve/      Python executor runners
 web/            React playground, scheduler lab, and benchmark view
 proto/          protobuf API definitions
 k8s/            kind cluster configuration and Kubernetes manifests

@@ -24,21 +24,14 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 		if ec.ID == "" {
 			return nil, fmt.Errorf("executor.id can not be empty")
 		}
-		if ec.Kind == "" {
-			return nil, fmt.Errorf("executor.kind can not be empty")
+		if ec.ModelID == "" {
+			return nil, fmt.Errorf("executor.modelId can not be empty")
 		}
 		if len(ec.Address) == 0 {
 			return nil, fmt.Errorf("executor.address can not be empty")
 		}
 
-		var exec Executor
-		var err error
-		switch ec.Kind {
-		case "qwen":
-			exec, err = newQwenExecutor(logger, ec)
-		default:
-			return nil, fmt.Errorf("unsupported executor.kind: %s", ec.Kind)
-		}
+		exec, err := newConnectExecutor(logger, ec)
 		if err != nil {
 			return nil, err
 		}
@@ -57,14 +50,20 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 type executor struct {
 	l         *zap.SugaredLogger
 	id        string
+	modelID   model.LLMModelID
 	endpoints []string
 	client    *client.ExecutorClient
 }
 
-func newQwenExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
+func newConnectExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
+	modelID, err := model.ParseModelID(cfg.ModelID)
+	if err != nil {
+		return nil, err
+	}
 	e := &executor{
 		l:         l,
 		id:        cfg.ID,
+		modelID:   modelID,
 		endpoints: cfg.Address,
 		client:    client.NewExecutorClient(cfg.Address, cfg.TimeoutMs),
 	}
@@ -120,10 +119,6 @@ func (m *executor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Ev
 	}
 
 	return results, nil
-}
-
-func newHTTPExecutor(cfg conf.ExecutorConf) (Executor, error) {
-	return nil, fmt.Errorf("http executor not implemented")
 }
 
 func nextPhase(item *model.WorkItem, err error) v1.EventType {

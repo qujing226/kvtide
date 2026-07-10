@@ -12,6 +12,8 @@ services:
     image: mini-llm-executor:local
     expose:
       - "19991"
+    volumes:
+      - ./llm_serve/models/Qwen3-0.6B:/app/models/Qwen3-0.6B:ro
     networks:
       - mini-llm
 
@@ -30,6 +32,7 @@ services:
       - "8801:8801"
     volumes:
       - ./config/compose-server.toml:/etc/mini-llm/server.toml:ro
+      - ./llm_serve/models/Qwen3-0.6B:/models/Qwen3-0.6B:ro
     networks:
       - mini-llm
 

@@ -17,16 +17,12 @@ maxScheduleDelay = 10 # ms
 [server.scheduleConf.queueConf]
 queueLength = 100
 
-# Mount tokenizer files into the server container before enabling this.
-[[tokenizer]]
-kind = "qwen"
-model = "qwen3"
-vocabPath = "./config/tokenizer/qwen3-tokenizer/vocab.json"
-mergesPath = "./config/tokenizer/qwen3-tokenizer/merges.txt"
-tokenizerConfigPath = "./config/tokenizer/qwen3-tokenizer/tokenizer_config.json"
+[[models]]
+modelId = "Qwen/Qwen3-0.6B"
+modelPath = "/models/Qwen3-0.6B"
 
 [[executors]]
-id = "mock-python"
-kind = "connect"
+id = "executor-qwen3-0.6B"
+modelId = "Qwen/Qwen3-0.6B"
 address = ["http://executor:19991"]
-enabled = true
+timeoutMs = 120000

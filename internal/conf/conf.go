@@ -13,17 +13,14 @@ import (
 )
 
 type Conf struct {
-	Server    ServerConf      `koanf:"server"`
-	Tokenizer []TokenizerConf `koanf:"tokenizer"`
-	Executors []ExecutorConf  `koanf:"executors"`
+	Server    ServerConf     `koanf:"server"`
+	Models    []ModelConf    `koanf:"models"`
+	Executors []ExecutorConf `koanf:"executors"`
 }
 
-type TokenizerConf struct {
-	Kind                string `koanf:"kind"`
-	Model               string `koanf:"model"`
-	VocabPath           string `koanf:"vocabPath"`
-	MergesPath          string `koanf:"mergesPath"`
-	TokenizerConfigPath string `koanf:"tokenizerConfigPath"`
+type ModelConf struct {
+	ModelID   string `koanf:"modelId"`
+	ModelPath string `koanf:"modelPath"`
 }
 
 type ServerConf struct {
@@ -53,10 +50,10 @@ func (s ScheduleConf) ScheduleDelay() time.Duration {
 }
 
 type ExecutorConf struct {
-	ID        string   `koanf:"id"`
-	Kind      string   `koanf:"kind"`
-	Address   []string `koanf:"address"`
-	TimeoutMs int      `koanf:"timeoutMs"`
+	ExecutorID string   `koanf:"executorId"`
+	ModelID    string   `koanf:"modelId"`
+	Address    []string `koanf:"address"`
+	TimeoutMs  int      `koanf:"timeoutMs"`
 }
 
 func NewConfFromPath(path string) (*Conf, error) {
