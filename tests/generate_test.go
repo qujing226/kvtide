@@ -18,7 +18,7 @@ func TestGenerate(t *testing.T) {
 	resp, err := c.Generate(context.Background(), &v1.GenerateRequest{
 		RequestId: "002",
 		ModelId:   "Qwen/Qwen3-0.6B",
-		Prompt:    "what is your name",
+		Prompt:    "what is your name?",
 		MaxTokens: 8,
 		TimeoutMs: 60000,
 		Labels:    nil,

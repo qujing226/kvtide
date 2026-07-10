@@ -1,7 +1,3 @@
-#[runner]
-#model_path = "./models/Qwen3-0.6B"
-#dtype = "float32"
-
 [runner]
 executor_id = "executor-qwen3-0.6B"
 model_id = "Qwen/Qwen3-0.6B"

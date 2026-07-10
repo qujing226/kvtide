@@ -21,7 +21,7 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 	executors := make(map[string]Executor)
 
 	for _, ec := range cfg.Executors {
-		if ec.ID == "" {
+		if ec.ModelID == "" {
 			return nil, fmt.Errorf("executor.id can not be empty")
 		}
 		if ec.ModelID == "" {
@@ -35,10 +35,10 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 		if err != nil {
 			return nil, err
 		}
-		if _, exists := executors[ec.ID]; exists {
-			return nil, fmt.Errorf("executor with id %s already exists", ec.ID)
+		if _, exists := executors[ec.ModelID]; exists {
+			return nil, fmt.Errorf("executor with id %s already exists", ec.ModelID)
 		}
-		executors[ec.ID] = exec
+		executors[ec.ModelID] = exec
 	}
 	if len(executors) == 0 {
 		return nil, fmt.Errorf("no executors configured")
@@ -62,7 +62,7 @@ func newConnectExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, 
 	}
 	e := &executor{
 		l:         l,
-		id:        cfg.ID,
+		id:        cfg.ModelID,
 		modelID:   modelID,
 		endpoints: cfg.Address,
 		client:    client.NewExecutorClient(cfg.Address, cfg.TimeoutMs),
