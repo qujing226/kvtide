@@ -219,7 +219,7 @@ func TestBuildGenerateRequestUsesScenarioFields(t *testing.T) {
 	req := buildGenerateRequest(scenario, 1)
 
 	require.Equal(t, "bench-cache_miss-measured-000001", req.RequestId)
-	require.Equal(t, "deepseek", req.Model)
+	require.Equal(t, "deepseek", req.ModelId)
 	require.Equal(t, "a much longer prompt used by the mixed prompt benchmark", req.Prompt)
 	require.Equal(t, uint32(128), req.MaxTokens)
 	require.Equal(t, uint32(10000), req.TimeoutMs)

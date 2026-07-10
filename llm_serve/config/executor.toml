@@ -8,7 +8,7 @@ executor_id = "executor-qwen3-0.6B"
 kind = "qwen"
 model_id = "Qwen3-0.6B"
 model_path = "./models/Qwen3-0.6B"
-dtype = "float32"
+dtype = "fp32" # "fp32/float32" | "fp16/float16" ...
 
 [runtime]
 device = "cpu"

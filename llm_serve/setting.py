@@ -11,7 +11,7 @@ class RunnerConfig:
 
 @dataclass(frozen=True)
 class RuntimeConfig:
-    device: str 
+    device: str
     tensor_parallel_size: int
     gpu_memory_utilization: float
 
