@@ -75,7 +75,7 @@ class MockRunner(ModelRunner):
             token_id=random.randint(1, 200),
             finish_reason=core_pb2.FINISH_REASON_UNSPECIFIED,
             computed_tokens=computed_delta,
-            generated_tokens=0,
+            generated_tokens=0 if not item.sample else 1,
             execution_ms=latency_ms,
             error_message="",
         )

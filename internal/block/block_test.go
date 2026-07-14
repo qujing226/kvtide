@@ -83,7 +83,9 @@ func TestAllocateBlocksOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T)
 	require.Equal(t, []uint32{0}, first.AllocatedBlocks)
 	m.Commit(firstWork.WorkId)
 
-	withinBlockWork := decodeWork("decode-1", "req-1", 16, 0, 1)
+	// Final prefill sampled token 17. Decode computes its KV and crosses into
+	// the second physical block.
+	withinBlockWork := decodeWork("decode-1", "req-1", 17, 1, 1)
 	ok = m.AllocateBlocks(withinBlockWork)
 	withinBlock := withinBlockWork.BlockAllocation
 	require.True(t, ok)
@@ -91,7 +93,7 @@ func TestAllocateBlocksOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T)
 	require.Equal(t, []uint32{0, 1}, withinBlock.BlockTable)
 	m.Commit(withinBlockWork.WorkId)
 
-	stillWithinBlockWork := decodeWork("decode-2", "req-1", 16, 1, 1)
+	stillWithinBlockWork := decodeWork("decode-2", "req-1", 18, 2, 1)
 	ok = m.AllocateBlocks(stillWithinBlockWork)
 	stillWithinBlock := stillWithinBlockWork.BlockAllocation
 	require.True(t, ok)
@@ -139,13 +141,13 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 	secondReq := request("req-2", "user-1", tokens)
 	secondMatch := m.MatchPrefix(secondReq)
 	require.True(t, secondMatch.Hit)
-	require.Equal(t, uint32(32), secondMatch.CachedTokens)
-	require.Equal(t, []uint32{0, 1}, secondMatch.BlockIDs)
+	require.Equal(t, uint32(16), secondMatch.CachedTokens)
+	require.Equal(t, []uint32{0}, secondMatch.BlockIDs)
 	require.False(t, m.blocks[0].InFreeQueue)
-	require.False(t, m.blocks[1].InFreeQueue)
+	require.True(t, m.blocks[1].InFreeQueue)
 	require.Equal(t, uint32(1), m.blocks[0].RefCount)
-	require.Equal(t, uint32(1), m.blocks[1].RefCount)
-	require.Equal(t, testBlockConfig.NumBlocks-2, m.freeCount)
+	require.Equal(t, uint32(0), m.blocks[1].RefCount)
+	require.Equal(t, testBlockConfig.NumBlocks-1, m.freeCount)
 
 	m.FreeRequest(secondReq.RequestId)
 	require.True(t, m.blocks[0].InFreeQueue)
@@ -157,7 +159,39 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 	thirdReq := request("req-3", "user-1", tokens)
 	thirdMatch := m.MatchPrefix(thirdReq)
 	require.True(t, thirdMatch.Hit)
-	require.Equal(t, []uint32{0, 1}, thirdMatch.BlockIDs)
+	require.Equal(t, []uint32{0}, thirdMatch.BlockIDs)
+}
+
+func TestMatchPrefixLeavesFinalLogicalBlockUncached(t *testing.T) {
+	tests := []struct {
+		promptTokens uint32
+		cachedTokens uint32
+	}{
+		{promptTokens: 15, cachedTokens: 0},
+		{promptTokens: 16, cachedTokens: 0},
+		{promptTokens: 17, cachedTokens: 16},
+		{promptTokens: 32, cachedTokens: 16},
+		{promptTokens: 33, cachedTokens: 32},
+	}
+
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("prompt_%d", tt.promptTokens), func(t *testing.T) {
+			m := newTestManager(t)
+			tokens := tokenIDs(tt.promptTokens)
+
+			firstReq := request("req-1", "user-1", tokens)
+			firstMatch := m.MatchPrefix(firstReq)
+			require.False(t, firstMatch.Hit)
+			work := prefillWorkWithCache("work-1", firstReq, firstMatch, 0, tt.promptTokens)
+			require.True(t, m.AllocateBlocks(work))
+			m.Commit(work.WorkId)
+			m.FreeRequest(firstReq.RequestId)
+
+			secondMatch := m.MatchPrefix(request("req-2", "user-1", tokens))
+			require.Equal(t, tt.cachedTokens > 0, secondMatch.Hit)
+			require.Equal(t, tt.cachedTokens, secondMatch.CachedTokens)
+		})
+	}
 }
 
 func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testing.T) {
@@ -180,11 +214,11 @@ func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testin
 
 func TestMatchPrefixUsesCacheSaltIsolation(t *testing.T) {
 	m := newTestManager(t)
-	tokens := tokenIDs(16)
+	tokens := tokenIDs(17)
 
 	req := request("req-1", "user-1", tokens)
 	match := m.MatchPrefix(req)
-	work := prefillWorkWithCache("work-1", req, match, 0, 16)
+	work := prefillWorkWithCache("work-1", req, match, 0, 17)
 	require.True(t, m.AllocateBlocks(work))
 	m.Commit(work.WorkId)
 	m.FreeRequest(req.RequestId)

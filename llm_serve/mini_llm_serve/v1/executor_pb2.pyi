@@ -67,7 +67,7 @@ class ExecuteBatchResponse(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., executor_id: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ExecuteResult, _Mapping]]] = ...) -> None: ...
 
 class ExecuteItem(_message.Message):
-    __slots__ = ("work_id", "request_id", "phase", "token_ids", "computed_tokens", "generated_tokens", "num_new_tokens", "kv_blocks")
+    __slots__ = ("work_id", "request_id", "phase", "token_ids", "computed_tokens", "generated_tokens", "num_new_tokens", "kv_blocks", "sample")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
@@ -76,6 +76,7 @@ class ExecuteItem(_message.Message):
     GENERATED_TOKENS_FIELD_NUMBER: _ClassVar[int]
     NUM_NEW_TOKENS_FIELD_NUMBER: _ClassVar[int]
     KV_BLOCKS_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_FIELD_NUMBER: _ClassVar[int]
     work_id: str
     request_id: str
     phase: _core_pb2.WorkPhase
@@ -84,7 +85,8 @@ class ExecuteItem(_message.Message):
     generated_tokens: int
     num_new_tokens: int
     kv_blocks: _block_pb2.KVBlockMetadata
-    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., token_ids: _Optional[_Iterable[int]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ...) -> None: ...
+    sample: bool
+    def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., token_ids: _Optional[_Iterable[int]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ..., sample: _Optional[bool] = ...) -> None: ...
 
 class ExecuteResult(_message.Message):
     __slots__ = ("work_id", "request_id", "token_id", "done", "finish_reason", "computed_tokens", "generated_tokens", "execution_ms", "error_message")

@@ -82,10 +82,18 @@ func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
 		hit      bool
 	)
 
-	hashes := m.blockHashes(req)
+	hashesTotal := m.blockHashes(req)
+
+	// Prefix cache only reuses complete blocks before the final logical block.
+	// The final block must run again to produce logits for the first output token.
+	maxMatchedBlocks := 0
+	if len(req.TokenIDs) > 0 {
+		maxMatchedBlocks = (len(req.TokenIDs) - 1) / int(m.blockSize)
+	}
+	hashesToMatch := hashesTotal[:min(len(hashesTotal), maxMatchedBlocks)]
 
 	m.mu.Lock()
-	for _, hash := range hashes {
+	for _, hash := range hashesToMatch {
 		blockId, exists := m.cachedBlocks[hash]
 		if !exists {
 			// cached block must be coherent
@@ -105,7 +113,7 @@ func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
 		Hit:          hit,
 		CachedTokens: uint32(len(blockIDs)) * m.blockSize,
 		BlockIDs:     blockIDs,
-		HashesTotal:  hashes,
+		HashesTotal:  hashesTotal,
 	}
 	req.Cache = cache
 	return cache
@@ -342,7 +350,7 @@ func requiredKVTokens(work *model.WorkItem) uint32 {
 	case v1.WorkPhasePrefill:
 		return work.PrefillOffset + work.NumNewTokens
 	case v1.WorkPhaseDecode:
-		return work.TokenCntTotal + work.GeneratedTokens + work.NumNewTokens
+		return work.TokenCntTotal
 	default:
 		return 0
 	}

@@ -187,25 +187,25 @@ func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
 	require.Equal(t, uint32(16), req.ComputedTokens)
 }
 
-func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
+func TestCreatePrefixCacheLeavesFinalBlockForPrefill(t *testing.T) {
 	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
-	seedPrefixCache(t, fixture, "seed-full", "shared-prefix", testStateTokenIDs(16))
+	seedPrefixCache(t, fixture, "seed-final-block", "shared-prefix", testStateTokenIDs(17))
 
 	req := &model.Request{
-		RequestId:    "req-cache-full-hit",
+		RequestId:    "req-cache-final-block",
 		ModelID:      model.MockModel,
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
-		TokenIDs:     testStateTokenIDs(16),
-		PromptTokens: 16,
+		TokenIDs:     testStateTokenIDs(17),
+		PromptTokens: 17,
 	}
 
 	work, err := manager.Create(req)
 
 	require.NoError(t, err)
-	require.Equal(t, v1.WorkPhaseDecode, work.Phase)
+	require.Equal(t, v1.WorkPhasePrefill, work.Phase)
 	require.Equal(t, uint32(16), work.PrefillOffset)
 	require.Equal(t, uint32(1), work.NumNewTokens)
 	require.True(t, work.Cache.Hit)
@@ -222,8 +222,8 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
-		TokenIDs:     testStateTokenIDs(16),
-		PromptTokens: 16,
+		TokenIDs:     testStateTokenIDs(17),
+		PromptTokens: 17,
 	}
 
 	work, err := manager.Create(req)
@@ -235,8 +235,10 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 		WorkId:    work.WorkId,
 		RequestId: req.RequestId,
 		Type:      v1.EventTypePrefillFinished,
+		TokenId:   99,
 		Usage: model.Usage{
-			InputTokens: 16,
+			InputTokens:  17,
+			OutputTokens: 1,
 		},
 	})
 
@@ -245,6 +247,8 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 	require.Equal(t, v1.WorkPhaseDecode, next[0].Phase)
 	require.Equal(t, req.TokenIDs, next[0].TokenIDs)
 	require.Equal(t, uint32(len(req.TokenIDs)), next[0].TokenCntTotal)
+	require.Equal(t, uint32(1), next[0].GeneratedTokens)
+	require.Equal(t, uint32(99), next[0].TokenIDs[len(next[0].TokenIDs)-1])
 
 	manager.Finish(req.RequestId)
 	followup := &model.Request{
@@ -253,14 +257,15 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 		Prompt:       "hello world",
 		MaxTokens:    8,
 		CacheSalt:    "shared-prefix",
-		TokenIDs:     testStateTokenIDs(16),
-		PromptTokens: 16,
+		TokenIDs:     testStateTokenIDs(17),
+		PromptTokens: 17,
 	}
 	followupWork, err := manager.Create(followup)
 	require.NoError(t, err)
-	require.Equal(t, v1.WorkPhaseDecode, followupWork.Phase)
+	require.Equal(t, v1.WorkPhasePrefill, followupWork.Phase)
 	require.True(t, followupWork.Cache.Hit)
 	require.Equal(t, uint32(16), followupWork.Cache.CachedTokens)
+	require.Equal(t, uint32(1), followupWork.NumNewTokens)
 }
 
 func seedPrefixCache(t *testing.T, fixture testStateFixture, requestId, cacheSalt string, tokens []uint32) {

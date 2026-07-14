@@ -191,10 +191,16 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 		if req.ComputedTokens > req.PromptTokens {
 			req.ComputedTokens = req.PromptTokens
 		}
+		req.GeneratedTokens += e.Usage.OutputTokens
+
+		req.TokenIDs = append(req.TokenIDs, e.TokenId)
 		req.Usage.InputTokens = req.ComputedTokens
 		req.Usage.TotalTokens = req.ComputedTokens + req.GeneratedTokens
+		req.Usage.OutputTokens = req.GeneratedTokens
+
 		e.Usage = req.Usage
 		req.Phase = model.RequestPhaseDecodeReady
+
 		decodeItem := &model.WorkItem{
 			WorkId:          utils.MustGenerateUUIDv7(),
 			RequestId:       e.RequestId,

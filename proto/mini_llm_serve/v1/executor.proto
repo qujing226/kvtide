@@ -67,6 +67,8 @@ message ExecuteItem {
 
   // kv block metadata in current work.
   KVBlockMetadata kv_blocks = 8;
+  // Whether this work should sample a token from its final logits.
+  bool sample = 9;
 }
 
 message ExecuteResult{

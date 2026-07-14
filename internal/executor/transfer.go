@@ -16,8 +16,8 @@ func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {
 				WorkId:          work.WorkId,
 				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhaseDecode,
-				TokenIds:        work.TokenIDs,
-				ComputedTokens:  work.PrefillOffset + work.GeneratedTokens,
+				TokenIds:        work.TokenIDs[len(work.TokenIDs)-int(work.NumNewTokens):],
+				ComputedTokens:  work.TokenCntTotal - work.NumNewTokens,
 				GeneratedTokens: work.GeneratedTokens,
 				NumNewTokens:    work.NumNewTokens,
 				KvBlocks: &v1.KVBlockMetadata{
@@ -25,6 +25,7 @@ func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {
 					BlockTable:      work.BlockAllocation.BlockTable,
 					AllocatedBlocks: work.BlockAllocation.AllocatedBlocks,
 				},
+				Sample: true,
 			})
 		} else {
 			req.Items = append(req.Items, &v1.ExecuteItem{
@@ -32,7 +33,7 @@ func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {
 				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhasePrefill,
 				TokenIds:        work.TokenIDs,
-				ComputedTokens:  work.PrefillOffset + work.PrefillOffset,
+				ComputedTokens:  work.PrefillOffset,
 				GeneratedTokens: 0,
 				NumNewTokens:    work.NumNewTokens,
 				KvBlocks: &v1.KVBlockMetadata{
@@ -40,6 +41,7 @@ func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {
 					BlockTable:      work.BlockAllocation.BlockTable,
 					AllocatedBlocks: work.BlockAllocation.AllocatedBlocks,
 				},
+				Sample: work.PrefillOffset+work.NumNewTokens >= work.TokenCntTotal,
 			})
 		}
 	}

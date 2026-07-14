@@ -350,7 +350,9 @@ type ExecuteItem struct {
 	// decode: normally 1
 	NumNewTokens uint32 `protobuf:"varint,7,opt,name=num_new_tokens,json=numNewTokens,proto3" json:"num_new_tokens,omitempty"`
 	// kv block metadata in current work.
-	KvBlocks      *KVBlockMetadata `protobuf:"bytes,8,opt,name=kv_blocks,json=kvBlocks,proto3" json:"kv_blocks,omitempty"`
+	KvBlocks *KVBlockMetadata `protobuf:"bytes,8,opt,name=kv_blocks,json=kvBlocks,proto3" json:"kv_blocks,omitempty"`
+	// Whether this work should sample a token from its final logits.
+	Sample        bool `protobuf:"varint,9,opt,name=sample,proto3" json:"sample,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -439,6 +441,13 @@ func (x *ExecuteItem) GetKvBlocks() *KVBlockMetadata {
 		return x.KvBlocks
 	}
 	return nil
+}
+
+func (x *ExecuteItem) GetSample() bool {
+	if x != nil {
+		return x.Sample
+	}
+	return false
 }
 
 type ExecuteResult struct {
@@ -674,7 +683,7 @@ const file_mini_llm_serve_v1_executor_proto_rawDesc = "" +
 	"\bbatch_id\x18\x01 \x01(\tR\abatchId\x12\x1f\n" +
 	"\vexecutor_id\x18\x02 \x01(\tR\n" +
 	"executorId\x12:\n" +
-	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xd1\x02\n" +
+	"\aresults\x18\x03 \x03(\v2 .mini_llm_serve.v1.ExecuteResultR\aresults\"\xe9\x02\n" +
 	"\vExecuteItem\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +
@@ -684,7 +693,8 @@ const file_mini_llm_serve_v1_executor_proto_rawDesc = "" +
 	"\x0fcomputed_tokens\x18\x05 \x01(\rR\x0ecomputedTokens\x12)\n" +
 	"\x10generated_tokens\x18\x06 \x01(\rR\x0fgeneratedTokens\x12$\n" +
 	"\x0enum_new_tokens\x18\a \x01(\rR\fnumNewTokens\x12?\n" +
-	"\tkv_blocks\x18\b \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\"\xd8\x02\n" +
+	"\tkv_blocks\x18\b \x01(\v2\".mini_llm_serve.v1.KVBlockMetadataR\bkvBlocks\x12\x16\n" +
+	"\x06sample\x18\t \x01(\bR\x06sample\"\xd8\x02\n" +
 	"\rExecuteResult\x12\x17\n" +
 	"\awork_id\x18\x01 \x01(\tR\x06workId\x12\x1d\n" +
 	"\n" +

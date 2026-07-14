@@ -87,7 +87,7 @@ class QwenTransformersRunner(ModelRunner):
             token_id=0,
             finish_reason=core_pb2.FINISH_REASON_UNSPECIFIED,
             computed_tokens=len(item.token_ids),
-            generated_tokens=0,
+            generated_tokens=0 if not item.sample else 1,
             execution_ms=execution_ms,
             error_message="",
         )
