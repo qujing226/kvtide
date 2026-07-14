@@ -27,16 +27,38 @@ class ModelRunner(ABC):
         pass
 
     @abstractmethod
+    async def execute(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        """Execute the scheduler batch, ideally with one mixed-phase forward."""
+        pass
+
+    # These phase-specific methods are transitional building blocks. The target
+    # execution path keeps the original mixed batch intact through execute().
+    @abstractmethod
     async def prefill(
-        self, item: executor_pb2.ExecuteItem
-    ) -> executor_pb2.ExecuteResult:
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
         pass
 
     @abstractmethod
     async def decode(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        pass
+
+    # Single-item helpers remain available for focused tests and compatibility.
+    async def prefill_one(
         self, item: executor_pb2.ExecuteItem
     ) -> executor_pb2.ExecuteResult:
-        pass
+        results = await self.prefill([item])
+        return results[0]
+
+    async def decode_one(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
+        results = await self.decode([item])
+        return results[0]
 
     @abstractmethod
     async def release_blocks(self, block_ids: list[int]) -> None:

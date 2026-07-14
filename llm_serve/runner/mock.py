@@ -23,7 +23,28 @@ class MockRunner(ModelRunner):
             kv_cache_bytes=0,
         )
 
+    async def execute(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        decode_items = [
+            item for item in items if item.phase == core_pb2.WORK_PHASE_DECODE
+        ]
+        prefill_items = [
+            item for item in items if item.phase == core_pb2.WORK_PHASE_PREFILL
+        ]
+        return await self.decode(decode_items) + await self.prefill(prefill_items)
+
     async def prefill(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        return list(await asyncio.gather(*(self.prefill_one(item) for item in items)))
+
+    async def decode(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        return list(await asyncio.gather(*(self.decode_one(item) for item in items)))
+
+    async def prefill_one(
         self, item: executor_pb2.ExecuteItem
     ) -> executor_pb2.ExecuteResult:
         # Refresh the executor-side KV metadata shadow from the control plane.
@@ -59,7 +80,7 @@ class MockRunner(ModelRunner):
             error_message="",
         )
 
-    async def decode(
+    async def decode_one(
         self, item: executor_pb2.ExecuteItem
     ) -> executor_pb2.ExecuteResult:
         # Refresh the executor-side KV metadata shadow for this decode step.

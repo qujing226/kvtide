@@ -53,7 +53,30 @@ class QwenTransformersRunner(ModelRunner):
 
         self.eos_token_ids = normalize_eos_token_ids(self.config.eos_token_id)
 
-    async def prefill(self, item) -> executor_pb2.ExecuteResult:
+    async def execute(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        decode_items = [
+            item for item in items if item.phase == core_pb2.WORK_PHASE_DECODE
+        ]
+        prefill_items = [
+            item for item in items if item.phase == core_pb2.WORK_PHASE_PREFILL
+        ]
+        return await self.decode(decode_items) + await self.prefill(prefill_items)
+
+    async def prefill(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        return [await self.prefill_one(item) for item in items]
+
+    async def decode(
+        self, items: list[executor_pb2.ExecuteItem]
+    ) -> list[executor_pb2.ExecuteResult]:
+        return [await self.decode_one(item) for item in items]
+
+    async def prefill_one(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
         start_time = time.perf_counter()
 
         execution_ms = int((time.perf_counter() - start_time) * 1000)
@@ -69,7 +92,9 @@ class QwenTransformersRunner(ModelRunner):
             error_message="",
         )
 
-    async def decode(self, item) -> executor_pb2.ExecuteResult:
+    async def decode_one(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
         start_time = time.perf_counter()
 
         input_ids = torch.tensor([list(item.token_ids)], dtype=torch.long)
