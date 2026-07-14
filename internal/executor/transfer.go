@@ -5,9 +5,10 @@ import (
 	"github.com/qujing226/mini-llm-serve/internal/model"
 )
 
-func BatchToExecute(batch *model.Batch) *v1.ExecuteBatchRequest {
+func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {
 	req := &v1.ExecuteBatchRequest{
-		BatchId: batch.BatchID,
+		BatchId:      batch.BatchID,
+		RuntimeEpoch: epoch,
 	}
 	for _, work := range batch.Items {
 		if work.Phase == v1.WorkPhaseDecode {

@@ -1,12 +1,43 @@
 from abc import ABC, abstractmethod
-from mini_llm_serve.v1 import execute_pb2
+from dataclasses import dataclass
+from mini_llm_serve.v1 import executor_pb2
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeInfo:
+    model_type: str
+    dtype: str
+
+    block_size: int
+    num_kv_blocks: int
+
+    num_hidden_layers: int
+    num_kv_heads: int
+    head_dim: int
+
+    total_memory_bytes: int
+    available_memory_bytes: int
+    kv_cache_bytes: int
 
 
 class ModelRunner(ABC):
+    @property
     @abstractmethod
-    async def prefill(self, item) -> execute_pb2.ExecuteResult:
+    def runtime_info(self) -> RuntimeInfo:
         pass
 
     @abstractmethod
-    async def decode(self, item) -> execute_pb2.ExecuteResult:
+    async def prefill(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
+        pass
+
+    @abstractmethod
+    async def decode(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
+        pass
+
+    @abstractmethod
+    async def release_blocks(self, block_ids: list[int]) -> None:
         pass

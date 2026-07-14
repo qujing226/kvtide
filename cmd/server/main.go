@@ -53,6 +53,7 @@ func main() {
 			),
 		),
 		fx.Provide(
+			newBlockConfig,
 			tokenizer.NewTokenizer,
 			block.NewManager,
 			metrics.NewMetrics,

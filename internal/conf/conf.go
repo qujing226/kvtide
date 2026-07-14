@@ -51,7 +51,6 @@ func (s ScheduleConf) ScheduleDelay() time.Duration {
 
 type ExecutorConf struct {
 	ExecutorID string   `koanf:"executorId"`
-	ModelID    string   `koanf:"modelId"`
 	Address    []string `koanf:"address"`
 	TimeoutMs  int      `koanf:"timeoutMs"`
 }

@@ -17,6 +17,7 @@ type Manager interface {
 	Consume(ctx context.Context)
 	Submit(ctx context.Context, batch *model.Batch) error
 	Events() <-chan *model.Event
+	GetRuntimeStates() map[string]*model.ExecutorStats
 }
 
 type executorManager struct {
@@ -32,6 +33,15 @@ type executorManager struct {
 
 	metrics         metrics.Metrics
 	inflightBatches atomic.Uint64
+}
+
+func (e *executorManager) GetRuntimeStates() map[string]*model.ExecutorStats {
+	runtimeStats := make(map[string]*model.ExecutorStats)
+	for _, executor := range e.executors {
+		runtimeStates := executor.GetRuntimeStates()
+		runtimeStats[runtimeStates.ExecutorId] = runtimeStates
+	}
+	return runtimeStats
 }
 
 func NewExecutorManager(logger *zap.SugaredLogger, executors map[string]Executor, blockManager block.Manager, metrics metrics.Metrics) Manager {

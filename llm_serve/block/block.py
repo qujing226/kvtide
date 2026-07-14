@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 
-from mini_llm_serve.v1 import execute_pb2
+from mini_llm_serve.v1 import executor_pb2
 
 
 @dataclass
@@ -13,7 +13,7 @@ class KVRuntimeState:
 kv_runtime: dict[str, KVRuntimeState] = {}
 
 
-def update_runtime(item: execute_pb2.ExecuteItem) -> KVRuntimeState:
+def update_runtime(item: executor_pb2.ExecuteItem) -> KVRuntimeState:
     state = kv_runtime.get(item.request_id, KVRuntimeState())
     state.block_size = item.kv_blocks.block_size
     state.block_table = list(item.kv_blocks.block_table)

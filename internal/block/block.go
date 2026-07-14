@@ -12,13 +12,6 @@ import (
 	"go.uber.org/zap"
 )
 
-const (
-	// TmpBlockSize and TmpTotalBlocks are temporary allocator settings.
-	// A real backend should derive them from model config and available KV memory.
-	TmpBlockSize   = 16
-	TmpTotalBlocks = 1024
-)
-
 type Manager interface {
 	MatchPrefix(req *model.Request) *model.PrefixMatch
 	AllocateBlocks(work *model.WorkItem) bool
@@ -48,14 +41,17 @@ type manager struct {
 	metrics metrics.Metrics
 }
 
-func NewManager(l *zap.SugaredLogger, metrics metrics.Metrics) Manager {
+func NewManager(l *zap.SugaredLogger, metrics metrics.Metrics, cfg Config) (Manager, error) {
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
 	m := &manager{
 		l:                  l,
-		blocks:             make([]model.Block, TmpTotalBlocks),
-		blockSize:          TmpBlockSize,
+		blocks:             make([]model.Block, cfg.NumBlocks),
+		blockSize:          cfg.BlockSize,
 		freeHead:           0,
-		freeTail:           TmpTotalBlocks - 1,
-		freeCount:          TmpTotalBlocks,
+		freeTail:           int32(cfg.NumBlocks) - 1,
+		freeCount:          cfg.NumBlocks,
 		requestBlocks:      make(map[string][]uint32),
 		cachedBlocks:       make(map[string]uint32),
 		pendingAllocations: make(map[string]*model.BlockAllocation),
@@ -77,7 +73,7 @@ func NewManager(l *zap.SugaredLogger, metrics metrics.Metrics) Manager {
 
 	// set free block
 	m.observeBlockStats()
-	return m
+	return m, nil
 }
 
 func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {

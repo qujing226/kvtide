@@ -94,6 +94,26 @@ func ModelToProtoMsgStream(in *GenerateOutput) (*v1.GenerateResponseChunk, error
 	return out, nil
 }
 
+func RuntimeProtoToModel(res *v1.GetRuntimeResponse) *ExecutorStats {
+	return &ExecutorStats{
+		ExecutorId:           res.ExecutorId,
+		RuntimeEpoch:         res.RuntimeEpoch,
+		ModelId:              res.ModelId,
+		ModelType:            res.ModelType,
+		Dtype:                res.Dtype,
+		DeviceType:           res.DeviceType,
+		TensorParallelSize:   res.TensorParallelSize,
+		BlockSize:            res.BlockSize,
+		NumKvBlocks:          res.NumKvBlocks,
+		NumHiddenLayers:      res.NumHiddenLayers,
+		NumKvHeads:           res.NumKvHeads,
+		HeadDim:              res.HeadDim,
+		TotalMemoryBytes:     res.TotalMemoryBytes,
+		AvailableMemoryBytes: res.AvailableMemoryBytes,
+		KVCacheBytes:         res.KvCacheBytes,
+	}
+}
+
 func durationToMilliseconds(d time.Duration) uint32 {
 	if d <= 0 {
 		return 0

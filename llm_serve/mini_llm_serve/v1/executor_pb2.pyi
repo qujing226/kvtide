@@ -8,13 +8,53 @@ from typing import ClassVar as _ClassVar, Optional as _Optional, Union as _Union
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
+class GetRuntimeRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetRuntimeResponse(_message.Message):
+    __slots__ = ("executor_id", "runtime_epoch", "model_id", "model_type", "dtype", "device_type", "tensor_parallel_size", "block_size", "num_kv_blocks", "num_hidden_layers", "num_kv_heads", "head_dim", "total_memory_bytes", "available_memory_bytes", "kv_cache_bytes")
+    EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    MODEL_ID_FIELD_NUMBER: _ClassVar[int]
+    MODEL_TYPE_FIELD_NUMBER: _ClassVar[int]
+    DTYPE_FIELD_NUMBER: _ClassVar[int]
+    DEVICE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    TENSOR_PARALLEL_SIZE_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_SIZE_FIELD_NUMBER: _ClassVar[int]
+    NUM_KV_BLOCKS_FIELD_NUMBER: _ClassVar[int]
+    NUM_HIDDEN_LAYERS_FIELD_NUMBER: _ClassVar[int]
+    NUM_KV_HEADS_FIELD_NUMBER: _ClassVar[int]
+    HEAD_DIM_FIELD_NUMBER: _ClassVar[int]
+    TOTAL_MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
+    AVAILABLE_MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
+    KV_CACHE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    executor_id: str
+    runtime_epoch: int
+    model_id: str
+    model_type: str
+    dtype: str
+    device_type: str
+    tensor_parallel_size: int
+    block_size: int
+    num_kv_blocks: int
+    num_hidden_layers: int
+    num_kv_heads: int
+    head_dim: int
+    total_memory_bytes: int
+    available_memory_bytes: int
+    kv_cache_bytes: int
+    def __init__(self, executor_id: _Optional[str] = ..., runtime_epoch: _Optional[int] = ..., model_id: _Optional[str] = ..., model_type: _Optional[str] = ..., dtype: _Optional[str] = ..., device_type: _Optional[str] = ..., tensor_parallel_size: _Optional[int] = ..., block_size: _Optional[int] = ..., num_kv_blocks: _Optional[int] = ..., num_hidden_layers: _Optional[int] = ..., num_kv_heads: _Optional[int] = ..., head_dim: _Optional[int] = ..., total_memory_bytes: _Optional[int] = ..., available_memory_bytes: _Optional[int] = ..., kv_cache_bytes: _Optional[int] = ...) -> None: ...
+
 class ExecuteBatchRequest(_message.Message):
-    __slots__ = ("batch_id", "items")
+    __slots__ = ("batch_id", "runtime_epoch", "items")
     BATCH_ID_FIELD_NUMBER: _ClassVar[int]
+    RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
     ITEMS_FIELD_NUMBER: _ClassVar[int]
     batch_id: str
+    runtime_epoch: int
     items: _containers.RepeatedCompositeFieldContainer[ExecuteItem]
-    def __init__(self, batch_id: _Optional[str] = ..., items: _Optional[_Iterable[_Union[ExecuteItem, _Mapping]]] = ...) -> None: ...
+    def __init__(self, batch_id: _Optional[str] = ..., runtime_epoch: _Optional[int] = ..., items: _Optional[_Iterable[_Union[ExecuteItem, _Mapping]]] = ...) -> None: ...
 
 class ExecuteBatchResponse(_message.Message):
     __slots__ = ("batch_id", "executor_id", "results")
@@ -67,3 +107,15 @@ class ExecuteResult(_message.Message):
     execution_ms: int
     error_message: str
     def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., token_id: _Optional[int] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., execution_ms: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...
+
+class ReleaseBlocksRequest(_message.Message):
+    __slots__ = ("runtime_epoch", "block_ids")
+    RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_IDS_FIELD_NUMBER: _ClassVar[int]
+    runtime_epoch: int
+    block_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, runtime_epoch: _Optional[int] = ..., block_ids: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class ReleaseBlocksResponse(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...

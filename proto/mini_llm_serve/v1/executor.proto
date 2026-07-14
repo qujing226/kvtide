@@ -5,19 +5,46 @@ package mini_llm_serve.v1;
 import "mini_llm_serve/v1/core.proto";
 import "mini_llm_serve/v1/block.proto";
 
-service ExecuteService{
+service ExecutorService{
+  rpc GetRuntime(GetRuntimeRequest) returns (GetRuntimeResponse);
   rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
+  rpc ReleaseBlocks(ReleaseBlocksRequest) returns (ReleaseBlocksResponse);
+}
+
+message GetRuntimeRequest{}
+
+message GetRuntimeResponse{
+  string executor_id = 1;
+  uint32 runtime_epoch = 2;
+
+  string model_id = 3;
+  string model_type = 4;
+  string dtype = 5;
+  string device_type = 6;
+
+  uint32 tensor_parallel_size = 7;
+  uint32 block_size = 8;
+  uint32 num_kv_blocks = 9;
+
+  uint32 num_hidden_layers = 10;
+  uint32 num_kv_heads = 11;
+  uint32 head_dim = 12;
+
+  uint64 total_memory_bytes = 13;
+  uint64 available_memory_bytes = 14;
+  uint64 kv_cache_bytes = 15;
 }
 
 message ExecuteBatchRequest{
   string batch_id = 1;
-  repeated ExecuteItem items = 2;
+  uint32 runtime_epoch = 2;
+  repeated ExecuteItem items = 3;
 }
 
 message ExecuteBatchResponse{
   string batch_id = 1;
   // executor_id is not equal with model_id, it is a abstract service name
-  // which may assign to multi inference instances.
+  // which assign to an executor instance.
   string executor_id = 2;
   repeated ExecuteResult results =3;
 }
@@ -57,3 +84,10 @@ message ExecuteResult{
   uint32 execution_ms = 8;
   string error_message = 9;
 }
+
+message ReleaseBlocksRequest{
+  uint32 runtime_epoch = 1;
+  repeated uint32 block_ids = 2;
+}
+
+message ReleaseBlocksResponse{}

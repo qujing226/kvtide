@@ -11,8 +11,21 @@ import (
 	"go.uber.org/zap"
 )
 
+var testBlockConfig = Config{
+	BlockSize: 16,
+	NumBlocks: 1024,
+}
+
+func newTestManager(t *testing.T) *manager {
+	t.Helper()
+
+	m, err := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics(), testBlockConfig)
+	require.NoError(t, err)
+	return m.(*manager)
+}
+
 func TestAllocateBlocksForPrefillUsesTotalKVLength(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 
 	work := prefillWork("work-1", "req-1", 0, 40)
 
@@ -30,12 +43,12 @@ func TestAllocateBlocksForPrefillUsesTotalKVLength(t *testing.T) {
 	require.Equal(t, uint32(16), m.blocks[1].TokenCount)
 	require.Equal(t, uint32(8), m.blocks[2].TokenCount)
 
-	require.Equal(t, uint32(TmpTotalBlocks-3), m.freeCount)
+	require.Equal(t, testBlockConfig.NumBlocks-3, m.freeCount)
 	require.Equal(t, 2, len(m.cachedBlocks))
 }
 
 func TestAllocateBlocksReusesPartiallyFilledPrefillBlock(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 
 	firstWork := prefillWork("work-1", "req-1", 0, 8)
 	ok := m.AllocateBlocks(firstWork)
@@ -61,7 +74,7 @@ func TestAllocateBlocksReusesPartiallyFilledPrefillBlock(t *testing.T) {
 }
 
 func TestAllocateBlocksOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 
 	firstWork := prefillWork("prefill", "req-1", 0, 16)
 	ok := m.AllocateBlocks(firstWork)
@@ -87,7 +100,7 @@ func TestAllocateBlocksOnlyAllocatesWhenDecodeCrossesBlockBoundary(t *testing.T)
 }
 
 func TestFreeRequestReturnsNonCachedBlocksToFreeQueue(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 
 	work := prefillWork("work-1", "req-1", 0, 8)
 	ok := m.AllocateBlocks(work)
@@ -99,11 +112,11 @@ func TestFreeRequestReturnsNonCachedBlocksToFreeQueue(t *testing.T) {
 	m.FreeRequest("req-1")
 
 	require.Equal(t, 0, len(m.cachedBlocks))
-	require.Equal(t, uint32(TmpTotalBlocks), m.freeCount)
+	require.Equal(t, testBlockConfig.NumBlocks, m.freeCount)
 }
 
 func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 	tokens := tokenIDs(32)
 
 	firstReq := request("req-1", "user-1", tokens)
@@ -121,7 +134,7 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 	require.True(t, m.blocks[1].InFreeQueue)
 	require.Equal(t, uint32(0), m.blocks[0].RefCount)
 	require.Equal(t, uint32(0), m.blocks[1].RefCount)
-	require.Equal(t, uint32(TmpTotalBlocks), m.freeCount)
+	require.Equal(t, testBlockConfig.NumBlocks, m.freeCount)
 
 	secondReq := request("req-2", "user-1", tokens)
 	secondMatch := m.MatchPrefix(secondReq)
@@ -132,14 +145,14 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 	require.False(t, m.blocks[1].InFreeQueue)
 	require.Equal(t, uint32(1), m.blocks[0].RefCount)
 	require.Equal(t, uint32(1), m.blocks[1].RefCount)
-	require.Equal(t, uint32(TmpTotalBlocks-2), m.freeCount)
+	require.Equal(t, testBlockConfig.NumBlocks-2, m.freeCount)
 
 	m.FreeRequest(secondReq.RequestId)
 	require.True(t, m.blocks[0].InFreeQueue)
 	require.True(t, m.blocks[1].InFreeQueue)
 	require.True(t, m.blocks[0].Cached)
 	require.True(t, m.blocks[1].Cached)
-	require.Equal(t, uint32(TmpTotalBlocks), m.freeCount)
+	require.Equal(t, testBlockConfig.NumBlocks, m.freeCount)
 
 	thirdReq := request("req-3", "user-1", tokens)
 	thirdMatch := m.MatchPrefix(thirdReq)
@@ -148,12 +161,12 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 }
 
 func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 
 	oldHash := "cached-free-block"
 	m.blocks[0].Cached = true
 	m.blocks[0].Hash = oldHash
-	m.blocks[0].TokenCount = TmpBlockSize
+	m.blocks[0].TokenCount = testBlockConfig.BlockSize
 	m.cachedBlocks[oldHash] = 0
 	require.Contains(t, m.cachedBlocks, oldHash)
 
@@ -166,7 +179,7 @@ func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testin
 }
 
 func TestMatchPrefixUsesCacheSaltIsolation(t *testing.T) {
-	m := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics()).(*manager)
+	m := newTestManager(t)
 	tokens := tokenIDs(16)
 
 	req := request("req-1", "user-1", tokens)
@@ -189,7 +202,7 @@ func prefillWork(workID, requestID string, offset, newTokens uint32) *model.Work
 		WorkId:        workID,
 		RequestId:     requestID,
 		Phase:         v1.WorkPhasePrefill,
-		Cache:         &model.PrefixMatch{HashesTotal: testHashes(ceilDiv(offset+newTokens, TmpBlockSize))},
+		Cache:         &model.PrefixMatch{HashesTotal: testHashes(ceilDiv(offset+newTokens, testBlockConfig.BlockSize))},
 		TokenCntTotal: offset + newTokens,
 		PrefillOffset: offset,
 		NumNewTokens:  newTokens,

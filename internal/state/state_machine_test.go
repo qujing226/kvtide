@@ -18,8 +18,14 @@ type testStateFixture struct {
 	metrics     metrics.Metrics
 }
 
-func newTestRequestStateManager(m metrics.Metrics) testStateFixture {
-	blockManager := block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics())
+func newTestRequestStateManager(t *testing.T, m metrics.Metrics) testStateFixture {
+	t.Helper()
+
+	blockManager, err := block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics(), block.Config{
+		BlockSize: 16,
+		NumBlocks: 1024,
+	})
+	require.NoError(t, err)
 	return testStateFixture{
 		manager:     NewRequestLifecycleStateManager(zap.NewNop().Sugar(), blockManager, m),
 		blockManger: blockManager,
@@ -28,7 +34,7 @@ func newTestRequestStateManager(m metrics.Metrics) testStateFixture {
 }
 
 func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-stale",
@@ -57,7 +63,7 @@ func TestOnEventIgnoresStaleEventAfterCancel(t *testing.T) {
 }
 
 func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-canceled",
@@ -76,7 +82,7 @@ func TestCanScheduleRejectsCanceledRequest(t *testing.T) {
 }
 
 func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-timeout",
@@ -109,7 +115,7 @@ func TestCanScheduleRejectsTimedOutRequest(t *testing.T) {
 
 func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 	m := metrics.NewMetrics()
-	fixture := newTestRequestStateManager(m)
+	fixture := newTestRequestStateManager(t, m)
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-duplicate",
@@ -132,7 +138,7 @@ func TestCreateDuplicateDoesNotIncreaseActiveRequests(t *testing.T) {
 }
 
 func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-cache-miss",
@@ -156,7 +162,7 @@ func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
 }
 
 func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	seedPrefixCache(t, fixture, "seed-partial", "shared-prefix", testStateTokenIDs(16))
 
@@ -182,7 +188,7 @@ func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
 }
 
 func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	seedPrefixCache(t, fixture, "seed-full", "shared-prefix", testStateTokenIDs(16))
 
@@ -208,7 +214,7 @@ func TestCreatePrefixCacheFullHitCreatesDecodeWork(t *testing.T) {
 }
 
 func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
-	fixture := newTestRequestStateManager(metrics.NewMetrics())
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
 	req := &model.Request{
 		RequestId:    "req-cache-store",

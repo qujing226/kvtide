@@ -15,30 +15,28 @@ import (
 
 type Executor interface {
 	Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error)
+	GetRuntimeStates() *model.ExecutorStats
 }
 
 func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executor, error) {
 	executors := make(map[string]Executor)
 
 	for _, ec := range cfg.Executors {
-		if ec.ModelID == "" {
+		if ec.ExecutorID == "" {
 			return nil, fmt.Errorf("executor.id can not be empty")
-		}
-		if ec.ModelID == "" {
-			return nil, fmt.Errorf("executor.modelId can not be empty")
 		}
 		if len(ec.Address) == 0 {
 			return nil, fmt.Errorf("executor.address can not be empty")
 		}
 
-		exec, err := newConnectExecutor(logger, ec)
+		exec, err := newExecutor(logger, ec)
 		if err != nil {
 			return nil, err
 		}
-		if _, exists := executors[ec.ModelID]; exists {
-			return nil, fmt.Errorf("executor with id %s already exists", ec.ModelID)
+		if _, exists := executors[ec.ExecutorID]; exists {
+			return nil, fmt.Errorf("executor with id %s already exists", ec.ExecutorID)
 		}
-		executors[ec.ModelID] = exec
+		executors[ec.ExecutorID] = exec
 	}
 	if len(executors) == 0 {
 		return nil, fmt.Errorf("no executors configured")
@@ -50,28 +48,43 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 type executor struct {
 	l         *zap.SugaredLogger
 	id        string
-	modelID   model.LLMModelID
+	runtime   *model.ExecutorStats
 	endpoints []string
 	client    *client.ExecutorClient
 }
 
-func newConnectExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
-	modelID, err := model.ParseModelID(cfg.ModelID)
-	if err != nil {
-		return nil, err
+func newExecutor(l *zap.SugaredLogger, cfg conf.ExecutorConf) (Executor, error) {
+	executorClient := client.NewExecutorClient(cfg.Address, cfg.TimeoutMs)
+	var (
+		err             error
+		executorRuntime *model.ExecutorStats
+	)
+	for i := 0; i < 3; i++ {
+		executorRuntime, err = executorClient.GetRuntime()
+		if err != nil {
+			if i != 2 {
+				time.Sleep(time.Duration(cfg.TimeoutMs) * time.Millisecond)
+				continue
+			}
+			return nil, err
+		}
+		break
+	}
+	if executorRuntime.ExecutorId != cfg.ExecutorID {
+		return nil, errors.New(errors.CodeInternal, "executor with id "+cfg.ExecutorID+" doesn't exist")
 	}
 	e := &executor{
 		l:         l,
-		id:        cfg.ModelID,
-		modelID:   modelID,
+		id:        cfg.ExecutorID,
+		runtime:   executorRuntime,
 		endpoints: cfg.Address,
-		client:    client.NewExecutorClient(cfg.Address, cfg.TimeoutMs),
+		client:    executorClient,
 	}
 	return e, nil
 }
 
 func (m *executor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error) {
-	resp, err := m.client.ExecuteBatch(ctx, BatchToExecute(batch))
+	resp, err := m.client.ExecuteBatch(ctx, BatchToExecute(m.runtime.RuntimeEpoch, batch))
 	if err != nil {
 		return nil, err
 	}
@@ -119,6 +132,10 @@ func (m *executor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Ev
 	}
 
 	return results, nil
+}
+
+func (m *executor) GetRuntimeStates() *model.ExecutorStats {
+	return m.runtime
 }
 
 func nextPhase(item *model.WorkItem, err error) v1.EventType {

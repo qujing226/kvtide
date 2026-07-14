@@ -24,7 +24,18 @@ func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
 				},
 			},
 		},
-	}, state.NewRequestLifecycleStateManager(zap.S(), block.NewManager(zap.S(), m), m)
+	}, state.NewRequestLifecycleStateManager(zap.S(), newTestBlockManager(), m)
+}
+
+func newTestBlockManager() block.Manager {
+	m, err := block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics(), block.Config{
+		BlockSize: 16,
+		NumBlocks: 1024,
+	})
+	if err != nil {
+		panic(err)
+	}
+	return m
 }
 
 func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, phase v1.WorkPhase) *model.WorkItem {

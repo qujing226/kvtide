@@ -2,13 +2,30 @@ import asyncio
 import random
 
 from block import block
-from mini_llm_serve.v1 import core_pb2, execute_pb2
+from mini_llm_serve.v1 import core_pb2, executor_pb2
 from request_state import request_state
-from runner.base import ModelRunner
+from runner.base import ModelRunner, RuntimeInfo
 
 
 class MockRunner(ModelRunner):
-    async def prefill(self, item: execute_pb2.ExecuteItem) -> execute_pb2.ExecuteResult:
+    def __init__(self) -> None:
+        super().__init__()
+        self._runtime_info = RuntimeInfo(
+            model_type="mock",
+            dtype="none",
+            block_size=16,
+            num_kv_blocks=1024,
+            num_hidden_layers=0,
+            num_kv_heads=0,
+            head_dim=0,
+            total_memory_bytes=0,
+            available_memory_bytes=0,
+            kv_cache_bytes=0,
+        )
+
+    async def prefill(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
         # Refresh the executor-side KV metadata shadow from the control plane.
         kv_state = block.update_runtime(item)
 
@@ -30,7 +47,7 @@ class MockRunner(ModelRunner):
         kv_state.computed_tokens += computed_delta
         block.set_runtime(item.request_id, kv_state)
 
-        return execute_pb2.ExecuteResult(
+        return executor_pb2.ExecuteResult(
             work_id=item.work_id,
             request_id=item.request_id,
             done=False,
@@ -42,7 +59,9 @@ class MockRunner(ModelRunner):
             error_message="",
         )
 
-    async def decode(self, item: execute_pb2.ExecuteItem) -> execute_pb2.ExecuteResult:
+    async def decode(
+        self, item: executor_pb2.ExecuteItem
+    ) -> executor_pb2.ExecuteResult:
         # Refresh the executor-side KV metadata shadow for this decode step.
         kv_state = block.update_runtime(item)
 
@@ -61,7 +80,9 @@ class MockRunner(ModelRunner):
 
         # Use the larger progress value to avoid generating duplicate words if
         # either the mock runtime state or control-plane state is behind.
-        word_index = max(request_state.get_decode_index(item.request_id), item.generated_tokens)
+        word_index = max(
+            request_state.get_decode_index(item.request_id), item.generated_tokens
+        )
 
         if word_index >= len(request_state.MOCK_RESPONSE_CHUNKS):
             clear_request(item.request_id)
@@ -83,7 +104,7 @@ class MockRunner(ModelRunner):
             else:
                 request_state.set_decode_index(item.request_id, word_index)
 
-        return execute_pb2.ExecuteResult(
+        return executor_pb2.ExecuteResult(
             work_id=item.work_id,
             request_id=item.request_id,
             done=done,
@@ -95,13 +116,24 @@ class MockRunner(ModelRunner):
             error_message="",
         )
 
+    async def release_blocks(self, block_ids: list[int]) -> None:
+        return None
+
+    @property
+    def runtime_info(self) -> RuntimeInfo:
+        return self._runtime_info
+
+
 def clear_request(request_id: str) -> None:
     request_state.clear_decode_index(request_id)
     block.clear_runtime(request_id)
 
 
-def prefill_latency_ms(scheduled_tokens: int, per_token_ms: int, fixed_latency_ms: int) -> int:
+def prefill_latency_ms(
+    scheduled_tokens: int, per_token_ms: int, fixed_latency_ms: int
+) -> int:
     return scheduled_tokens * per_token_ms + fixed_latency_ms
+
 
 def decode_latency_ms(block_table_size: int, new_blocks: int, jitter_ms: int) -> int:
     estimated = jitter_ms + block_table_size // 32 + new_blocks * 2

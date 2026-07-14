@@ -30,7 +30,7 @@ type Metrics interface {
 
 	// Handler Snapshot RuntimeStats
 	Handler() http.Handler
-	Snapshot() model.RuntimeStats
+	Snapshot() model.EngineRuntimeStats
 }
 
 type metrics struct {
@@ -58,7 +58,7 @@ type metrics struct {
 	executorErrorsTotal         *prometheus.CounterVec
 
 	mu           sync.RWMutex
-	runtimeStats *model.RuntimeStats
+	runtimeStats *model.EngineRuntimeStats
 }
 
 func NewMetrics() Metrics {
@@ -138,7 +138,7 @@ func NewMetrics() Metrics {
 			Name: "llm_executor_errors_total",
 			Help: "Total Number of executor errors",
 		}, []string{"executor"}),
-		runtimeStats: &model.RuntimeStats{
+		runtimeStats: &model.EngineRuntimeStats{
 			PrefillQueueLength: 0,
 			ActiveRequests:     0,
 			InflightBatches:    0,
@@ -235,7 +235,7 @@ func (m *metrics) Handler() http.Handler {
 	return promhttp.HandlerFor(m.re, promhttp.HandlerOpts{})
 }
 
-func (m *metrics) Snapshot() model.RuntimeStats {
+func (m *metrics) Snapshot() model.EngineRuntimeStats {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	s := *m.runtimeStats

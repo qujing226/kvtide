@@ -35,7 +35,4 @@ timeoutMs = 120000
 	if len(cfg.Executors) != 1 {
 		t.Fatalf("len(executors) = %d, want 1", len(cfg.Executors))
 	}
-	if cfg.Executors[0].ModelID != "Qwen/Qwen3-0.6B" {
-		t.Fatalf("executor modelId = %q", cfg.Executors[0].ModelID)
-	}
 }

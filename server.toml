@@ -19,6 +19,5 @@ modelPath = "./llm_serve/models/Qwen3-0.6B"
 
 [[executors]]
 executorId = "executor-qwen3-0.6B"
-modelId = "Qwen/Qwen3-0.6B"
 address = ["http://127.0.0.1:19991"]
 timeoutMs = 120000
