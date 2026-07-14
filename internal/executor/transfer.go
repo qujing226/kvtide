@@ -32,7 +32,7 @@ func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {
 				RequestId:       work.RequestId,
 				Phase:           v1.WorkPhasePrefill,
 				TokenIds:        work.TokenIDs,
-				ComputedTokens:  work.PrefillOffset,
+				ComputedTokens:  work.PrefillOffset + work.PrefillOffset,
 				GeneratedTokens: 0,
 				NumNewTokens:    work.NumNewTokens,
 				KvBlocks: &v1.KVBlockMetadata{
