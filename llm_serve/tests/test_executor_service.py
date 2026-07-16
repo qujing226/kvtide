@@ -73,6 +73,7 @@ class ExecuteServiceTest(unittest.IsolatedAsyncioTestCase):
                 device="cpu",
                 tensor_parallel_size=1,
                 gpu_memory_utilization=0.9,
+                kv_cache_memory_bytes=536870912,
             ),
         )
         service = ExecuteServiceImpl(runner, cfg)

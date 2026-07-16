@@ -16,6 +16,7 @@ class RuntimeConfig:
     device: str
     tensor_parallel_size: int
     gpu_memory_utilization: float
+    kv_cache_memory_bytes: int
 
 @dataclass(frozen=True)
 class ExecutorConfig:

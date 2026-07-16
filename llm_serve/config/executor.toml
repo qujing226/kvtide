@@ -8,3 +8,4 @@ dtype = "fp32" # "fp32/float32" | "fp16/float16" ...
 device = "cpu"
 tensor_parallel_size = 1
 gpu_memory_utilization = 0.9
+kv_cache_memory_bytes = 536870912 # 512 MiB
