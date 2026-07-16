@@ -2,6 +2,10 @@ import torch
 
 
 class PagedKVCache:
+    """
+    Shape: [layer, num_kv_heads, physical_block, block_offset, head_dim]
+    """
+
     def __init__(
         self,
         num_layers: int,
@@ -22,12 +26,11 @@ class PagedKVCache:
         self.num_kv_heads = num_kv_heads
         self.head_dim = head_dim
 
-        # [layer, physical block, block offset, KV head, head dimension]
         shape = (
             num_layers,
+            num_kv_heads,
             num_blocks,
             block_size,
-            num_kv_heads,
             head_dim,
         )
 
@@ -35,6 +38,8 @@ class PagedKVCache:
         self.value_cache = torch.empty(shape, dtype=dtype, device=device)
 
         # each layer records whether the correspnding slot has been written
+        # valid_slots doesn't need num_kv_heads and head_dim because all kv heads and all dimensiones
+        # will be wrtiten together when a token's kv is caching.
         self.valid_slots = torch.zeros(
             (num_layers, num_blocks, block_size),
             dtype=torch.bool,
@@ -48,6 +53,9 @@ class PagedKVCache:
         key: torch.Tensor,
         value: torch.Tensor,
     ) -> None:
+        """
+        key/value: [num_kv_heads, num_current_tokens, head_dim]
+        """
         self._validate_layer(layer_idx)
 
         slots = torch.tensor(
@@ -58,8 +66,8 @@ class PagedKVCache:
         self._validate_slots(slots)
 
         expected_shape = (
-            len(slot_mapping),
             self.num_kv_heads,
+            len(slot_mapping),
             self.head_dim,
         )
         if tuple(key.shape) != expected_shape:
@@ -67,18 +75,28 @@ class PagedKVCache:
         if tuple(value.shape) != expected_shape:
             raise ValueError(f"invalid value shape: expected {expected_shape}")
 
+        # If the tensor carries its own device or dtype, format it as a standard type.
         key = key.to(device=self.key_cache.device, dtype=self.key_cache.dtype)
         value = value.to(device=self.value_cache.device, dtype=self.value_cache.dtype)
 
-        # platten [block, offset] into slot
-        flat_key = self.key_cache[layer_idx].view(-1, self.num_kv_heads, self.head_dim)
-        flat_value = self.value_cache[layer_idx].view(
-            -1, self.num_kv_heads, self.head_dim
+        # Flatten [block, offset] into the physical-slot dimension.
+        # view() merges block and offset; -1 lets PyTorch infer B*S. e.g.
+        # num_blocks = 3 block_size = 4 num_kv_heads = 1 head_dim = 2
+        # [1, 3, 4, 2] -> [1, 12, 2]
+        flat_key = self.key_cache[layer_idx].view(
+            self.num_kv_heads, -1, self.head_dim
         )
-        flat_valid = self.valid_slots[layer_idx].view(-1)
+        flat_value = self.value_cache[layer_idx].view(
+            self.num_kv_heads, -1, self.head_dim
+        )
+        flat_valid = self.valid_slots[layer_idx].view(
+            -1
+        )  # [num_blocks, block_size] -> [B*S]
 
-        flat_key.index_copy_(0, slots, key)
-        flat_value.index_copy_(0, slots, value)
+        # dim=1 is the physical-slot dimension in [H, B*S, D].
+        # flat_key[:, slots[i], :] = key[:, i, :]
+        flat_key.index_copy_(1, slots, key)
+        flat_value.index_copy_(1, slots, value)
         flat_valid[slots] = True
 
     def gather(
@@ -93,7 +111,7 @@ class PagedKVCache:
             raise ValueError("context_len must not ve negatinve")
 
         if context_len == 0:
-            shape = (0, self.num_kv_heads, self.head_dim)
+            shape = (self.num_kv_heads, 0, self.head_dim)
             return (
                 torch.empty(
                     shape,
@@ -107,10 +125,13 @@ class PagedKVCache:
                 ),
             )
 
+        # e.g. context_len = 6, block_size = 4
+        # required_blocks = (6 + 4 - 1) // 4 = 2
         required_blocks = (context_len + self.block_size - 1) // self.block_size
         if len(block_table) < required_blocks:
             raise ValueError("block table is too short")
 
+        # BatchBuild will pad block_table.
         table = torch.tensor(
             block_table[:required_blocks],
             dtype=torch.long,
@@ -125,6 +146,11 @@ class PagedKVCache:
             device=self.key_cache.device,
         )
 
+        # if positions: [0, 1, 2, 3, 4, 5], table: [2, 0]
+        # logical_blocks: [0, 0, 0, 0, 1, 1]
+        # block_offset: [0, 1, 2, 3, 0, 1]
+        # physical_blocks: [2, 2, 2, 2, 0, 0]
+        # slots: [8, 9, 10, 11, 0, 1]
         logical_blocks = positions // self.block_size
         block_offsets = positions % self.block_size
         physical_blocks = table[logical_blocks]
@@ -134,14 +160,16 @@ class PagedKVCache:
         if not bool(flat_valid.index_select(0, slots).all().item()):
             raise ValueError("requested KV slot has not been written")
 
-        flat_key = self.key_cache[layer_idx].view(-1, self.num_kv_heads, self.head_dim)
+        flat_key = self.key_cache[layer_idx].view(
+            self.num_kv_heads, -1, self.head_dim
+        )
         flat_value = self.value_cache[layer_idx].view(
-            -1, self.num_kv_heads, self.head_dim
+            self.num_kv_heads, -1, self.head_dim
         )
 
         return (
-            flat_key.index_select(0, slots),
-            flat_value.index_select(0, slots),
+            flat_key.index_select(1, slots),
+            flat_value.index_select(1, slots),
         )
 
     def release(self, block_ids: list[int]) -> None:

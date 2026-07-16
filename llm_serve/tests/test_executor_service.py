@@ -1,9 +1,12 @@
 import unittest
-from types import SimpleNamespace
+from typing import cast
+from unittest.mock import Mock
 
+from connectrpc.request import RequestContext
 from mini_llm_serve.v1 import core_pb2, executor_pb2
 from executor_service import ExecuteServiceImpl
 from runner import ModelRunner, RuntimeInfo
+from setting import ExecutorConfig, RunnerConfig, RuntimeConfig
 
 
 def result(item: executor_pb2.ExecuteItem) -> executor_pb2.ExecuteResult:
@@ -59,11 +62,18 @@ class RecordingRunner(ModelRunner):
 class ExecuteServiceTest(unittest.IsolatedAsyncioTestCase):
     async def test_mixed_batch_is_forwarded_intact(self):
         runner = RecordingRunner()
-        cfg = SimpleNamespace(
-            runner=SimpleNamespace(
+        cfg = ExecutorConfig(
+            runner=RunnerConfig(
                 executor_id="executor-test",
                 model_id="model_test",
-            )
+                model_path="unused-in-service-test",
+                model_type="test",
+            ),
+            runtime=RuntimeConfig(
+                device="cpu",
+                tensor_parallel_size=1,
+                gpu_memory_utilization=0.9,
+            ),
         )
         service = ExecuteServiceImpl(runner, cfg)
         epoch = service.runtime_epoch
@@ -89,7 +99,14 @@ class ExecuteServiceTest(unittest.IsolatedAsyncioTestCase):
                 ),
             ],
         )
-        response = await service.execute_batch(request, None)
+        ctx = cast(
+            RequestContext[
+                executor_pb2.ExecuteBatchRequest,
+                executor_pb2.ExecuteBatchResponse,
+            ],
+            Mock(spec=RequestContext),
+        )
+        response = await service.execute_batch(request, ctx)
         self.assertEqual(
             [item.work_id for item in runner.execute_batches[0]],
             ["d1", "p1", "p2"],

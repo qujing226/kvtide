@@ -7,7 +7,7 @@ from runner.batch import BatchBuilder
 def execute_item(
     *,
     work_id: str,
-    phase: int,
+    phase: core_pb2.WorkPhase,
     token_ids: list[int],
     computed_tokens: int,
     block_table: list[int],
