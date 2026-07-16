@@ -6,6 +6,10 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 from mini_llm_serve.v1 import core_pb2, executor_pb2
 from runner.base import ModelRunner, RuntimeInfo
+from adapter import DynamicCacheAdapter
+from runtime import BatchBuilder, PagedKVCache
+
+KV_CACHE_BLOCK_SIZE = 16
 
 
 class QwenRunnerConfig(Protocol):
@@ -16,7 +20,17 @@ class QwenRunnerConfig(Protocol):
 
 
 class QwenTransformersRunner(ModelRunner):
-    def __init__(self, cfg: QwenRunnerConfig):
+    def __init__(
+        self,
+        cfg: QwenRunnerConfig,
+        kv_cache_memory_bytes: int,
+    ):
+        """
+        kv_cache_memory_bytes is the limitation of memory utility. e.g. 256 * 1024 (Byte)
+        """
+        if kv_cache_memory_bytes <= 0:
+            raise ValueError("kv_cache_memory_bytes must be positive")
+
         self.cfg = cfg
         self.config = AutoConfig.from_pretrained(
             cfg.model_path,
@@ -33,22 +47,68 @@ class QwenTransformersRunner(ModelRunner):
         self.model.eval()
 
         self.mem = psutil.virtual_memory()
+        if kv_cache_memory_bytes > self.mem.available:
+            raise ValueError(
+                "KV cache memory budget exceeds available system memory: "
+                f"budget={kv_cache_memory_bytes}, "
+                f"available={self.mem.available}"
+            )
+
+        self.block_size = KV_CACHE_BLOCK_SIZE
+        self.num_layers = self.config.num_hidden_layers
+        self.num_kv_heads = self.config.num_key_value_heads
+        self.head_dim = getattr(
+            self.config,
+            "head_dim",
+            self.config.hidden_size // self.config.num_attention_heads,
+        )
+
+        dtype_bytes = torch.empty(
+            (),
+            dtype=self.dtype,
+        ).element_size()
+
+        self.block_bytes = (
+            2
+            * self.num_layers
+            * self.block_size
+            * self.num_kv_heads
+            * self.head_dim
+            * dtype_bytes
+        )
+
+        self.num_kv_blocks = kv_cache_memory_bytes // self.block_bytes
+        if self.num_kv_blocks < 1:
+            raise ValueError("KV cache memory budget cannot hold one block")
+
+        self.batch_builder = BatchBuilder(self.block_size)
+
+        self.kv_cache = PagedKVCache(
+            num_layers=self.num_layers,
+            num_blocks=self.num_kv_blocks,
+            block_size=self.block_size,
+            num_kv_heads=self.num_kv_heads,
+            head_dim=self.head_dim,
+            dtype=self.dtype,
+            device="cpu",
+        )
+
+        self.cache_adapter = DynamicCacheAdapter(
+            paged_cache=self.kv_cache,
+            model_config=self.config,
+        )
 
         self._runtime_info = RuntimeInfo(
             model_type=self.config.model_type,
             dtype=str(self.dtype).removeprefix("torch."),
-            block_size=0,
-            num_kv_blocks=0,
-            num_hidden_layers=self.config.num_hidden_layers,
-            num_kv_heads=self.config.num_key_value_heads,
-            head_dim=getattr(
-                self.config,
-                "head_dim",
-                self.config.hidden_size // self.config.num_attention_heads,
-            ),
+            block_size=self.block_size,
+            num_kv_blocks=self.num_kv_blocks,
+            num_hidden_layers=self.num_layers,
+            num_kv_heads=self.num_kv_heads,
+            head_dim=self.head_dim,
             total_memory_bytes=self.mem.total,
             available_memory_bytes=self.mem.available,
-            kv_cache_bytes=0,
+            kv_cache_bytes=self.kv_cache.cache_bytes,
         )
 
         self.eos_token_ids = normalize_eos_token_ids(self.config.eos_token_id)
@@ -125,7 +185,7 @@ class QwenTransformersRunner(ModelRunner):
         )
 
     async def release_blocks(self, block_ids: list[int]) -> None:
-        return None
+        self.kv_cache.release(block_ids)
 
     @property
     def runtime_info(self) -> RuntimeInfo:

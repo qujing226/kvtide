@@ -1,7 +1,7 @@
 import unittest
 
 from mini_llm_serve.v1 import block_pb2, core_pb2, executor_pb2
-from runner.batch import BatchBuilder
+from runtime.batch import BatchBuilder
 
 
 def execute_item(
@@ -21,9 +21,7 @@ def execute_item(
         phase=phase,
         token_ids=token_ids,
         computed_tokens=computed_tokens,
-        num_new_tokens=(
-            len(token_ids) if num_new_tokens is None else num_new_tokens
-        ),
+        num_new_tokens=(len(token_ids) if num_new_tokens is None else num_new_tokens),
         kv_blocks=block_pb2.KVBlockMetadata(
             block_size=block_size,
             block_table=block_table,

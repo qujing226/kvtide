@@ -1,7 +1,7 @@
 import torch
 from transformers import DynamicCache, PreTrainedConfig
 
-from runner.kv_cache import PagedKVCache
+from runtime.kv_cache import PagedKVCache
 
 
 class DynamicCacheAdapter:

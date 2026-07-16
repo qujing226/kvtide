@@ -3,7 +3,7 @@ import unittest
 import torch
 
 from adapter.dynamic_cache import DynamicCacheAdapter
-from runner.kv_cache import PagedKVCache
+from runtime.kv_cache import PagedKVCache
 
 
 class DynamicCacheAdapterTest(unittest.TestCase):
@@ -23,9 +23,7 @@ class DynamicCacheAdapterTest(unittest.TestCase):
 
         for layer_idx in range(2):
             key = (
-                torch.arange(8, dtype=torch.float32)
-                .view(2, 2, 2)
-                .add(layer_idx * 100)
+                torch.arange(8, dtype=torch.float32).view(2, 2, 2).add(layer_idx * 100)
             )
             value = key + 1000
             history_by_layer.append((key, value))

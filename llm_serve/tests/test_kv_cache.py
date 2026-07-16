@@ -2,7 +2,7 @@ import unittest
 
 import torch
 
-from runner.kv_cache import PagedKVCache
+from runtime import PagedKVCache
 
 
 class PagedKVCacheTest(unittest.TestCase):
