@@ -19,7 +19,7 @@ func TestGenerate(t *testing.T) {
 		RequestId: "002",
 		ModelId:   "Qwen/Qwen3-0.6B",
 		Prompt:    "what is your name?",
-		MaxTokens: 8,
+		MaxTokens: 16,
 		TimeoutMs: 60000,
 		Labels:    nil,
 	})

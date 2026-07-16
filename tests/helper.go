@@ -16,7 +16,7 @@ func requireServer(t *testing.T, addr string) {
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		t.Skipf("skip integration test: server %s unavailable: %v", addr, err)
+		t.Errorf("skip integration test: server %s unavailable: %v", addr, err)
 	}
 	_ = conn.Close()
 }

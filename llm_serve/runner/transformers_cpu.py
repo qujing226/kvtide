@@ -114,72 +114,104 @@ class QwenTransformersRunner(ModelRunner):
         self.eos_token_ids = normalize_eos_token_ids(self.config.eos_token_id)
 
     async def execute(
-        self, items: list[executor_pb2.ExecuteItem]
+        self,
+        items: list[executor_pb2.ExecuteItem],
     ) -> list[executor_pb2.ExecuteResult]:
-        decode_items = [
-            item for item in items if item.phase == core_pb2.WORK_PHASE_DECODE
-        ]
-        prefill_items = [
-            item for item in items if item.phase == core_pb2.WORK_PHASE_PREFILL
-        ]
-        return await self.decode(decode_items) + await self.prefill(prefill_items)
+        if not items:
+            return []
 
-    async def prefill(
-        self, items: list[executor_pb2.ExecuteItem]
-    ) -> list[executor_pb2.ExecuteResult]:
-        return [await self.prefill_one(item) for item in items]
+        batch = self.batch_builder.build(items)
+        results: list[executor_pb2.ExecuteResult] = []
 
-    async def decode(
-        self, items: list[executor_pb2.ExecuteItem]
-    ) -> list[executor_pb2.ExecuteResult]:
-        return [await self.decode_one(item) for item in items]
+        for item_index, item in enumerate(batch.items):
+            query_start = batch.query_start_locs[item_index]
+            query_end = batch.query_start_locs[item_index + 1]
 
-    async def prefill_one(
-        self, item: executor_pb2.ExecuteItem
+            input_ids = batch.input_ids[query_start:query_end]
+            positions = batch.positions[query_start:query_end]
+            slot_mapping = batch.slot_mapping[query_start:query_end]
+
+            results.append(
+                self._execute_one(
+                    item=item,
+                    input_ids=input_ids,
+                    positions=positions,
+                    slot_mapping=slot_mapping,
+                )
+            )
+
+        return results
+
+    def _execute_one(
+        self,
+        item: executor_pb2.ExecuteItem,
+        input_ids: list[int],
+        positions: list[int],
+        slot_mapping: list[int],
     ) -> executor_pb2.ExecuteResult:
         start_time = time.perf_counter()
 
-        execution_ms = int((time.perf_counter() - start_time) * 1000)
-        return executor_pb2.ExecuteResult(
-            work_id=item.work_id,
-            request_id=item.request_id,
-            done=False,
-            token_id=0,
-            finish_reason=core_pb2.FINISH_REASON_UNSPECIFIED,
-            computed_tokens=len(item.token_ids),
-            generated_tokens=0 if not item.sample else 1,
-            execution_ms=execution_ms,
-            error_message="",
+        past_key_values = self.cache_adapter.build(
+            block_table=list(item.kv_blocks.block_table),
+            past_len=item.computed_tokens,
         )
 
-    async def decode_one(
-        self, item: executor_pb2.ExecuteItem
-    ) -> executor_pb2.ExecuteResult:
-        start_time = time.perf_counter()
-
-        input_ids = torch.tensor([list(item.token_ids)], dtype=torch.long)
+        input_tensor = torch.tensor(
+            [input_ids],
+            dtype=torch.long,
+            device="cpu",
+        )
+        position_tensor = torch.tensor(
+            [positions],
+            dtype=torch.long,
+            device="cpu",
+        )
 
         with torch.inference_mode():
-            outputs = self.model(input_ids=input_ids)
+            outputs = self.model(
+                input_ids=input_tensor,
+                position_ids=position_tensor,
+                past_key_values=past_key_values,
+                use_cache=True,
+                # each sequence only need the last postion logits.
+                logits_to_keep=1,
+            )
+
+        # DynamicCache has been appended with the current round's K/V
+        # in-place for each layer of Attention.
+        self.cache_adapter.write_new(
+            cache=past_key_values,
+            slot_mapping=slot_mapping,
+        )
+
+        token_id = 0
+        generated_tokens = 0
+        done = False
+        finish_reason = core_pb2.FINISH_REASON_UNSPECIFIED
+
+        if item.sample:
             logits = outputs.logits[:, -1, :]
-            next_token_id = int(torch.argmax(logits, dim=-1).item())
+            token_id = int(torch.argmax(logits, dim=-1).item())
+            generated_tokens = 1
+            done = token_id in self.eos_token_ids
+
+            if done:
+                finish_reason = core_pb2.FINISH_REASON_STOP
+
+        computed_tokens = (
+            item.num_new_tokens if item.phase == core_pb2.WORK_PHASE_PREFILL else 0
+        )
 
         execution_ms = int((time.perf_counter() - start_time) * 1000)
-
-        done = next_token_id in self.eos_token_ids
-
-        finish_reason = (
-            core_pb2.FINISH_REASON_STOP if done else core_pb2.FINISH_REASON_UNSPECIFIED
-        )
 
         return executor_pb2.ExecuteResult(
             work_id=item.work_id,
             request_id=item.request_id,
+            token_id=token_id,
             done=done,
-            token_id=next_token_id,
             finish_reason=finish_reason,
-            computed_tokens=0,
-            generated_tokens=1,
+            computed_tokens=computed_tokens,
+            generated_tokens=generated_tokens,
             execution_ms=execution_ms,
             error_message="",
         )

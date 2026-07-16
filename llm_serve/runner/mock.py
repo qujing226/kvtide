@@ -1,10 +1,33 @@
 import asyncio
 import random
+import re
+from dataclasses import dataclass, field
 
-from block import block
 from mini_llm_serve.v1 import core_pb2, executor_pb2
-from request_state import request_state
 from runner.base import ModelRunner, RuntimeInfo
+
+
+MOCK_RESPONSE_TEXT = """# Paged Attention
+
+vLLM uses a multi-head attention kernel that works with paged KV caches. Instead of reserving one contiguous region for every request, the cache is divided into fixed-size blocks managed by the serving system.
+
+## Why blocks help
+
+- Requests can grow without relocating an entire KV cache.
+- Freed blocks can return to a shared pool.
+- Prefix blocks can be reused when requests share the same cached prompt.
+
+During **prefill**, the executor computes the prompt and writes its key/value states into these blocks. During **decode**, each generated token reads the existing block table and appends new state when required.
+
+This block is a serving-memory concept. It is different from a CUDA thread block, which describes how GPU threads are grouped for kernel execution."""
+MOCK_RESPONSE_CHUNKS = re.findall(r"\S+\s*", MOCK_RESPONSE_TEXT)
+
+
+@dataclass(slots=True)
+class KVRuntimeState:
+    block_size: int = 0
+    block_table: list[int] = field(default_factory=list)
+    computed_tokens: int = 0
 
 
 class MockRunner(ModelRunner):
@@ -22,33 +45,25 @@ class MockRunner(ModelRunner):
             available_memory_bytes=0,
             kv_cache_bytes=0,
         )
+        self._kv_runtime: dict[str, KVRuntimeState] = {}
+        self._decode_positions: dict[str, int] = {}
 
     async def execute(
         self, items: list[executor_pb2.ExecuteItem]
     ) -> list[executor_pb2.ExecuteResult]:
-        decode_items = [
-            item for item in items if item.phase == core_pb2.WORK_PHASE_DECODE
+        tasks = [
+            self.prefill_one(item)
+            if item.phase == core_pb2.WORK_PHASE_PREFILL
+            else self.decode_one(item)
+            for item in items
         ]
-        prefill_items = [
-            item for item in items if item.phase == core_pb2.WORK_PHASE_PREFILL
-        ]
-        return await self.decode(decode_items) + await self.prefill(prefill_items)
-
-    async def prefill(
-        self, items: list[executor_pb2.ExecuteItem]
-    ) -> list[executor_pb2.ExecuteResult]:
-        return list(await asyncio.gather(*(self.prefill_one(item) for item in items)))
-
-    async def decode(
-        self, items: list[executor_pb2.ExecuteItem]
-    ) -> list[executor_pb2.ExecuteResult]:
-        return list(await asyncio.gather(*(self.decode_one(item) for item in items)))
+        return list(await asyncio.gather(*tasks))
 
     async def prefill_one(
         self, item: executor_pb2.ExecuteItem
     ) -> executor_pb2.ExecuteResult:
         # Refresh the executor-side KV metadata shadow from the control plane.
-        kv_state = block.update_runtime(item)
+        kv_state = self._update_runtime(item)
 
         # Tokens scheduled for this prefill chunk.
         # In the normal path, this is the remaining prompt tokens selected by the scheduler.
@@ -66,7 +81,7 @@ class MockRunner(ModelRunner):
         computed_delta = min(scheduled_tokens, len(item.token_ids) or scheduled_tokens)
 
         kv_state.computed_tokens += computed_delta
-        block.set_runtime(item.request_id, kv_state)
+        self._kv_runtime[item.request_id] = kv_state
 
         return executor_pb2.ExecuteResult(
             work_id=item.work_id,
@@ -84,7 +99,7 @@ class MockRunner(ModelRunner):
         self, item: executor_pb2.ExecuteItem
     ) -> executor_pb2.ExecuteResult:
         # Refresh the executor-side KV metadata shadow for this decode step.
-        kv_state = block.update_runtime(item)
+        kv_state = self._update_runtime(item)
 
         block_table_size = len(kv_state.block_table)
         # In decode phase, one decode item usually won't take a new slot.
@@ -101,18 +116,16 @@ class MockRunner(ModelRunner):
 
         # Use the larger progress value to avoid generating duplicate words if
         # either the mock runtime state or control-plane state is behind.
-        word_index = max(
-            request_state.get_decode_index(item.request_id), item.generated_tokens
-        )
+        word_index = max(self._decode_positions.get(item.request_id, 0), item.generated_tokens)
 
-        if word_index >= len(request_state.MOCK_RESPONSE_CHUNKS):
-            clear_request(item.request_id)
+        if word_index >= len(MOCK_RESPONSE_CHUNKS):
+            self._clear_request(item.request_id)
             done = True
             generated_tokens = 0
             finish_reason = core_pb2.FINISH_REASON_STOP
         else:
             word_index += 1
-            done = word_index >= len(request_state.MOCK_RESPONSE_CHUNKS)
+            done = word_index >= len(MOCK_RESPONSE_CHUNKS)
             generated_tokens = 1
             finish_reason = (
                 core_pb2.FINISH_REASON_STOP
@@ -121,9 +134,9 @@ class MockRunner(ModelRunner):
             )
 
             if done:
-                clear_request(item.request_id)
+                self._clear_request(item.request_id)
             else:
-                request_state.set_decode_index(item.request_id, word_index)
+                self._decode_positions[item.request_id] = word_index
 
         return executor_pb2.ExecuteResult(
             work_id=item.work_id,
@@ -144,10 +157,17 @@ class MockRunner(ModelRunner):
     def runtime_info(self) -> RuntimeInfo:
         return self._runtime_info
 
+    def _update_runtime(self, item: executor_pb2.ExecuteItem) -> KVRuntimeState:
+        state = self._kv_runtime.get(item.request_id, KVRuntimeState())
+        state.block_size = item.kv_blocks.block_size
+        state.block_table = list(item.kv_blocks.block_table)
+        state.computed_tokens = max(state.computed_tokens, item.computed_tokens)
+        self._kv_runtime[item.request_id] = state
+        return state
 
-def clear_request(request_id: str) -> None:
-    request_state.clear_decode_index(request_id)
-    block.clear_runtime(request_id)
+    def _clear_request(self, request_id: str) -> None:
+        self._decode_positions.pop(request_id, None)
+        self._kv_runtime.pop(request_id, None)
 
 
 def prefill_latency_ms(
