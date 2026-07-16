@@ -18,7 +18,7 @@ const stressTimeout = 180 * time.Second
 
 func TestStressGenerate(t *testing.T) {
 	requireServer(t, "127.0.0.1:8800")
-	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, stressTimeout)
+	c := client.NewClient([]string{"http://127.0.0.1:8800"}, stressTimeout)
 	var wg sync.WaitGroup
 
 	msgNumber := 100
@@ -55,7 +55,7 @@ func TestStressGenerate(t *testing.T) {
 
 func TestStressGenerateWithPrefixCache(t *testing.T) {
 	requireServer(t, "127.0.0.1:8800")
-	c := client.NewClientWithTimeout([]string{"http://127.0.0.1:8800"}, stressTimeout)
+	c := client.NewClient([]string{"http://127.0.0.1:8800"}, stressTimeout)
 	const prompt = "hello world, hello world, hello world, hello world, " +
 		"hello world, hello world, hello world, hello world, " +
 		"hello world, hello world, hello world, hello world, " +

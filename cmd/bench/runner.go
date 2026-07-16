@@ -164,7 +164,7 @@ func ScenariosForProfile(profile Profile) []Scenario {
 
 func RunScenario(logger *zap.Logger, scenario Scenario) (Result, error) {
 	sugar := logger.Sugar()
-	inferenceClient := client.NewClientWithTimeout([]string{scenario.Target}, scenario.Timeout+2*time.Second)
+	inferenceClient := client.NewClient([]string{scenario.Target}, scenario.Timeout+2*time.Second)
 
 	if err := runWarmupRequests(inferenceClient, scenario); err != nil {
 		return Result{}, err
