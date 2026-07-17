@@ -2,21 +2,13 @@ import { AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router";
 
-import { HomePage } from "../home/HomePage";
+import { BlogArticlePage } from "../blog/BlogArticlePage";
+import { BlogIndexPage } from "../blog/BlogIndexPage";
 import { DemoPage } from "../demo/DemoPage";
+import { HomePage } from "../home/HomePage";
 import { LabPage } from "../scheduler/LabPage";
 import { NotFoundPage } from "../site/NotFoundPage";
-import { RoutePage } from "../site/RoutePage";
 import { SiteLayout } from "../site/SiteLayout";
-
-type RoutePlaceholderProps = {
-  focusOnMount: boolean;
-  title: string;
-};
-
-function RoutePlaceholder({ focusOnMount, title }: RoutePlaceholderProps) {
-  return <RoutePage title={title} focusOnMount={focusOnMount} />;
-}
 
 export function App() {
   const location = useLocation();
@@ -45,11 +37,11 @@ export function App() {
           />
           <Route
             path="/blog"
-            element={<RoutePlaceholder title="Blog" focusOnMount={focusOnMount} />}
+            element={<BlogIndexPage focusOnMount={focusOnMount} />}
           />
           <Route
             path="/blog/:slug"
-            element={<RoutePlaceholder title="Blog" focusOnMount={focusOnMount} />}
+            element={<BlogArticlePage focusOnMount={focusOnMount} />}
           />
           <Route path="*" element={<NotFoundPage focusOnMount={focusOnMount} />} />
         </Routes>
