@@ -1,54 +1,71 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { App } from "./App";
 
+function renderApp(route: string) {
+  return render(
+    <MemoryRouter initialEntries={[route]}>
+      <App />
+    </MemoryRouter>,
+  );
+}
+
 describe("App", () => {
-  it("orders playground, scheduler, and benchmark navigation", async () => {
-    const user = userEvent.setup();
-    render(<App />);
+  it("renders the public navigation on the demo route", () => {
+    renderApp("/demo");
 
-    const navigation = screen.getByRole("navigation");
-    const buttons = Array.from(navigation.querySelectorAll("button"));
-    expect(buttons.map((button) => button.textContent)).toEqual([
-      "01Playground",
-      "02Scheduler Lab",
-      "03Benchmark",
-    ]);
+    const banner = screen.getByRole("banner");
+    const navigation = within(banner).getByRole("navigation");
 
-    await user.click(screen.getByRole("button", { name: /benchmark/i }));
-
-    expect(screen.getByText(/TTFT REDUCTION/i)).toBeInTheDocument();
+    expect(navigation).toBeVisible();
+    expect(within(banner).getByRole("link", { name: "KVTide" })).toHaveAttribute(
+      "href",
+      "/",
+    );
+    expect(within(navigation).getByRole("link", { name: "Demo" })).toHaveAttribute(
+      "href",
+      "/demo",
+    );
+    expect(within(navigation).getByRole("link", { name: "Lab" })).toHaveAttribute(
+      "href",
+      "/lab",
+    );
+    expect(within(navigation).getByRole("link", { name: "Blog" })).toHaveAttribute(
+      "href",
+      "/blog",
+    );
+    expect(within(navigation).getByRole("link", { name: "Docs" })).toHaveAttribute(
+      "href",
+      "https://github.com/qujing226/kvtide#readme",
+    );
+    expect(within(navigation).getByRole("link", { name: "GitHub" })).toHaveAttribute(
+      "href",
+      "https://github.com/qujing226/kvtide",
+    );
   });
 
-  it("collapses and expands the navigation drawer", async () => {
+  it("keeps the footer mounted across routes", async () => {
     const user = userEvent.setup();
-    render(<App />);
+    renderApp("/demo");
 
+    const footer = screen.getByRole("contentinfo");
     await user.click(
-      screen.getByRole("button", { name: /collapse navigation/i }),
+      within(screen.getByRole("banner")).getByRole("link", { name: "Lab" }),
     );
-    expect(document.querySelector(".app-shell")).toHaveClass("sidebar-collapsed");
 
-    await user.click(
-      screen.getByRole("button", { name: /expand navigation/i }),
-    );
-    expect(document.querySelector(".app-shell")).not.toHaveClass(
-      "sidebar-collapsed",
-    );
+    expect(await screen.findByRole("heading", { name: "Lab" })).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toBe(footer);
   });
 
-  it("localizes scheduler controls in Chinese", async () => {
-    const user = userEvent.setup();
-    render(<App />);
-
-    await user.click(screen.getByRole("button", { name: "中文" }));
-    await user.click(screen.getByRole("button", { name: /调度实验室/i }));
+  it("renders the not found page and footer for an unknown route", () => {
+    renderApp("/missing");
 
     expect(
-      screen.getByRole("button", { name: /添加短提示词预填充/i }),
+      screen.getByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();
-    expect(screen.getByText("尚未执行调度")).toBeInTheDocument();
+    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 });

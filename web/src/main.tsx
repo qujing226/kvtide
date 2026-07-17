@@ -1,5 +1,9 @@
+import "@fontsource-variable/geist/wght.css";
+import "@fontsource-variable/geist-mono/wght.css";
+import { MotionConfig } from "motion/react";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { BrowserRouter } from "react-router";
 
 import { App } from "./app/App";
 import "./styles/global.css";
@@ -12,6 +16,10 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <BrowserRouter>
+      <MotionConfig reducedMotion="user">
+        <App />
+      </MotionConfig>
+    </BrowserRouter>
   </StrictMode>,
 );
