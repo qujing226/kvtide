@@ -2,6 +2,7 @@ import { Link } from "react-router";
 
 import { RoutePage } from "../site/RoutePage";
 import { blogEntries, type BlogEntry } from "./entries";
+import "./blog.css";
 
 type BlogIndexPageProps = {
   focusOnMount: boolean;

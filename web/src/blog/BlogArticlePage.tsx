@@ -5,6 +5,7 @@ import remarkGfm from "remark-gfm";
 import { NotFoundPage } from "../site/NotFoundPage";
 import { RoutePage } from "../site/RoutePage";
 import { blogEntries, type BlogEntry } from "./entries";
+import "./blog.css";
 
 type BlogArticlePageProps = {
   focusOnMount: boolean;

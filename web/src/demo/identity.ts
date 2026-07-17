@@ -1,6 +1,6 @@
-const storageKey = "kvtide.playground-user-id";
+const storageKey = "kvtide.demo-user-id";
 
-export function getPlaygroundUserID(): string {
+export function getDemoUserID(): string {
   const existing = localStorage.getItem(storageKey);
   if (existing) {
     return existing;

@@ -1,5 +1,6 @@
 import { RoutePage } from "../site/RoutePage";
 import { SchedulerLab } from "./SchedulerLab";
+import "./lab.css";
 
 type LabPageProps = {
   focusOnMount: boolean;

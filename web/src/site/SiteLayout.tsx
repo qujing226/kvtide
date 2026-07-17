@@ -17,10 +17,11 @@ export function SiteLayout({ children }: SiteLayoutProps) {
     <div className="site-shell">
       <header className="site-header">
         <NavLink className="site-brand" to="/" end>
+          <img src="/favicon.svg" alt="" aria-hidden="true" />
           KVTide
         </NavLink>
         <nav className="site-nav" aria-label="Primary navigation">
-          <a href={docsUrl}>Docs</a>
+          <a className="site-nav-external" href={docsUrl}>Docs</a>
           <NavLink to="/demo" end>
             Demo
           </NavLink>
@@ -34,7 +35,7 @@ export function SiteLayout({ children }: SiteLayoutProps) {
           >
             Blog
           </Link>
-          <a href={githubUrl}>GitHub</a>
+          <a className="site-nav-external" href={githubUrl}>GitHub</a>
         </nav>
       </header>
 

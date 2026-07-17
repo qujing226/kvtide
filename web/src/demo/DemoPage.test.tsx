@@ -2,8 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
-import type { GenerationClient } from "../playground/generation";
-import type { MetricsClient, MetricsSnapshot } from "../playground/metrics";
+import type { GenerationClient } from "./generation";
+import type { MetricsClient, MetricsSnapshot } from "./metrics";
 import { DemoPage } from "./DemoPage";
 
 function snapshot(

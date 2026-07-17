@@ -3,13 +3,12 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { RoutePage } from "../site/RoutePage";
-import { generationClient } from "../playground/client";
+import { generationClient } from "./client";
 import {
   generateResponse,
   idleGenerationState,
   type GenerationClient,
-} from "../playground/generation";
-import { getPlaygroundUserID } from "../playground/identity";
+} from "./generation";
 import {
   calculateMetricsWindow,
   metricsClient,
@@ -17,8 +16,10 @@ import {
   type MetricsClient,
   type MetricsSnapshot,
   type MetricsWindow,
-} from "../playground/metrics";
+} from "./metrics";
 import { RuntimeTopology } from "./RuntimeTopology";
+import { getDemoUserID } from "./identity";
+import "./demo.css";
 
 type DemoPageProps = {
   focusOnMount: boolean;
@@ -50,7 +51,7 @@ export function DemoPage({
   metrics = metricsClient,
 }: DemoPageProps) {
   const [prompt, setPrompt] = useState(DEFAULT_DEMO_PROMPT);
-  const [userId] = useState(getPlaygroundUserID);
+  const [userId] = useState(getDemoUserID);
   const [generation, setGeneration] = useState(idleGenerationState);
   const [liveMetrics, setLiveMetrics] = useState<MetricsSnapshot | null>(null);
   const [metricsWindow, setMetricsWindow] = useState<MetricsWindow | null>(null);

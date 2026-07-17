@@ -1,0 +1,137 @@
+.blog-empty {
+  min-height: 42svh;
+  display: grid;
+  place-content: center;
+  margin-top: 72px;
+  color: var(--muted);
+  background:
+    linear-gradient(rgba(17, 19, 24, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(17, 19, 24, 0.035) 1px, transparent 1px),
+    var(--surface-soft);
+  background-size: 24px 24px;
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+.blog-empty span,
+.blog-list time,
+.blog-article time {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.blog-empty p {
+  margin: 14px 0 0;
+  color: var(--ink);
+  font-size: 20px;
+}
+
+.blog-list {
+  margin-top: 72px;
+  border-top: 1px solid var(--line);
+}
+
+.blog-list article {
+  display: grid;
+  grid-template-columns: 140px minmax(240px, 0.8fr) minmax(280px, 1fr);
+  gap: 42px;
+  align-items: baseline;
+  padding: 34px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.blog-list time,
+.blog-article time {
+  color: var(--muted);
+}
+
+.blog-list h2,
+.blog-list p {
+  margin: 0;
+}
+
+.blog-list h2 {
+  font-size: 26px;
+  font-weight: 540;
+  letter-spacing: -0.035em;
+}
+
+.blog-list h2 a {
+  text-decoration: none;
+}
+
+.blog-list h2 a:hover,
+.blog-list h2 a:focus-visible {
+  color: var(--accent);
+}
+
+.blog-list p {
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.blog-article {
+  width: min(760px, 100%);
+  margin: 64px auto 0;
+}
+
+.blog-article > header {
+  padding-bottom: 38px;
+  border-bottom: 1px solid var(--line);
+}
+
+.blog-article > header p {
+  margin: 22px 0 0;
+  color: var(--muted);
+  font-size: 18px;
+  line-height: 1.65;
+}
+
+.blog-prose {
+  padding: 48px 0;
+  color: #2c313a;
+  font-size: 17px;
+  line-height: 1.78;
+}
+
+.blog-prose h2,
+.blog-prose h3 {
+  margin: 2em 0 0.7em;
+  color: var(--ink);
+  letter-spacing: -0.035em;
+}
+
+.blog-prose h2 {
+  font-size: 32px;
+}
+
+.blog-prose code {
+  padding: 0.14em 0.34em;
+  background: var(--surface-soft);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+.blog-prose pre {
+  overflow: auto;
+  padding: 22px;
+  color: #eef1f5;
+  background: #111318;
+}
+
+.blog-back {
+  display: inline-block;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--ink);
+  font-size: 14px;
+  text-decoration: none;
+}
+
+@media (max-width: 720px) {
+  .blog-list article {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}

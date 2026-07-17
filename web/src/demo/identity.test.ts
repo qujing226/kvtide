@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { getPlaygroundUserID } from "./identity";
+import { getDemoUserID } from "./identity";
 
-describe("getPlaygroundUserID", () => {
+describe("getDemoUserID", () => {
   beforeEach(() => {
     localStorage.clear();
   });
@@ -12,8 +12,8 @@ describe("getPlaygroundUserID", () => {
       "11111111-1111-4111-8111-111111111111",
     );
 
-    const first = getPlaygroundUserID();
-    const second = getPlaygroundUserID();
+    const first = getDemoUserID();
+    const second = getDemoUserID();
 
     expect(first).toBe("web-11111111-1111-4111-8111-111111111111");
     expect(second).toBe(first);
