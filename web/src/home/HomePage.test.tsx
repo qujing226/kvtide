@@ -35,7 +35,12 @@ describe("HomePage", () => {
     renderHome();
 
     expect(
-      screen.getByRole("heading", { level: 1, name: /KV-aware/i }),
+      screen.getByRole("heading", { level: 1, name: "KVTide" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "KVTide is a Kubernetes-native LLM serving runtime built from the ground up for cache-aware scheduling and proactive peer-to-peer KV mobility.",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Explore Demo" })).toHaveAttribute(
       "href",
@@ -54,7 +59,7 @@ describe("HomePage", () => {
     expect(screen.queryByText(/latest designs/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "KV cache should move toward available compute.",
+        name: "KV cache should automatically move toward available compute.",
       }),
     ).toBeInTheDocument();
   });
@@ -68,6 +73,37 @@ describe("HomePage", () => {
     expect(flow).toHaveAttribute("focusable", "false");
     expect(flow).toHaveAttribute("data-motion", "full");
     expect(flow).not.toHaveTextContent(/server|executor|scheduler/i);
+    expect(flow?.querySelector(".kv-flow-path-moving")).toBeInTheDocument();
+    expect(flow?.querySelectorAll(".kv-flow-moving-page")).toHaveLength(5);
+    expect(flow?.querySelectorAll("animateTransform")).toHaveLength(5);
+  });
+
+  it("shows the three-stage peer KV transfer vision", () => {
+    const { container } = renderHome();
+    const transfer = container.querySelector("svg.home-kv-transfer");
+
+    expect(transfer).toHaveAttribute("aria-hidden", "true");
+    expect(transfer?.querySelectorAll(".kv-transfer-node")).toHaveLength(3);
+    expect(transfer?.querySelectorAll(".kv-transfer-pulse")).toHaveLength(3);
+    expect(transfer?.querySelector(".kv-transfer-request-node")).toBeInTheDocument();
+    expect(transfer?.querySelectorAll(".kv-transfer-matrix-node")).toHaveLength(2);
+    expect(transfer?.querySelectorAll("animateMotion")).toHaveLength(3);
+  });
+
+  it("owns the two-screen scroll container without mutating the root element", () => {
+    const { container } = renderHome();
+    const scrollContainer = container.querySelector(".home-scroll-container");
+
+    expect(scrollContainer).toBeInTheDocument();
+    expect(scrollContainer?.querySelectorAll(":scope > .home-screen")).toHaveLength(2);
+    expect(document.documentElement).not.toHaveClass("home-scroll-snap");
+  });
+
+  it("presents Vision with the same display-title treatment as KVTide", () => {
+    renderHome();
+
+    expect(screen.getByText("VISION")).toHaveClass("home-vision-title");
+    expect(screen.getByText("VISION")).not.toHaveClass("home-eyebrow");
   });
 
   it("renders KV flow in its static settled frame with reduced motion", () => {

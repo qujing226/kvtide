@@ -16,6 +16,12 @@ describe("SchedulerLab", () => {
     vi.useRealTimers();
   });
 
+  it("keeps decision details out of the single-screen experiment", () => {
+    render(<SchedulerLab />);
+
+    expect(screen.queryByText("DECISION LEDGER")).not.toBeInTheDocument();
+  });
+
   it("keeps the selected batch empty until scheduling finishes", async () => {
     render(<SchedulerLab />);
 

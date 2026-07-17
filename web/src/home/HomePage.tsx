@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { PageTransition } from "../site/PageTransition";
 import { KVFlow } from "./KVFlow";
+import { KVTransfer } from "./KVTransfer";
 
 const githubUrl = "https://github.com/qujing226/kvtide";
 
@@ -23,17 +24,17 @@ export function HomePage({ focusOnMount }: HomePageProps) {
 
   return (
     <PageTransition>
-      <div className="home-page">
-        <section className="home-intro" aria-labelledby="home-title">
+      <div className="home-page home-scroll-container">
+        <section className="home-intro home-screen" aria-labelledby="home-title">
           <div className="home-intro-copy">
             <p className="home-eyebrow">OPEN INFERENCE RUNTIME</p>
             <h1 id="home-title" ref={headingRef} tabIndex={-1}>
-              KV-aware LLM serving, built from the runtime up.
+              KVTide
             </h1>
             <p className="home-summary">
-              KVTide is an open inference system for exploring scheduling,
-              execution, and the ownership of paged KV cache across a Go control
-              plane and model executors.
+              KVTide is a Kubernetes-native LLM serving runtime built from the
+              ground up for cache-aware scheduling and proactive peer-to-peer KV
+              mobility.
             </p>
             <div className="home-actions">
               <Link className="home-action home-action-primary" to="/demo">
@@ -50,11 +51,14 @@ export function HomePage({ focusOnMount }: HomePageProps) {
           </div>
         </section>
 
-        <section className="home-vision" aria-labelledby="vision-title">
-          <p className="home-eyebrow">VISION</p>
-          <div>
+        <section className="home-vision home-screen" aria-labelledby="vision-title">
+          <div className="home-vision-mark">
+            <p className="home-vision-title">VISION</p>
+            <KVTransfer />
+          </div>
+          <div className="home-vision-copy">
             <h2 id="vision-title">
-              KV cache should move toward available compute.
+              KV cache should automatically move toward available compute.
             </h2>
             <p>
               KVTide is working toward a runtime where compatible executors can

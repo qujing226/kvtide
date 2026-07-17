@@ -3,8 +3,6 @@ import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   completeBatch,
   scheduleStep,
-  type CompletionResult,
-  type ScheduleResult,
   type WorkItem,
   type WorkPhase,
 } from "./model";
@@ -141,9 +139,6 @@ export function SchedulerLab() {
   const [queue, setQueue] = useState(initialQueue);
   const [maxSequences, setMaxSequences] = useState(3);
   const [maxTokens, setMaxTokens] = useState(16);
-  const [lastResult, setLastResult] = useState<ScheduleResult | null>(null);
-  const [lastCompletion, setLastCompletion] =
-    useState<CompletionResult | null>(null);
   const [selectedBatch, setSelectedBatch] = useState<WorkItem[]>([]);
   const [transitioningWorkIds, setTransitioningWorkIds] = useState<string[]>(
     [],
@@ -197,7 +192,6 @@ export function SchedulerLab() {
     }
 
     const completion = completeBatch(batch);
-    setLastCompletion(completion);
     setTransitionDirection("to-waiting");
     setTransitioningWorkIds(batch.map((item) => item.workId));
     setArrivingWorkIds([]);
@@ -222,7 +216,6 @@ export function SchedulerLab() {
     const selectedWorkIds = result.selected.map((item) => item.workId);
     const selectedSet = new Set(selectedWorkIds);
 
-    setLastResult(result);
     setArrivingWorkIds([]);
 
     if (selectedWorkIds.length === 0) {
@@ -270,8 +263,6 @@ export function SchedulerLab() {
       executionTimer.current = null;
     }
     setQueue(initialQueue());
-    setLastResult(null);
-    setLastCompletion(null);
     setSelectedBatch([]);
     setTransitioningWorkIds([]);
     setArrivingWorkIds([]);
@@ -281,12 +272,6 @@ export function SchedulerLab() {
 
   return (
     <div className="page scheduler-page">
-      <section className="scheduler-heading">
-        <div className="eyebrow">
-          TOKEN-AWARE SCHEDULING · STEP MODE
-        </div>
-      </section>
-
       <section className="scheduler-layout">
         <aside className="control-panel">
           <div className="section-kicker">BUDGET</div>
@@ -427,28 +412,6 @@ export function SchedulerLab() {
         </div>
       </section>
 
-      <section className="decision-ledger">
-        <div>
-          <span>DECISION LEDGER</span>
-          <strong>
-            {lastResult
-              ? `${lastResult.selected.length} selected · ${lastResult.skipped.length} deferred`
-              : "No scheduling decision yet"}
-          </strong>
-        </div>
-        <p>
-          {lastResult && lastResult.skipped.length > 0
-            ? lastResult.skipped
-                .map(
-                  ({ item, reason }) =>
-                    `${workLabel(item)}: ${reason.replace("-", " ")}`,
-                )
-                .join(" · ")
-            : lastCompletion && lastCompletion.finishedRequestIds.length > 0
-              ? `${lastCompletion.finishedRequestIds.join(", ")} completed two Decode rounds.`
-              : "Work that cannot fit the current budget remains queued."}
-        </p>
-      </section>
     </div>
   );
 }

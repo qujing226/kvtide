@@ -3,6 +3,7 @@ syntax = "proto3";
 package kvtide.v1;
 
 import "kvtide/v1/core.proto";
+import "kvtide/v1/executor.proto";
 
 service InferenceService {
   rpc Generate(GenerateRequest) returns (GenerateResponse);
@@ -12,6 +13,7 @@ service InferenceService {
 service AdminService{
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc GetRuntimeStats(GetRuntimeStatsRequest) returns (GetRuntimeStatsResponse);
+  rpc GetRuntimes(GetRuntimesRequest) returns (GetRuntimesResponse);
 }
 
 message GenerateRequest{
@@ -62,3 +64,8 @@ message GetRuntimeStatsResponse{
   uint32 idle_executors = 6;
 }
 
+message GetRuntimesRequest{}
+
+message GetRuntimesResponse{
+  repeated GetRuntimeResponse runtimes = 1;
+}

@@ -30,6 +30,9 @@ export default defineConfig({
       "/kvtide.v1.InferenceService": {
         target: "http://127.0.0.1:8800",
       },
+      "/kvtide.v1.AdminService": {
+        target: "http://127.0.0.1:8801",
+      },
       "/api/metrics": {
         target: "http://127.0.0.1:8801",
         rewrite: () => "/metrics",

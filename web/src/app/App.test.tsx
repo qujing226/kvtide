@@ -90,32 +90,35 @@ describe("App", () => {
 
     const banner = screen.getByRole("banner");
     const main = screen.getByRole("main");
-    const footer = screen.getByRole("contentinfo");
-    const demoHeading = screen.getByRole("heading", { name: "Live runtime" });
+    const demoHeading = screen.getByRole("heading", { name: "Topology" });
 
-    expect(document.title).toBe("Live runtime | KVTide");
+    expect(document.title).toBe("Demo | KVTide");
     expect(demoHeading).not.toHaveFocus();
 
     await user.click(
       within(banner).getByRole("link", { name: "Lab" }),
     );
 
-    expect(screen.getByRole("heading", { name: "Live runtime" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Lab" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Topology" })).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "schedule · step mode" }),
+    ).not.toBeInTheDocument();
 
-    const labHeading = await screen.findByRole("heading", { name: "Lab" });
+    const labHeading = await screen.findByRole("heading", {
+      name: "schedule · step mode",
+    });
 
-    expect(screen.queryByRole("heading", { name: "Live runtime" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Topology" })).not.toBeInTheDocument();
     await waitFor(() => expect(labHeading).toHaveFocus());
     expect(document.title).toBe("Lab | KVTide");
     expect(screen.getByRole("banner")).toBe(banner);
     expect(screen.getByRole("main")).toBe(main);
-    expect(screen.getByRole("contentinfo")).toBe(footer);
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
 
     await user.click(within(banner).getByRole("link", { name: "Blog" }));
 
-    const blogHeading = await screen.findByRole("heading", { name: "Blog" });
-    await waitFor(() => expect(blogHeading).toHaveFocus());
+    const blogIndex = await screen.findByRole("region", { name: "Blog" });
+    await waitFor(() => expect(blogIndex).toHaveFocus());
     expect(document.title).toBe("Blog | KVTide");
     expect(within(banner).getByRole("link", { name: "Blog" })).toHaveAttribute(
       "aria-current",
@@ -133,23 +136,23 @@ describe("App", () => {
 
     const homeHeading = await screen.findByRole("heading", {
       level: 1,
-      name: /KV-aware LLM serving/i,
+      name: "KVTide",
     });
 
     await waitFor(() => expect(homeHeading).toHaveFocus());
     expect(document.title).toBe("KVTide");
     expect(
-      screen.getByText(/KVTide is an open inference system for exploring scheduling/i),
+      screen.getByText(/KVTide is a Kubernetes-native LLM serving runtime/i),
     ).toBeInTheDocument();
   });
 
-  it("renders the not found page and footer for an unknown route", () => {
+  it("renders the not found page without a footer for an unknown route", () => {
     renderApp("/missing");
 
     expect(
       screen.getByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();
     expect(document.title).toBe("Page not found | KVTide");
-    expect(screen.getByRole("contentinfo")).toBeInTheDocument();
+    expect(screen.queryByRole("contentinfo")).not.toBeInTheDocument();
   });
 });

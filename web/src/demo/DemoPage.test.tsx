@@ -1,10 +1,33 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import type { GenerationClient } from "./generation";
 import type { MetricsClient, MetricsSnapshot } from "./metrics";
+import type { RuntimeInfo, RuntimeInventoryClient } from "./runtimes";
 import { DemoPage } from "./DemoPage";
+
+const runtime: RuntimeInfo = {
+  executorId: "executor-qwen",
+  runtimeEpoch: 42,
+  modelId: "Qwen/Qwen3-0.6B",
+  modelType: "qwen3",
+  dtype: "float32",
+  deviceType: "cpu",
+  tensorParallelSize: 1,
+  blockSize: 16,
+  numKvBlocks: 146,
+  numHiddenLayers: 28,
+  numKvHeads: 8,
+  headDim: 128,
+  totalMemoryBytes: 8_000_000_000n,
+  availableMemoryBytes: 2_000_000_000n,
+  kvCacheBytes: 512_000_000n,
+};
+
+function runtimeClient(): RuntimeInventoryClient {
+  return { list: vi.fn().mockResolvedValue([runtime]) };
+}
 
 function snapshot(
   runtime: Partial<MetricsSnapshot["runtime"]> = {},
@@ -44,7 +67,43 @@ function snapshot(
 }
 
 describe("DemoPage", () => {
-  it("presents the runtime as topology, request, and metrics sections", async () => {
+  it("retries runtime discovery every ten seconds after the backend starts late", async () => {
+    vi.useFakeTimers();
+    try {
+      const list = vi
+        .fn()
+        .mockRejectedValueOnce(new Error("offline"))
+        .mockResolvedValueOnce([runtime]);
+
+      render(
+        <DemoPage
+          focusOnMount={false}
+          client={{ generateStream: vi.fn() } as GenerationClient}
+          metrics={{ scrape: vi.fn().mockResolvedValue(snapshot()) }}
+          runtimes={{ list }}
+        />,
+      );
+
+      await act(async () => Promise.resolve());
+      expect(list).toHaveBeenCalledOnce();
+      expect(screen.queryByRole("button", { name: "Inspect executor-qwen" })).not.toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(9_999);
+      });
+      expect(list).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1);
+      });
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(screen.getByRole("button", { name: "Inspect executor-qwen" })).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("presents topology, request, and metrics as three viewport screens", async () => {
     const metrics: MetricsClient = {
       scrape: vi.fn().mockResolvedValue(snapshot()),
     };
@@ -54,15 +113,25 @@ describe("DemoPage", () => {
         focusOnMount={false}
         client={{ generateStream: vi.fn() } as GenerationClient}
         metrics={metrics}
+        runtimes={runtimeClient()}
       />,
     );
 
-    expect(screen.getByRole("heading", { name: "Live runtime" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Live runtime" })).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".demo-screen")).toHaveLength(3);
     expect(screen.getByRole("heading", { name: "Topology" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Send a request" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Runtime metrics" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Zoom in" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /prefill|decode/i })).not.toBeInTheDocument();
     expect(await screen.findByText("0 P / 0 D")).toBeInTheDocument();
+    expect(screen.getByText("Queues are idle.")).toBeInTheDocument();
+
+    expect(screen.queryByText("Qwen/Qwen3-0.6B")).not.toBeInTheDocument();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Inspect executor-qwen" }),
+    );
+    expect(await screen.findByText("Qwen/Qwen3-0.6B")).toBeInTheDocument();
   });
 
   it("streams markdown through one send action and marks the topology active", async () => {
@@ -86,6 +155,7 @@ describe("DemoPage", () => {
         focusOnMount={false}
         client={client}
         metrics={{ scrape: vi.fn().mockResolvedValue(snapshot()) }}
+        runtimes={runtimeClient()}
       />,
     );
 

@@ -18,7 +18,8 @@ describe("Blog pages", () => {
   it("keeps the public index empty until authored entries are registered", () => {
     render(<BlogIndexPage focusOnMount={false} />);
 
-    expect(screen.getByRole("heading", { name: "Blog", level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Blog" })).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Blog" })).toBeInTheDocument();
     expect(screen.getByText("No entries yet.")).toBeInTheDocument();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
   });

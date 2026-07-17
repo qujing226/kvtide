@@ -2,6 +2,7 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 
 const generatePath = "/kvtide.v1.InferenceService/GenerateStream";
+const getRuntimesPath = "/kvtide.v1.AdminService/GetRuntimes";
 const metricsPath = "/api/metrics";
 const requestHeaders = [
   "content-type",
@@ -204,10 +205,11 @@ export function createRuntimeProxy({
   return async function proxyRuntimeRequest(request, response) {
     const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
     const isInference = pathname === generatePath;
+    const isRuntimeInventory = pathname === getRuntimesPath;
     const isMetrics = pathname === metricsPath;
-    if (!isInference && !isMetrics) return false;
+    if (!isInference && !isRuntimeInventory && !isMetrics) return false;
 
-    const expectedMethod = isInference ? "POST" : "GET";
+    const expectedMethod = isMetrics ? "GET" : "POST";
     if (request.method !== expectedMethod) {
       sendJson(response, 405, "Method not allowed", { allow: expectedMethod });
       return true;
@@ -231,6 +233,22 @@ export function createRuntimeProxy({
     ) {
       request.resume();
       sendJson(response, 413, "Request body too large");
+      return true;
+    }
+
+    if (isRuntimeInventory) {
+      const body = await readRequestBody(request, maxBodyBytes);
+      if (body.aborted) return true;
+      if (body.oversized) {
+        sendJson(response, 413, "Request body too large");
+        return true;
+      }
+      forward(request, response, {
+        upstream: metrics,
+        path: getRuntimesPath,
+        method: "POST",
+        body: body.body,
+      });
       return true;
     }
 

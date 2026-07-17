@@ -1,4 +1,4 @@
-import { motion, useReducedMotion } from "motion/react";
+import { useReducedMotion } from "motion/react";
 
 const pages = [
   [58, 82],
@@ -28,9 +28,11 @@ const pages = [
 ] as const;
 
 const activePages = [
+  { delay: 5.4, index: 1, travel: 20 },
   { delay: 0, index: 4, travel: 22 },
   { delay: 1.8, index: 10, travel: 18 },
   { delay: 3.6, index: 18, travel: 24 },
+  { delay: 7.2, index: 22, travel: 21 },
 ] as const;
 
 export function KVFlow() {
@@ -50,7 +52,7 @@ export function KVFlow() {
         d="M26 255 C154 112 254 300 370 172 C458 76 526 124 626 54"
       />
       <path
-        className="kv-flow-path kv-flow-path-accent"
+        className="kv-flow-path kv-flow-path-accent kv-flow-path-moving"
         d="M26 255 C154 112 254 300 370 172 C458 76 526 124 626 54"
       />
 
@@ -65,30 +67,37 @@ export function KVFlow() {
           const [x, y] = pages[index];
 
           return (
-            <motion.g
+            <rect
+              className="kv-flow-moving-page"
               key={index}
-              initial={false}
-              animate={
-                prefersReducedMotion
-                  ? { opacity: 0.72, x: travel }
-                  : {
-                      opacity: [0.25, 0.95, 0.25],
-                      x: [0, travel, 0],
-                    }
-              }
-              transition={
-                prefersReducedMotion
-                  ? { duration: 0 }
-                  : {
-                      delay,
-                      duration: 7.2,
-                      ease: "easeInOut",
-                      repeat: Infinity,
-                    }
-              }
+              x={x}
+              y={y}
+              width="13"
+              height="13"
+              rx="2"
+              opacity={prefersReducedMotion ? 0.72 : 0.25}
+              transform={prefersReducedMotion ? `translate(${travel} 0)` : undefined}
             >
-              <rect x={x} y={y} width="13" height="13" rx="2" />
-            </motion.g>
+              {!prefersReducedMotion && (
+                <>
+                  <animateTransform
+                    attributeName="transform"
+                    type="translate"
+                    values={`0 0; ${travel} -8; 0 0`}
+                    begin={`${delay}s`}
+                    dur="7.2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.25; 0.95; 0.25"
+                    begin={`${delay}s`}
+                    dur="7.2s"
+                    repeatCount="indefinite"
+                  />
+                </>
+              )}
+            </rect>
           );
         })}
       </g>

@@ -4,13 +4,16 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"sort"
 	"time"
 
 	"connectrpc.com/connect"
 	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
 	"github.com/qujing226/kvtide/gen/go/kvtide/v1/kvtidev1connect"
 	"github.com/qujing226/kvtide/internal/conf"
+	"github.com/qujing226/kvtide/internal/executor"
 	"github.com/qujing226/kvtide/internal/metrics"
+	"github.com/qujing226/kvtide/internal/model"
 	"go.uber.org/zap"
 	brotli "go.withmatt.com/connect-brotli"
 	"golang.org/x/net/http2"
@@ -18,18 +21,24 @@ import (
 )
 
 type adminService struct {
-	l       *zap.SugaredLogger
-	metrics metrics.Metrics
+	l         *zap.SugaredLogger
+	metrics   metrics.Metrics
+	executors runtimeStateProvider
+}
+
+type runtimeStateProvider interface {
+	GetRuntimeStates() map[string]*model.ExecutorStats
 }
 
 type AdminServer struct {
 	Server *http.Server
 }
 
-func NewAdminService(l *zap.SugaredLogger, cfg *conf.Conf, metrics metrics.Metrics) *AdminServer {
+func NewAdminService(l *zap.SugaredLogger, cfg *conf.Conf, metrics metrics.Metrics, executors executor.Manager) *AdminServer {
 	a := &adminService{
-		l:       l,
-		metrics: metrics,
+		l:         l,
+		metrics:   metrics,
+		executors: executors,
 	}
 
 	mux := http.NewServeMux()
@@ -79,4 +88,37 @@ func (a *adminService) GetRuntimeStats(ctx context.Context, request *v1.GetRunti
 		BusyExecutors:    uint32(snapshot.BusyExecutors),
 		IdleExecutors:    uint32(snapshot.IdleExecutors),
 	}, nil
+}
+
+func (a *adminService) GetRuntimes(ctx context.Context, request *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error) {
+	states := a.executors.GetRuntimeStates()
+	executorIDs := make([]string, 0, len(states))
+	for executorID := range states {
+		executorIDs = append(executorIDs, executorID)
+	}
+	sort.Strings(executorIDs)
+
+	runtimes := make([]*v1.GetRuntimeResponse, 0, len(executorIDs))
+	for _, executorID := range executorIDs {
+		state := states[executorID]
+		runtimes = append(runtimes, &v1.GetRuntimeResponse{
+			ExecutorId:           state.ExecutorId,
+			RuntimeEpoch:         state.RuntimeEpoch,
+			ModelId:              state.ModelId,
+			ModelType:            state.ModelType,
+			Dtype:                state.Dtype,
+			DeviceType:           state.DeviceType,
+			TensorParallelSize:   state.TensorParallelSize,
+			BlockSize:            state.BlockSize,
+			NumKvBlocks:          state.NumKvBlocks,
+			NumHiddenLayers:      state.NumHiddenLayers,
+			NumKvHeads:           state.NumKvHeads,
+			HeadDim:              state.HeadDim,
+			TotalMemoryBytes:     state.TotalMemoryBytes,
+			AvailableMemoryBytes: state.AvailableMemoryBytes,
+			KvCacheBytes:         state.KVCacheBytes,
+		})
+	}
+
+	return &v1.GetRuntimesResponse{Runtimes: runtimes}, nil
 }

@@ -111,6 +111,9 @@ class AdminService(Protocol):
     async def get_runtime_stats(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
+    async def get_runtimes(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+        raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
+
 
 class AdminServiceASGIApplication(ConnectASGIApplication[AdminService]):
     def __init__(self, service: AdminService | AsyncGenerator[AdminService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
@@ -136,6 +139,16 @@ class AdminServiceASGIApplication(ConnectASGIApplication[AdminService]):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=svc.get_runtime_stats,
+                ),
+                "/kvtide.v1.AdminService/GetRuntimes": Endpoint.unary(
+                    method=MethodInfo(
+                        name="GetRuntimes",
+                        service_name="kvtide.v1.AdminService",
+                        input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+                        output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=svc.get_runtimes,
                 ),
             },
             interceptors=interceptors,
@@ -185,6 +198,26 @@ class AdminServiceClient(ConnectClient):
                 service_name="kvtide.v1.AdminService",
                 input=kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsRequest,
                 output=kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
+    async def get_runtimes(
+        self,
+        request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+        return await self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="GetRuntimes",
+                service_name="kvtide.v1.AdminService",
+                input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+                output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,
@@ -285,6 +318,8 @@ class AdminServiceSync(Protocol):
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
     def get_runtime_stats(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
+    def get_runtimes(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+        raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
 
 class AdminServiceWSGIApplication(ConnectWSGIApplication):
@@ -310,6 +345,16 @@ class AdminServiceWSGIApplication(ConnectWSGIApplication):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=service.get_runtime_stats,
+                ),
+                "/kvtide.v1.AdminService/GetRuntimes": EndpointSync.unary(
+                    method=MethodInfo(
+                        name="GetRuntimes",
+                        service_name="kvtide.v1.AdminService",
+                        input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+                        output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=service.get_runtimes,
                 ),
             },
             interceptors=interceptors,
@@ -359,6 +404,26 @@ class AdminServiceClientSync(ConnectClientSync):
                 service_name="kvtide.v1.AdminService",
                 input=kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsRequest,
                 output=kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
+    def get_runtimes(
+        self,
+        request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+        return self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="GetRuntimes",
+                service_name="kvtide.v1.AdminService",
+                input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+                output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,

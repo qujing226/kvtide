@@ -46,6 +46,9 @@ const (
 	// AdminServiceGetRuntimeStatsProcedure is the fully-qualified name of the AdminService's
 	// GetRuntimeStats RPC.
 	AdminServiceGetRuntimeStatsProcedure = "/kvtide.v1.AdminService/GetRuntimeStats"
+	// AdminServiceGetRuntimesProcedure is the fully-qualified name of the AdminService's GetRuntimes
+	// RPC.
+	AdminServiceGetRuntimesProcedure = "/kvtide.v1.AdminService/GetRuntimes"
 )
 
 // InferenceServiceClient is a client for the kvtide.v1.InferenceService service.
@@ -54,9 +57,9 @@ type InferenceServiceClient interface {
 	GenerateStream(context.Context, *v1.GenerateRequest) (*connect.ServerStreamForClient[v1.GenerateResponseChunk], error)
 }
 
-// NewInferenceServiceClient constructs a client for the kvtide.v1.InferenceService service.
-// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
-// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// NewInferenceServiceClient constructs a client for the kvtide.v1.InferenceService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
@@ -152,12 +155,13 @@ func (UnimplementedInferenceServiceHandler) GenerateStream(context.Context, *v1.
 type AdminServiceClient interface {
 	Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error)
 	GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error)
+	GetRuntimes(context.Context, *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error)
 }
 
-// NewAdminServiceClient constructs a client for the kvtide.v1.AdminService service. By
-// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
-// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
-// connect.WithGRPC() or connect.WithGRPCWeb() options.
+// NewAdminServiceClient constructs a client for the kvtide.v1.AdminService service. By default, it
+// uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses, and sends
+// uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or
+// connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
@@ -177,6 +181,12 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetRuntimeStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getRuntimes: connect.NewClient[v1.GetRuntimesRequest, v1.GetRuntimesResponse](
+			httpClient,
+			baseURL+AdminServiceGetRuntimesProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetRuntimes")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -184,6 +194,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	health          *connect.Client[v1.HealthRequest, v1.HealthResponse]
 	getRuntimeStats *connect.Client[v1.GetRuntimeStatsRequest, v1.GetRuntimeStatsResponse]
+	getRuntimes     *connect.Client[v1.GetRuntimesRequest, v1.GetRuntimesResponse]
 }
 
 // Health calls kvtide.v1.AdminService.Health.
@@ -204,10 +215,20 @@ func (c *adminServiceClient) GetRuntimeStats(ctx context.Context, req *v1.GetRun
 	return nil, err
 }
 
+// GetRuntimes calls kvtide.v1.AdminService.GetRuntimes.
+func (c *adminServiceClient) GetRuntimes(ctx context.Context, req *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error) {
+	response, err := c.getRuntimes.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
+}
+
 // AdminServiceHandler is an implementation of the kvtide.v1.AdminService service.
 type AdminServiceHandler interface {
 	Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error)
 	GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error)
+	GetRuntimes(context.Context, *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -229,12 +250,20 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetRuntimeStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	adminServiceGetRuntimesHandler := connect.NewUnaryHandlerSimple(
+		AdminServiceGetRuntimesProcedure,
+		svc.GetRuntimes,
+		connect.WithSchema(adminServiceMethods.ByName("GetRuntimes")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/kvtide.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case AdminServiceHealthProcedure:
 			adminServiceHealthHandler.ServeHTTP(w, r)
 		case AdminServiceGetRuntimeStatsProcedure:
 			adminServiceGetRuntimeStatsHandler.ServeHTTP(w, r)
+		case AdminServiceGetRuntimesProcedure:
+			adminServiceGetRuntimesHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -250,4 +279,8 @@ func (UnimplementedAdminServiceHandler) Health(context.Context, *v1.HealthReques
 
 func (UnimplementedAdminServiceHandler) GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.AdminService.GetRuntimeStats is not implemented"))
+}
+
+func (UnimplementedAdminServiceHandler) GetRuntimes(context.Context, *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.AdminService.GetRuntimes is not implemented"))
 }

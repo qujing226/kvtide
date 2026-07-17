@@ -40,15 +40,6 @@ export function SiteLayout({ children }: SiteLayoutProps) {
       </header>
 
       <main className="site-main">{children}</main>
-
-      <footer className="site-footer">
-        <strong>KVTide</strong>
-        <nav aria-label="Footer navigation">
-          <a href={docsUrl}>Docs</a>
-          <a href={githubUrl}>GitHub</a>
-        </nav>
-        <small>Copyright 2026 KVTide. MIT License.</small>
-      </footer>
     </div>
   );
 }

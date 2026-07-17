@@ -1,8 +1,18 @@
+.blog-index {
+  width: min(calc(100% - 48px), var(--page-width));
+  min-height: var(--home-screen-height);
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+  padding: clamp(28px, 4.2vh, 48px) 0;
+}
+
 .blog-empty {
-  min-height: 42svh;
+  min-height: 0;
+  flex: 1;
   display: grid;
   place-content: center;
-  margin-top: 72px;
+  margin: 0;
   color: var(--muted);
   background:
     linear-gradient(rgba(17, 19, 24, 0.035) 1px, transparent 1px),
@@ -29,7 +39,7 @@
 }
 
 .blog-list {
-  margin-top: 72px;
+  margin: 0;
   border-top: 1px solid var(--line);
 }
 
