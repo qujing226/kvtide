@@ -2,7 +2,9 @@ FROM node:24-alpine AS build
 
 WORKDIR /app
 COPY web/package.json web/package-lock.json ./
-RUN npm ci
+
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci \
 
 COPY web/ ./
 RUN npm run build
