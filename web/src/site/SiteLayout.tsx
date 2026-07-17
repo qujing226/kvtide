@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { Link, NavLink, useMatch } from "react-router";
 
 const docsUrl = "https://github.com/qujing226/kvtide#readme";
 const githubUrl = "https://github.com/qujing226/kvtide";
@@ -9,6 +9,10 @@ type SiteLayoutProps = {
 };
 
 export function SiteLayout({ children }: SiteLayoutProps) {
+  const blogIndexMatch = useMatch("/blog");
+  const blogPostMatch = useMatch("/blog/:slug");
+  const blogIsActive = Boolean(blogIndexMatch || blogPostMatch);
+
   return (
     <div className="site-shell">
       <header className="site-header">
@@ -16,15 +20,21 @@ export function SiteLayout({ children }: SiteLayoutProps) {
           KVTide
         </NavLink>
         <nav className="site-nav" aria-label="Primary navigation">
-          <a href={docsUrl} target="_blank" rel="noreferrer">
-            Docs
-          </a>
-          <NavLink to="/demo">Demo</NavLink>
-          <NavLink to="/lab">Lab</NavLink>
-          <NavLink to="/blog">Blog</NavLink>
-          <a href={githubUrl} target="_blank" rel="noreferrer">
-            GitHub
-          </a>
+          <a href={docsUrl}>Docs</a>
+          <NavLink to="/demo" end>
+            Demo
+          </NavLink>
+          <NavLink to="/lab" end>
+            Lab
+          </NavLink>
+          <Link
+            className={blogIsActive ? "active" : undefined}
+            to="/blog"
+            aria-current={blogIsActive ? "page" : undefined}
+          >
+            Blog
+          </Link>
+          <a href={githubUrl}>GitHub</a>
         </nav>
       </header>
 

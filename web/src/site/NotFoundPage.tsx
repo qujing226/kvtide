@@ -1,12 +1,15 @@
 import { Link } from "react-router";
 
-import { PageTransition } from "./PageTransition";
+import { RoutePage } from "./RoutePage";
 
-export function NotFoundPage() {
+type NotFoundPageProps = {
+  focusOnMount: boolean;
+};
+
+export function NotFoundPage({ focusOnMount }: NotFoundPageProps) {
   return (
-    <PageTransition>
-      <h1>Page not found</h1>
+    <RoutePage title="Page not found" focusOnMount={focusOnMount}>
       <Link to="/">Home</Link>
-    </PageTransition>
+    </RoutePage>
   );
 }

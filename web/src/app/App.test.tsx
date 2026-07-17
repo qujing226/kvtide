@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -41,23 +41,83 @@ describe("App", () => {
       "href",
       "https://github.com/qujing226/kvtide#readme",
     );
+    expect(within(navigation).getByRole("link", { name: "Docs" })).not.toHaveAttribute(
+      "target",
+    );
     expect(within(navigation).getByRole("link", { name: "GitHub" })).toHaveAttribute(
       "href",
       "https://github.com/qujing226/kvtide",
     );
+    expect(
+      within(navigation).getByRole("link", { name: "GitHub" }),
+    ).not.toHaveAttribute("target");
   });
 
-  it("keeps the footer mounted across routes", async () => {
+  it.each([
+    ["/demo", "Demo"],
+    ["/lab", "Lab"],
+    ["/blog", "Blog"],
+    ["/blog/paged-kv-cache", "Blog"],
+  ])("marks %s as the current navigation route", (route, linkName) => {
+    renderApp(route);
+
+    const navigation = within(screen.getByRole("banner")).getByRole("navigation");
+    expect(within(navigation).getByRole("link", { name: linkName })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
+  });
+
+  it.each([
+    "/demo/invalid",
+    "/lab/invalid",
+    "/blog/paged-kv-cache/invalid",
+  ])("does not mark %s as a current navigation route", (route) => {
+    renderApp(route);
+
+    const navigation = within(screen.getByRole("banner")).getByRole("navigation");
+    expect(
+      within(navigation).queryByRole("link", { current: "page" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Page not found" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the shell mounted and manages route focus and title", async () => {
     const user = userEvent.setup();
     renderApp("/demo");
 
+    const banner = screen.getByRole("banner");
+    const main = screen.getByRole("main");
     const footer = screen.getByRole("contentinfo");
+    const demoHeading = screen.getByRole("heading", { name: "Demo" });
+
+    expect(document.title).toBe("Demo | KVTide");
+    expect(demoHeading).not.toHaveFocus();
+
     await user.click(
-      within(screen.getByRole("banner")).getByRole("link", { name: "Lab" }),
+      within(banner).getByRole("link", { name: "Lab" }),
     );
 
-    expect(await screen.findByRole("heading", { name: "Lab" })).toBeInTheDocument();
+    const labHeading = await screen.findByRole("heading", { name: "Lab" });
+
+    expect(screen.queryByRole("heading", { name: "Demo" })).not.toBeInTheDocument();
+    await waitFor(() => expect(labHeading).toHaveFocus());
+    expect(document.title).toBe("Lab | KVTide");
+    expect(screen.getByRole("banner")).toBe(banner);
+    expect(screen.getByRole("main")).toBe(main);
     expect(screen.getByRole("contentinfo")).toBe(footer);
+
+    await user.click(within(banner).getByRole("link", { name: "Blog" }));
+
+    const blogHeading = await screen.findByRole("heading", { name: "Blog" });
+    await waitFor(() => expect(blogHeading).toHaveFocus());
+    expect(document.title).toBe("Blog | KVTide");
+    expect(within(banner).getByRole("link", { name: "Blog" })).toHaveAttribute(
+      "aria-current",
+      "page",
+    );
   });
 
   it("renders the not found page and footer for an unknown route", () => {
@@ -66,6 +126,7 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { name: "Page not found" }),
     ).toBeInTheDocument();
+    expect(document.title).toBe("Page not found | KVTide");
     expect(screen.getByRole("contentinfo")).toBeInTheDocument();
   });
 });
