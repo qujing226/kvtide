@@ -100,6 +100,9 @@ describe("App", () => {
       within(banner).getByRole("link", { name: "Lab" }),
     );
 
+    expect(screen.getByRole("heading", { name: "Demo" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Lab" })).not.toBeInTheDocument();
+
     const labHeading = await screen.findByRole("heading", { name: "Lab" });
 
     expect(screen.queryByRole("heading", { name: "Demo" })).not.toBeInTheDocument();
