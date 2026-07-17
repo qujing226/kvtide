@@ -44,6 +44,9 @@ services:
     image: kvtide-web:local
     depends_on:
       - server
+    environment:
+      KVTIDE_API_UPSTREAM: http://server:8800
+      KVTIDE_METRICS_UPSTREAM: http://server:8801
     ports:
       - "5173:5173"
     networks:

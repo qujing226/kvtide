@@ -43,19 +43,17 @@ This project is intended to make the following questions observable:
 - What does a prefix-cache hit save?
 - How does KV block pressure affect scheduling and cache eviction?
 
-It is not a model runtime and does not replace vLLM, SGLang, TensorRT-LLM, llama.cpp, or Ollama.
+KVTide includes a reference Qwen CPU executor, but it is not a replacement for optimized GPU runtimes such as vLLM, SGLang, or TensorRT-LLM.
 
-## Interactive Playground
+## Website
 
-The web interface sends real Connect RPC streaming requests to the Go control plane. It renders Markdown output, reports browser-observed request measurements, and directly scrapes Prometheus metrics for live queues, KV blocks, cache behavior, batches, work items, and latency.
+The public website is also the runtime console:
 
-![KVTide playground](./assets/front-generate.png)
+- **Demo** sends a real Connect RPC stream through the Go control plane, renders Markdown output, and shows live Prometheus queue, batch, and KV-block metrics.
+- **Lab** exposes the token-budget scheduler as a step-by-step experiment without changing production runtime state.
+- **Blog** is an empty publishing surface for future design notes.
 
-The scheduler lab visualizes one scheduling step at a time. Adjust sequence and token budgets, add prefill or decode work, and observe which items enter the selected batch and which remain queued.
-
-![KVTide scheduler lab](./assets/front-lab.png)
-
-The third page presents the benchmark profile bundled with the project.
+The browser only communicates with the Web service. Its same-origin proxy forwards the inference stream and the limited metrics endpoint to the internal Go service, so public deployments do not need to expose control-plane ports.
 
 ## Features
 
@@ -69,7 +67,7 @@ The third page presents the benchmark profile bundled with the project.
 | Prefix cache | Per-user cache salt, full-block hash matching, hit/miss counters, and saved-token metrics |
 | KV block model | Block tables, free-list reuse, cached blocks, allocation failures, and eviction counters |
 | Observability | Prometheus metrics and runtime statistics for queues, batches, requests, latency, and KV blocks |
-| Web interface | Request playground, scheduler lab, and benchmark view |
+| Web interface | Project home, live runtime demo, scheduler lab, and design blog |
 | Deployment | Docker Compose and local Kubernetes manifests for kind |
 
 ## Quick Start
@@ -182,16 +180,6 @@ cd executor
 make run
 ```
 
-Before starting the Go server, allow the local web origin in `server.toml`:
-
-```toml
-[server]
-allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-]
-```
-
 Start the Go server from the repository root in another terminal:
 
 ```bash
@@ -204,55 +192,21 @@ Start the Vite development server in a third terminal:
 make web-dev
 ```
 
-The frontend uses the browser hostname and connects directly to port `8800`, so the Go server's CORS allowlist is required in both source and container deployments.
+Vite proxies inference traffic to `127.0.0.1:8800` and metrics traffic to `127.0.0.1:8801` during local development. The browser remains on the `5173` origin, so no development CORS configuration is required.
 
 
 ## Server Deployment
 
-Assume the server IP is `192.168.1.10`.
-
-The frontend automatically sends inference requests to port `8800` on the hostname used to open the page. With the default Compose mapping, visit:
-
-```text
-http://192.168.1.10:5173
-```
-
-Allow that browser origin in [`config/compose-server.toml`](./config/compose-server.toml):
-
-```toml
-[server]
-allowedOrigins = [
-  "http://192.168.1.10:5173",
-]
-```
-
-To expose the frontend on port `8080`, change only the published port in [`docker-compose.yaml`](./docker-compose.yaml):
-
-```yaml
-web:
-  ports:
-    - "8080:5173"
-```
-
-Then update the allowed origin:
-
-```toml
-allowedOrigins = [
-  "http://192.168.1.10:8080",
-]
-```
-
-Recreate the services:
+Use the production Compose overlay when deploying to a server without a domain:
 
 ```bash
-docker compose up --build -d
+KVTIDE_WEB_PORT=80 \
+docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d
 ```
 
-Open the frontend and backend ports in the host firewall or cloud security group:
+Then open `http://<server-ip>/`. To use another public port, change only `KVTIDE_WEB_PORT`, for example `KVTIDE_WEB_PORT=8080`.
 
-- `5173` or the chosen frontend port
-- `8800` for browser-to-server inference traffic
-- `8801` only when remote metrics access is required
+The production overlay publishes only the Web service. Ports `8800`, `8801`, and `19991` remain on the private Compose network. Open only the selected Web port in the host firewall or cloud security group.
 
 
 ## Kubernetes With kind
@@ -285,7 +239,7 @@ internal/
   tokenizer/    model-aware tokenizer registry
   transport/    Connect RPC, admin, and CORS handlers
 executor/       Python executor runners
-web/            React playground, scheduler lab, and benchmark view
+web/            React website, live runtime demo, scheduler lab, and blog shell
 proto/          protobuf API definitions
 k8s/            kind cluster configuration and Kubernetes manifests
 docs/           historical summaries and benchmark reports
@@ -304,6 +258,12 @@ The repository focuses on the serving control plane. It does not implement:
 - full OpenAI API compatibility
 
 These concerns belong to inference engines or production platforms. KVTide models the orchestration around execution: request lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
+
+## Vision
+
+KVTide is moving toward executor-aware KV mobility. Executors with the same model family, weights, dtype, and tensor-parallel configuration should be able to discover one another. When one executor's KV pressure becomes imbalanced, it should proactively push selected cache blocks to a compatible peer and update ownership without forcing the next request to recompute its prefix.
+
+That direction requires executor-scoped block tables, runtime-epoch recovery, placement policy, transfer protocols, and measurements that distinguish useful reuse from transfer overhead. The current one-to-one runtime is the baseline for evaluating those mechanisms rather than pretending they already exist.
 
 ## Related Systems
 

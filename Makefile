@@ -20,7 +20,7 @@ docker-save:
 	docker save -o deploy/kvtide-executor.tar kvtide-executor:local
 	docker save -o deploy/kvtide-web.tar kvtide-web:local
 
-.PHONY: test stress-test web-dev web-test web-build kube-start kube-apply kube-down kube-forward
+.PHONY: test stress-test web-dev web-test web-build docker-up-prod kube-start kube-apply kube-down kube-forward
 
 test:
 	go test ./...
@@ -36,6 +36,9 @@ web-test:
 
 web-build:
 	cd web && npm run build
+
+docker-up-prod:
+	docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d
 
 kube-start:
 	kind create cluster --name kvtide --config k8s/kind/cluster.yaml
