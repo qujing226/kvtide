@@ -1,7 +1,11 @@
 # KVTide
 
 <p align="center">
-  <img src="./assets/logo-horizontal.svg" alt="KVTide logo" width="420" />
+  <img src="./assets/banner.svg" alt="KVTide" width="520" />
+</p>
+
+<p align="center">
+  <strong>从 runtime 出发，构建 KV-aware LLM serving。</strong>
 </p>
 
 <p align="center">
@@ -10,10 +14,6 @@
   <img src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
   <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
-</p>
-
-<p align="center">
-  <strong>一个可交互的 LLM 推理控制平面，用于研究请求生命周期、token-aware scheduling、prefix cache、KV block 管理和流式推理。</strong>
 </p>
 
 <p align="center">
@@ -28,85 +28,97 @@
 
 ---
 
-## 项目定位
+## KVTide 是什么？
 
-`kvtide` 聚焦现代 LLM serving 系统中的控制平面机制。
+KVTide 是一个将调度、请求状态和 KV cache ownership 显式化的开源 LLM serving runtime。Go 控制平面负责分词、请求生命周期、token-budget 调度、prefix cache 与 block metadata，并将结果流式返回；Python Executor 可以运行可控的 Mock workload，也可以执行真实的 Qwen Transformers CPU forward。
 
-Go server 将每个推理请求拆分为可调度的 prefill 和 decode work，在 sequence budget 与 token budget 下构建 mixed batch，模拟 prefix cache 与 KV block metadata，并将生成结果流式返回客户端。Python executor 可以运行 mock runner，也可以运行 Qwen Transformers CPU runner。
+当前 runtime 刻意保持为**一个控制平面、一个 Executor 和一个 KV block pool**。这是研究 runtime 行为的一致性基线，而不是用普通服务副本伪装分布式推理。
 
-这个项目用于观察和解释以下问题：
+> **Vision：** KV cache should move toward available compute automatically。KVTide 希望构建一个 Kubernetes-native runtime：兼容的 Executor 能够主动将可复用 KV block 推送到其他节点，并同步更新 ownership，避免后续请求重新计算 prefix。
 
-- 一个请求如何经历 queued、prefill、decode、streaming 和 cleanup？
-- 为什么 `Request` 和 `WorkItem` 是不同的对象？
-- token-aware batching 与 request-level FIFO 有什么区别？
-- TTFT 和 TBT 分别反映什么 serving 行为？
-- prefix-cache hit 实际节省了什么？
-- KV block pressure 如何影响调度和 cache eviction？
+## Runtime Console
 
-它不是模型 runtime，也不替代 vLLM、SGLang、TensorRT-LLM、llama.cpp 或 Ollama。
+Web 不是静态项目主页，而是 runtime 的交互控制台。
 
-## 交互界面
+- **Demo / Topology** 通过 `GetExecutors` 发现连接中的 Executor，并展示 model、runtime epoch、device、dtype 和 KV capacity。
+- **Demo / Request** 通过 Go 控制平面发送真实 Connect RPC 流式请求，并渲染生成的 Markdown。
+- **Demo / Metrics** 读取 Prometheus metrics，解释 queue、batch、request、latency、prefix cache 和 block pool 状态。
+- **Lab** 提供独立于真实 runtime 状态的逐步 token-budget 调度实验。
 
-Web 界面会向 Go 控制平面发送真实的 Connect RPC 流式请求，渲染 Markdown 输出，显示浏览器观测到的请求指标，并直接抓取 Prometheus metrics，展示实时队列、KV block、cache、batch、work item 和延迟数据。
+<p align="center">
+  <img src="./assets/front-topology.png" alt="KVTide runtime topology" width="920" />
+</p>
 
-![KVTide 请求体验](./assets/front-generate.png)
+<p align="center">
+  <img src="./assets/front-generate.png" alt="KVTide request demo" width="49%" />
+  <img src="./assets/front-lab.png" alt="KVTide scheduler lab" width="49%" />
+</p>
 
-调度实验室会逐步展示一次调度过程。你可以调整 sequence 和 token budget，加入 prefill 或 decode work，然后观察哪些任务进入 selected batch、哪些任务继续留在 waiting queue。
+## 当前能力
 
-![KVTide 调度实验室](./assets/front-lab.png)
-
-第三个页面展示项目内置的 benchmark profile。
-
-## 核心能力
-
-| 方向 | 当前实现 |
+| 方向 | 实现 |
 |---|---|
-| API | Connect RPC unary 与 server-streaming inference endpoints |
-| 请求生命周期 | 状态机管理 queued、prefill、decode、finished、timeout、canceled 和 failed |
-| 调度 | prefill/decode 独立队列、长短 prefill 分类、mixed batch、sequence 和 token budget |
-| 执行 | 一个 Go 控制平面连接一个 Python executor |
-| Streaming | 增量响应 chunk，并记录 TTFT、TBT、usage 和 finish reason |
-| Prefix cache | per-user cache salt、完整 block hash 匹配、hit/miss 和 saved-token metrics |
-| KV block model | block table、free-list reuse、cached blocks、allocation failure 和 eviction counter |
-| 可观测性 | Prometheus metrics 与 runtime statistics，覆盖队列、batch、请求、延迟和 KV block |
-| Web 界面 | 请求体验、调度实验室和 benchmark 页面 |
-| 部署 | Docker Compose 和基于 kind 的本地 Kubernetes manifests |
+| API | Connect RPC server-streaming inference、Executor RPC 和 Admin RPC |
+| 请求生命周期 | queued、prefill、decode、streaming、finished、timeout 和 failed 状态迁移 |
+| 调度 | prefill/decode 队列、chunked prefill、mixed work batch、sequence 与 token budget |
+| Prefix cache | user-scoped cache salt、完整 block 的链式 hash、hit/miss 与 saved-token metrics |
+| KV block | logical block table、free-list allocation、cache reuse、rollback、release 与 eviction 统计 |
+| 执行 | Mock Runner 与 Qwen3-0.6B Transformers CPU Runner |
+| KV tensor | Executor 侧 paged KV storage，以及 Hugging Face `DynamicCache` adapter |
+| Streaming | 增量文本、TTFT/TBT 观测、usage、finish reason 与错误信息 |
+| 可观测性 | Prometheus metrics 与 Executor runtime inventory |
+| 部署 | Docker Compose、低资源 Cloud Mock profile，以及面向 kind 的 Kubernetes manifests |
+
+## 架构
+
+KVTide 将用户可见的请求与一次模型执行所需的调度任务分离：
+
+- `Request` 管理输入 token、生命周期、生成结果、usage 和完成状态。
+- `WorkItem` 描述一个可调度的 prefill chunk 或 decode step。
+- `Scheduler` 在 sequence 与 token budget 下选择任务。
+- `BlockManager` 负责 prefix matching 与逻辑 KV block metadata。
+- `ExecutorManager` 将 batch 发送给已配置的 runtime。
+- `Event` 提交或回滚 block 状态，并推进请求生命周期。
+
+![KVTide 架构](./assets/Stage2_Architecture.svg)
+
+```text
+GenerateStream
+  -> model-aware tokenizer
+  -> request state manager
+  -> prefix lookup and block allocation
+  -> prefill/decode WorkItem
+  -> token-budget scheduler
+  -> executor manager
+  -> Python model runner
+  -> Event
+  -> next WorkItem or streamed completion
+  -> block release / cache retention
+```
+
+控制平面会向 Executor 传递 token IDs、block table、新分配的 block IDs、computed-token offset 和 runtime epoch。Executor 使用这些 metadata 重建历史 KV、写入新 slot，并拒绝发送给旧 runtime instance 的任务。
 
 ## 快速开始
 
-推荐使用 Docker Compose 启动完整项目：
+### 真实 Qwen CPU Executor
+
+默认 Compose 使用 CPU 运行 Qwen3-0.6B。首先下载模型：
 
 ```bash
 cd executor
 uv run hf download Qwen/Qwen3-0.6B --local-dir ./models/Qwen3-0.6B
 cd ..
+
 docker compose up --build -d
 ```
 
-该命令会启动一对一拓扑：
+访问 `http://127.0.0.1:5173`。
 
-```text
-Browser
-  -> Web container
-  -> Go control plane
-  -> Python Qwen executor
-```
-
-打开 Web 界面：
-
-```text
-http://127.0.0.1:5173
-```
-
-可用端点：
-
-| 端点 | 地址 |
+| 服务 | 地址 |
 |---|---|
-| Web 界面 | `http://127.0.0.1:5173` |
-| Inference service | `http://127.0.0.1:8800` |
-| Admin 与 Prometheus metrics | `http://127.0.0.1:8801` |
-
-检查或停止服务：
+| Web runtime console | `http://127.0.0.1:5173` |
+| Inference API | `http://127.0.0.1:8800` |
+| Admin API 与 metrics | `http://127.0.0.1:8801` |
 
 ```bash
 docker compose ps
@@ -115,147 +127,53 @@ curl http://127.0.0.1:8801/metrics
 docker compose down
 ```
 
-## 架构
+默认 Executor 使用 fp32 权重和 512 MiB KV cache budget，建议使用至少 8 GiB 内存的机器。
 
-项目将用户可见的请求生命周期与可调度的执行任务分离：
+### 低资源 Cloud Mock
 
-- `Request` 管理生命周期状态、流式输出、usage 和最终完成状态。
-- `WorkItem` 表示一个可以进入 batch 的 prefill 或 decode 单元。
-- `Scheduler` 在 sequence 和 token budget 下选择 mixed work。
-- `Event` 将 executor 结果送回生命周期状态机。
-- `BlockManager` 模拟 prefix matching、KV block allocation、reuse 和 eviction。
-- `ExecutorManager` 将 batch 分发给已配置的 executor。
+[`deploy/cloud`](./deploy/cloud) 使用一个 Mock Executor 启动完整拓扑，并且只暴露 Web 服务。该 profile 适合 2 核 2 GiB 等小型公开 Demo 服务器。
 
-![KVTide 架构](./assets/Stage2_Architecture.svg)
+在服务器上导入已打包的镜像：
 
-主要请求链路：
+```bash
+docker load -i kvtide-server.tar
+docker load -i kvtide-executor.tar
+docker load -i kvtide-web.tar
 
-```text
-GenerateRequest
-  -> Tokenizer
-  -> Request lifecycle manager
-  -> Prefix-cache lookup and KV block allocation
-  -> Prefill/decode WorkItem
-  -> Token-budget scheduler
-  -> Executor manager
-  -> Python executor
-  -> Event
-  -> Next WorkItem or final streamed response
-  -> KV block cleanup
+cd deploy/cloud
+docker compose up -d
 ```
 
-部署拓扑刻意保持为一个逻辑 server 对应一个逻辑 executor。在 Kubernetes Service 后增加 replica 只会进行网络负载均衡，并不会自动形成具备一致 KV metadata 的分布式推理引擎。
+默认镜像 tag 是 `kvtide-server:local`、`kvtide-executor:local` 和 `kvtide-web:local`。需要时可以覆盖：
 
-## Benchmark Profile
+```bash
+KVTIDE_SERVER_IMAGE=example/kvtide-server:v0.1 \
+KVTIDE_EXECUTOR_IMAGE=example/kvtide-executor:v0.1 \
+KVTIDE_WEB_IMAGE=example/kvtide-web:v0.1 \
+KVTIDE_WEB_PORT=8080 \
+docker compose up -d
+```
 
-Benchmark 使用 Python mock executor，因此结果描述的是控制平面行为，而不是真实 GPU 推理性能。
+默认访问地址是 `http://<server-ip>/`。Inference、Admin、metrics 和 Executor 端口只存在于 Compose 私有网络中。
+
+## Benchmark
+
+Benchmark 使用 Mock Executor，衡量的是控制平面行为，而不是 GPU kernel 性能。
 
 ![KVTide benchmark summary](./assets/Stage3_Benchmark_Summary.svg)
 
-内置场景覆盖 cache miss、已 warmup 的 prefix-cache user、混合 prompt 长度和 KV block pressure，用于观察 throughput、latency、TTFT、TBT、batch size、prefix hits、saved tokens 和 eviction activity 的变化。
-
-历史 benchmark 细节保留在 [`docs/benchmarks`](./docs/benchmarks)。
-
-运行快速回归 profile 或完整报告 profile：
+内置 profile 覆盖 cold prefix、已 warmup 的 user-scoped prefix、混合 prompt 长度、token-budget batching 和 KV block pressure。报告包含 throughput、平均与尾延迟、TTFT、TBT、batch size、prefix hits、saved tokens、allocation failures 和 evictions。
 
 ```bash
 make bench-quick
 make bench-report
 ```
 
-## 从源码启动
-
-推荐工具版本声明在 [`mise.toml`](./mise.toml) 中。`kubectl` 通常来自 Docker Desktop 或用户自己的 Kubernetes 环境，因此没有交给 mise 管理。
-
-安装 Web 依赖：
-
-```bash
-cd web
-npm install
-cd ..
-```
-
-启动 Python executor：
-
-```bash
-cd executor
-make run
-```
-
-启动 Go server 前，在 `server.toml` 中允许本地 Web 来源：
-
-```toml
-[server]
-allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-]
-```
-
-在另一个终端中，从仓库根目录启动 Go server：
-
-```bash
-make run
-```
-
-在第三个终端中启动 Vite 开发服务器：
-
-```bash
-make web-dev
-```
-
-前端会使用浏览器当前访问的 hostname，并直接连接该主机的 `8800` 端口，因此源码启动和容器部署都需要配置 Go server 的 CORS allowlist。
-
-## 部署
-
-假设服务器 IP 为 `192.168.1.10`。
-
-前端会自动使用当前页面的 hostname，并向该主机的 `8800` 端口发送推理请求。使用默认 Compose 端口映射时，访问：
-
-```text
-http://192.168.1.10:5173
-```
-
-在 [`config/compose-server.toml`](./config/compose-server.toml) 中允许该前端来源：
-
-```toml
-[server]
-allowedOrigins = [
-  "http://192.168.1.10:5173",
-]
-```
-
-如果希望通过 `8080` 访问前端，只需修改 [`docker-compose.yaml`](./docker-compose.yaml) 中的宿主机端口：
-
-```yaml
-web:
-  ports:
-    - "8080:5173"
-```
-
-同时更新允许来源：
-
-```toml
-allowedOrigins = [
-  "http://192.168.1.10:8080",
-]
-```
-
-重新创建服务：
-
-```bash
-docker compose up --build -d
-```
-
-服务器防火墙或云安全组需要开放：
-
-- `5173` 或自定义的前端端口
-- `8800`，用于浏览器访问 inference service
-- `8801`，仅在需要远程访问 metrics 时开放
+历史报告保留在 [`docs/benchmarks`](./docs/benchmarks)。
 
 ## 使用 kind 部署 Kubernetes
 
-构建镜像、创建本地三节点集群，并部署一对一的 server/executor 拓扑：
+Kubernetes manifests 保持相同的一对一 runtime 拓扑：
 
 ```bash
 make docker-build
@@ -263,54 +181,45 @@ make kube-start
 make kube-forward
 ```
 
-Manifests、验证命令、probe、rollout 行为和清理方式见 [`k8s/README.md`](./k8s/README.md)。
+Manifests、probe、rollout、检查命令和清理方式见 [`k8s/README.md`](./k8s/README.md)。
 
+Executor Deployment 刻意保持一个 replica。在 Kubernetes Service 后添加 replica 只会负载均衡 batch，无法维持 Executor 本地 KV ownership。
 
-## 项目结构
+## 范围与边界
 
-```text
-cmd/
-  bench/        benchmark CLI
-  client/       inference、executor 和 admin clients
-  server/       Go 控制平面进程
-internal/
-  block/        prefix matching、KV block table、reuse 和 eviction
-  executor/     executor manager 与 Connect backend
-  handler/      request admission 与 streaming output
-  metrics/      Prometheus metrics 与 runtime statistics
-  model/        Request、WorkItem、Event、Batch 和 block metadata
-  scheduler/    token-budget scheduler 与 prefill/decode queues
-  state/        request lifecycle state machine
-  tokenizer/    model-aware tokenizer registry
-  transport/    Connect RPC、admin 与 CORS handlers
-executor/       Python executor runners
-web/            React 请求体验、调度实验室和 benchmark 页面
-proto/          protobuf API definitions
-k8s/            kind cluster 配置与 Kubernetes manifests
-docs/           历史总结与 benchmark reports
-docker/         server、executor 和 web 镜像
-```
+当前已经实现：
 
-## 范围边界
+- 可运行的 Go 调度与请求生命周期控制平面
+- 真实流式 RPC 与 Prometheus 可观测性
+- model-aware Go tokenizer
+- 具备 Executor 侧 paged KV storage 的真实 CPU forward
+- 单 Executor runtime 中的 prefix cache 与 KV block ownership metadata
 
-这个仓库聚焦 serving control plane，不实现：
+尚未实现：
 
-- CUDA、PagedAttention 或 FlashAttention kernel
-- 真实 GPU KV tensor
-- tensor parallelism 或 pipeline parallelism
-- distributed KV cache
-- 生产级 autoscaling
+- CUDA、FlashAttention 或自定义 PagedAttention kernel
+- tensor、pipeline 或 expert parallelism
+- 在一次 GPU forward 中执行 mixed-phase batch
+- multi-executor block namespace 与 placement policy
+- peer-to-peer KV transfer
+- 生产级 Kubernetes Operator 或 autoscaler
 - 完整 OpenAI API 兼容
 
-这些能力属于 inference engine 或生产平台。KVTide 建模的是推理执行外围的编排机制：请求生命周期、调度、streaming、cache metadata、KV block pressure 和可观测性。
+## Roadmap：从 Ownership 到 Mobility
+
+下一个架构边界是 Executor-aware block ownership。只有先让每张 block table 归属于明确的 Executor 和 runtime epoch，控制平面才能在节点重启后安全恢复，或者将请求放置到多个副本。
+
+在此基础上，KVTide 才能验证核心假设：当多个兼容 Executor 使用相同 model weights、dtype 和 tensor-parallel 配置时，KV 压力过高的 Executor 应该主动将部分 block **push** 给空闲节点。控制平面需要感知新的 placement、更新 metadata，并判断复用节省的计算是否大于传输成本。
+
+这条路线需要实验数据，而不仅是实现功能。后续应对比 recomputation、local reuse 和 remote transfer 对 TTFT、TBT、throughput、transfer bandwidth、cache pressure 和 tail latency 的影响。
 
 ## 相关系统
 
 - [vLLM](https://github.com/vllm-project/vllm)
 - [SGLang](https://github.com/sgl-project/sglang)
+- [LMCache](https://github.com/LMCache/LMCache)
 - [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)
-- [Ollama](https://github.com/ollama/ollama)
 
 ## License
 
