@@ -19,6 +19,7 @@ dist
 
 superpowers
 .superpowers
+.worktrees
 
 nano-vllm
 models
