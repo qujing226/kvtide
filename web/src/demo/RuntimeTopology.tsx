@@ -67,6 +67,7 @@ export function RuntimeTopology({
   return (
     <div
       className="runtime-topology"
+      data-snap-ignore
       data-active={active}
       data-scale={view.scale.toFixed(2)}
       data-testid="runtime-topology"
@@ -89,15 +90,14 @@ export function RuntimeTopology({
         <title id="topology-title">KVTide runtime topology</title>
         <desc id="topology-description">Drag to pan and use the controls or wheel to zoom.</desc>
         <g transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}>
-          <path className="topology-link-base" d="M 338 215 H 622" />
-          <path className="topology-link-flow" d="M 338 215 H 622" />
-          {active && <circle className="topology-packet" r="6" cy="215"><animate attributeName="cx" values="338;622" dur="1.5s" repeatCount="indefinite" /></circle>}
+          <path className="topology-link-base" d="M 354 215 H 606" />
+          <path className="topology-link-flow" d="M 354 215 H 606" />
+          {active && <circle className="topology-packet" r="6" cy="215"><animate attributeName="cx" values="354;606" dur="1.5s" repeatCount="indefinite" /></circle>}
 
           <g className="topology-engine-node">
-            <rect x="122" y="154" width="216" height="122" rx="14" />
-            <text className="topology-node-kicker" x="150" y="186">CONTROL PLANE</text>
-            <text className="topology-node-title" x="150" y="222">Engine</text>
-            <text className="topology-node-detail" x="150" y="250">schedule · blocks · stream</text>
+            <rect x="118" y="159" width="236" height="112" rx="18" />
+            <circle className="topology-status-dot is-engine" cx="322" cy="183" r="5" />
+            <text className="topology-node-title" x="150" y="225">Engine</text>
           </g>
 
           <g
@@ -108,12 +108,14 @@ export function RuntimeTopology({
             onClick={() => runtime && onSelectExecutor(runtime.executorId)}
             onKeyDown={selectWithKeyboard}
           >
-            <rect x="622" y="154" width="216" height="122" rx="14" />
-            <text className="topology-node-kicker" x="650" y="186">MODEL RUNTIME</text>
-            <text className="topology-node-title" x="650" y="222">Executor</text>
-            <text className="topology-node-detail" x="650" y="250">
-              {runtime ? `${runtime.modelType} · ${runtime.deviceType}` : "disconnected"}
-            </text>
+            <rect x="606" y="159" width="236" height="112" rx="18" />
+            <circle className={`topology-status-dot${runtime ? " is-live" : ""}`} cx="810" cy="183" r="5" />
+            <text className="topology-node-title" x="638" y="215">Executor</text>
+            {runtime && (
+              <text className="topology-node-detail" x="638" y="243">
+                {runtime.executorId}
+              </text>
+            )}
           </g>
         </g>
       </svg>

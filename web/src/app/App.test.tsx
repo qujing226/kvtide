@@ -21,9 +21,14 @@ describe("App", () => {
     const navigation = within(banner).getByRole("navigation");
 
     expect(navigation).toBeVisible();
-    expect(within(banner).getByRole("link", { name: "KVTide" })).toHaveAttribute(
+    const brandLink = within(banner).getByRole("link", { name: "KVTide" });
+    expect(brandLink).toHaveAttribute(
       "href",
       "/",
+    );
+    expect(within(brandLink).getByRole("img", { name: "KVTide" })).toHaveAttribute(
+      "src",
+      "/banner.svg",
     );
     expect(within(navigation).getByRole("link", { name: "Demo" })).toHaveAttribute(
       "href",

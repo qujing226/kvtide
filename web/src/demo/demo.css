@@ -111,11 +111,10 @@
   min-height: 0;
   overflow: hidden;
   background:
-    linear-gradient(rgba(17, 19, 24, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(17, 19, 24, 0.035) 1px, transparent 1px),
+    radial-gradient(circle, rgba(87, 98, 116, 0.2) 0.8px, transparent 0.9px),
     radial-gradient(circle at 52% 45%, rgba(50, 102, 213, 0.055), transparent 38%),
     #f9fafb;
-  background-size: 24px 24px, 24px 24px, auto, auto;
+  background-size: 22px 22px, auto, auto;
   border: 1px solid var(--line);
   cursor: grab;
   user-select: none;
@@ -141,6 +140,7 @@
   display: flex;
   background: rgba(255, 255, 255, 0.82);
   border: 1px solid var(--line);
+  border-radius: 10px;
   box-shadow: 0 8px 24px rgba(40, 58, 84, 0.06);
   backdrop-filter: blur(14px);
 }
@@ -194,10 +194,11 @@
 
 .topology-engine-node rect,
 .topology-executor-node rect {
-  fill: rgba(255, 255, 255, 0.96);
-  stroke: #cbd1da;
-  stroke-width: 1.5;
-  filter: drop-shadow(0 16px 22px rgba(28, 37, 52, 0.07));
+  fill: rgba(255, 255, 255, 0.97);
+  stroke: #d7dce4;
+  stroke-width: 1.25;
+  filter: drop-shadow(0 14px 24px rgba(28, 37, 52, 0.08));
+  transition: fill 180ms ease, stroke 180ms ease, filter 180ms ease;
 }
 
 .topology-executor-node[role="button"] {
@@ -213,6 +214,7 @@
 
 .topology-executor-node.is-selected rect {
   fill: #f7faff;
+  filter: drop-shadow(0 16px 28px rgba(50, 102, 213, 0.14));
 }
 
 .topology-executor-node.is-offline rect {
@@ -220,27 +222,33 @@
   stroke-dasharray: 5 5;
 }
 
-.topology-node-kicker {
-  fill: var(--accent);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-weight: 560;
-  letter-spacing: 0.12em;
-}
-
 .topology-node-title {
   fill: var(--ink);
   font-family: var(--font-sans);
-  font-size: 26px;
-  font-weight: 540;
+  font-size: 27px;
+  font-weight: 560;
   letter-spacing: -0.04em;
 }
 
 .topology-node-detail {
   fill: var(--muted);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.02em;
+}
+
+.topology-status-dot {
+  fill: #aeb6c2;
+}
+
+.topology-status-dot.is-engine {
+  fill: var(--accent);
+  filter: drop-shadow(0 0 5px rgba(50, 102, 213, 0.4));
+}
+
+.topology-status-dot.is-live {
+  fill: #2e9a69;
+  filter: drop-shadow(0 0 5px rgba(46, 154, 105, 0.42));
 }
 
 .topology-hint {

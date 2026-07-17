@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { Link } from "react-router";
 
 import { PageTransition } from "../site/PageTransition";
+import { SnapScroller } from "../site/SnapScroller";
 import { KVFlow } from "./KVFlow";
 import { KVTransfer } from "./KVTransfer";
 
@@ -24,9 +25,9 @@ export function HomePage({ focusOnMount }: HomePageProps) {
 
   return (
     <PageTransition>
-      <div className="home-page home-scroll-container">
-        <section className="home-intro home-screen" aria-labelledby="home-title">
-          <div className="home-intro-copy">
+      <SnapScroller className="home-page home-scroll-container">
+        <section className="home-intro home-screen" data-snap-screen aria-labelledby="home-title">
+          <div className="home-intro-copy" data-reveal="1">
             <p className="home-eyebrow">OPEN INFERENCE RUNTIME</p>
             <h1 id="home-title" ref={headingRef} tabIndex={-1}>
               KVTide
@@ -46,19 +47,19 @@ export function HomePage({ focusOnMount }: HomePageProps) {
             </div>
           </div>
 
-          <div className="home-visual">
+          <div className="home-visual" data-reveal="2">
             <KVFlow />
           </div>
         </section>
 
-        <section className="home-vision home-screen" aria-labelledby="vision-title">
-          <div className="home-vision-mark">
+        <section className="home-vision home-screen" data-snap-screen aria-labelledby="vision-title">
+          <div className="home-vision-mark" data-reveal="1">
             <p className="home-vision-title">VISION</p>
             <KVTransfer />
           </div>
-          <div className="home-vision-copy">
+          <div className="home-vision-copy" data-reveal="2">
             <h2 id="vision-title">
-              KV cache should automatically move toward available compute.
+              KV cache should move toward available compute automatically.
             </h2>
             <p>
               KVTide is working toward a runtime where compatible executors can
@@ -67,7 +68,7 @@ export function HomePage({ focusOnMount }: HomePageProps) {
             </p>
           </div>
         </section>
-      </div>
+      </SnapScroller>
     </PageTransition>
   );
 }

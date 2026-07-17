@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { PageTransition } from "../site/PageTransition";
+import { SnapScroller } from "../site/SnapScroller";
 import { SchedulerLab } from "./SchedulerLab";
 import "./lab.css";
 
@@ -21,16 +22,16 @@ export function LabPage({ focusOnMount }: LabPageProps) {
 
   return (
     <PageTransition>
-      <div className="lab-scroll-container">
-        <section className="lab-screen" aria-labelledby="scheduler-lab-title">
-          <div className="scheduler-heading">
+      <SnapScroller className="lab-scroll-container">
+        <section className="lab-screen" data-snap-screen aria-labelledby="scheduler-lab-title">
+          <div className="scheduler-heading" data-reveal="1">
             <h1 id="scheduler-lab-title" ref={headingRef} tabIndex={-1}>
               schedule · step mode
             </h1>
           </div>
           <SchedulerLab />
         </section>
-      </div>
+      </SnapScroller>
     </PageTransition>
   );
 }

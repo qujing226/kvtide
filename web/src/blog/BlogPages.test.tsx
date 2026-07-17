@@ -16,12 +16,14 @@ const fixture: BlogEntry = {
 
 describe("Blog pages", () => {
   it("keeps the public index empty until authored entries are registered", () => {
-    render(<BlogIndexPage focusOnMount={false} />);
+    const { container } = render(<BlogIndexPage focusOnMount={false} />);
 
     expect(screen.queryByRole("heading", { name: "Blog" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Blog" })).toBeInTheDocument();
     expect(screen.getByText("No entries yet.")).toBeInTheDocument();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    expect(container.querySelector(".blog-scroll-container")).toBeInTheDocument();
+    expect(container.querySelector(".blog-index[data-snap-screen]")).toHaveClass("is-snap-active");
   });
 
   it("renders a registered Markdown entry", () => {

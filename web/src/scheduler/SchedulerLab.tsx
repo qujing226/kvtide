@@ -271,7 +271,7 @@ export function SchedulerLab() {
   };
 
   return (
-    <div className="page scheduler-page">
+    <div className="page scheduler-page" data-reveal="2">
       <section className="scheduler-layout">
         <aside className="control-panel">
           <div className="section-kicker">BUDGET</div>

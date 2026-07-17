@@ -24,6 +24,26 @@ const runtime: RuntimeInfo = {
 };
 
 describe("RuntimeTopology", () => {
+  it("keeps the topology cards focused on engine and executor identity", () => {
+    render(
+      <RuntimeTopology
+        active={false}
+        runtimes={[runtime]}
+        selectedExecutor={null}
+        onSelectExecutor={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByTestId("runtime-topology")).toHaveAttribute("data-snap-ignore");
+    expect(screen.getByText("Engine")).toBeInTheDocument();
+    expect(screen.getByText("Executor")).toBeInTheDocument();
+    expect(screen.getByText("executor-qwen")).toBeInTheDocument();
+    expect(screen.queryByText("CONTROL PLANE")).not.toBeInTheDocument();
+    expect(screen.queryByText("MODEL RUNTIME")).not.toBeInTheDocument();
+    expect(screen.queryByText("schedule · blocks · stream")).not.toBeInTheDocument();
+    expect(document.querySelectorAll(".topology-status-dot")).toHaveLength(2);
+  });
+
   it("zooms, resets, and exposes the executor as an interactive node", async () => {
     const user = userEvent.setup();
     const onSelectExecutor = vi.fn();

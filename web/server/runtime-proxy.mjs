@@ -2,7 +2,7 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 
 const generatePath = "/kvtide.v1.InferenceService/GenerateStream";
-const getRuntimesPath = "/kvtide.v1.AdminService/GetRuntimes";
+const getExecutorsPath = "/kvtide.v1.AdminService/GetExecutors";
 const metricsPath = "/api/metrics";
 const requestHeaders = [
   "content-type",
@@ -205,7 +205,7 @@ export function createRuntimeProxy({
   return async function proxyRuntimeRequest(request, response) {
     const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
     const isInference = pathname === generatePath;
-    const isRuntimeInventory = pathname === getRuntimesPath;
+    const isRuntimeInventory = pathname === getExecutorsPath;
     const isMetrics = pathname === metricsPath;
     if (!isInference && !isRuntimeInventory && !isMetrics) return false;
 
@@ -245,7 +245,7 @@ export function createRuntimeProxy({
       }
       forward(request, response, {
         upstream: metrics,
-        path: getRuntimesPath,
+        path: getExecutorsPath,
         method: "POST",
         body: body.body,
       });

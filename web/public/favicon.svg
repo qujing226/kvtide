@@ -1,14 +1,16 @@
-<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="256" height="256" rx="40" fill="#F7FBFC"/>
-  <g transform="rotate(-10 128 128)">
-    <rect x="43" y="85" width="60" height="20" rx="8" fill="#102A43"/>
-    <rect x="34" y="118" width="68" height="20" rx="8" fill="#102A43"/>
-    <rect x="47" y="150" width="57" height="20" rx="8" fill="#102A43"/>
-    <path d="M188 131H209" stroke="#102A43" stroke-width="8" stroke-linecap="round"/>
-    <circle cx="215" cy="131" r="6" fill="#102A43"/>
-    <rect x="107" y="93" width="76" height="56" rx="16" fill="#D94F1E"/>
-    <rect x="116" y="104" width="76" height="56" rx="16" fill="#E96132"/>
-    <path d="M142 124H170" stroke="#FFF8F0" stroke-width="6" stroke-linecap="round"/>
-    <path d="M140 138H172" stroke="#FFF8F0" stroke-width="6" stroke-linecap="round"/>
-  </g>
+<svg viewBox="300 180 1020 1020" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xml:space="preserve">
+<defs>
+<linearGradient x1="1072.75" y1="1254" x2="1072.75" y2="2348.5" gradientUnits="userSpaceOnUse" spreadMethod="reflect" id="fill0">
+<stop offset="0" stop-color="#F0F8FD"/>
+<stop offset="0.43364" stop-color="#A02B93"/>
+<stop offset="0.74" stop-color="#74C4E9"/>
+<stop offset="0.83" stop-color="#74C4E9"/>
+<stop offset="1" stop-color="#A2D8F0"/>
+</linearGradient>
+</defs>
+<g transform="translate(-235 -880)">
+<path d="M882.968 1395.67 924.828 1395.67 924.828 1768.75 939.151 1768.45C982.353 1766.63 1021.29 1758.45 1055.97 1743.9 1095.61 1727.28 1129 1703.01 1156.17 1671.09 1183.33 1639.18 1203.96 1600.14 1218.07 1553.98 1232.17 1507.81 1239.22 1455.04 1239.22 1395.67L1281.97 1395.67C1281.97 1461.28 1273.8 1519.69 1257.48 1570.9 1241.15 1622.11 1217.18 1665.38 1185.56 1700.71 1181.61 1705.12 1177.54 1709.41 1173.37 1713.56L1160.59 1725.55 1312.25 2028.01 1262.37 2028.01 1124.38 1752.87 1118.01 1757.03C1102.85 1766.31 1086.7 1774.4 1069.55 1781.31 1029.55 1797.41 984.432 1806.47 934.2 1808.49L924.828 1808.67 924.828 2028.01 882.968 2028.01Z" fill="url(#fill0)" fill-rule="evenodd"/>
+<text fill="#000000" fill-opacity="0" font-family="Arial,Arial_MSFontService,sans-serif" font-size="632.344" x="882.968" y="1948.97">K</text>
+<text font-family="Cascadia Code ExtraLight,Cascadia Code ExtraLight_MSFontService,sans-serif" font-weight="200" font-size="912" transform="matrix(1 0 0 1 783.484 2028)">K</text>
+</g>
 </svg>

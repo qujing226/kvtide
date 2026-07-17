@@ -101,12 +101,12 @@ class GetRuntimeStatsResponse(_message.Message):
     idle_executors: int
     def __init__(self, prefill_queue_len: _Optional[int] = ..., decode_queue_len: _Optional[int] = ..., inflight_requests: _Optional[int] = ..., inflight_batches: _Optional[int] = ..., busy_executors: _Optional[int] = ..., idle_executors: _Optional[int] = ...) -> None: ...
 
-class GetRuntimesRequest(_message.Message):
+class GetExecutorsRequest(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
-class GetRuntimesResponse(_message.Message):
-    __slots__ = ("runtimes",)
-    RUNTIMES_FIELD_NUMBER: _ClassVar[int]
-    runtimes: _containers.RepeatedCompositeFieldContainer[_executor_pb2.GetRuntimeResponse]
-    def __init__(self, runtimes: _Optional[_Iterable[_Union[_executor_pb2.GetRuntimeResponse, _Mapping]]] = ...) -> None: ...
+class GetExecutorsResponse(_message.Message):
+    __slots__ = ("executors",)
+    EXECUTORS_FIELD_NUMBER: _ClassVar[int]
+    executors: _containers.RepeatedCompositeFieldContainer[_executor_pb2.GetRuntimeResponse]
+    def __init__(self, executors: _Optional[_Iterable[_Union[_executor_pb2.GetRuntimeResponse, _Mapping]]] = ...) -> None: ...

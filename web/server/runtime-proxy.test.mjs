@@ -11,7 +11,7 @@ import { createRuntimeProxy } from "./runtime-proxy.mjs";
 import { createWebServer } from "../server.mjs";
 
 const generatePath = "/kvtide.v1.InferenceService/GenerateStream";
-const getRuntimesPath = "/kvtide.v1.AdminService/GetRuntimes";
+const getExecutorsPath = "/kvtide.v1.AdminService/GetExecutors";
 const servers = new Set();
 const temporaryDirectories = new Set();
 
@@ -201,7 +201,7 @@ describe("createRuntimeProxy", () => {
     expect(result.headers["content-type"]).toBe("text/plain; version=0.0.4");
   });
 
-  it("forwards GetRuntimes to the admin upstream", async () => {
+  it("forwards GetExecutors to the admin upstream", async () => {
     let received;
     const api = await listen((_request, response) => response.end());
     const admin = await listen((request, response) => {
@@ -214,7 +214,7 @@ describe("createRuntimeProxy", () => {
           body: Buffer.concat(chunks).toString(),
         };
         response.writeHead(200, { "content-type": "application/json" });
-        response.end('{"runtimes":[]}');
+        response.end('{"executors":[]}');
       });
     });
     const proxy = await listenProxy({
@@ -224,7 +224,7 @@ describe("createRuntimeProxy", () => {
 
     const result = await collectResponse(proxy.origin, {
       method: "POST",
-      path: getRuntimesPath,
+      path: getExecutorsPath,
       body: "{}",
       headers: {
         "content-type": "application/json",
@@ -234,10 +234,10 @@ describe("createRuntimeProxy", () => {
 
     expect(received).toEqual({
       method: "POST",
-      url: getRuntimesPath,
+      url: getExecutorsPath,
       body: "{}",
     });
-    expect(result).toMatchObject({ statusCode: 200, body: '{"runtimes":[]}' });
+    expect(result).toMatchObject({ statusCode: 200, body: '{"executors":[]}' });
   });
 
   it("returns false outside the public runtime boundary", async () => {

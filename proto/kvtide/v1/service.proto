@@ -13,7 +13,7 @@ service InferenceService {
 service AdminService{
   rpc Health(HealthRequest) returns (HealthResponse);
   rpc GetRuntimeStats(GetRuntimeStatsRequest) returns (GetRuntimeStatsResponse);
-  rpc GetRuntimes(GetRuntimesRequest) returns (GetRuntimesResponse);
+  rpc GetExecutors(GetExecutorsRequest) returns (GetExecutorsResponse);
 }
 
 message GenerateRequest{
@@ -64,8 +64,8 @@ message GetRuntimeStatsResponse{
   uint32 idle_executors = 6;
 }
 
-message GetRuntimesRequest{}
+message GetExecutorsRequest{}
 
-message GetRuntimesResponse{
-  repeated GetRuntimeResponse runtimes = 1;
+message GetExecutorsResponse{
+  repeated GetRuntimeResponse executors = 1;
 }

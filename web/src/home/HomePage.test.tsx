@@ -59,7 +59,7 @@ describe("HomePage", () => {
     expect(screen.queryByText(/latest designs/i)).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", {
-        name: "KV cache should automatically move toward available compute.",
+        name: "KV cache should move toward available compute automatically.",
       }),
     ).toBeInTheDocument();
   });
@@ -96,6 +96,8 @@ describe("HomePage", () => {
 
     expect(scrollContainer).toBeInTheDocument();
     expect(scrollContainer?.querySelectorAll(":scope > .home-screen")).toHaveLength(2);
+    expect(scrollContainer?.querySelectorAll("[data-snap-screen]")).toHaveLength(2);
+    expect(scrollContainer?.querySelectorAll("[data-reveal]")).toHaveLength(4);
     expect(document.documentElement).not.toHaveClass("home-scroll-snap");
   });
 

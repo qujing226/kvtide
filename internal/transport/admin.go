@@ -90,7 +90,7 @@ func (a *adminService) GetRuntimeStats(ctx context.Context, request *v1.GetRunti
 	}, nil
 }
 
-func (a *adminService) GetRuntimes(ctx context.Context, request *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error) {
+func (a *adminService) GetExecutors(ctx context.Context, request *v1.GetExecutorsRequest) (*v1.GetExecutorsResponse, error) {
 	states := a.executors.GetRuntimeStates()
 	executorIDs := make([]string, 0, len(states))
 	for executorID := range states {
@@ -98,10 +98,10 @@ func (a *adminService) GetRuntimes(ctx context.Context, request *v1.GetRuntimesR
 	}
 	sort.Strings(executorIDs)
 
-	runtimes := make([]*v1.GetRuntimeResponse, 0, len(executorIDs))
+	executors := make([]*v1.GetRuntimeResponse, 0, len(executorIDs))
 	for _, executorID := range executorIDs {
 		state := states[executorID]
-		runtimes = append(runtimes, &v1.GetRuntimeResponse{
+		executors = append(executors, &v1.GetRuntimeResponse{
 			ExecutorId:           state.ExecutorId,
 			RuntimeEpoch:         state.RuntimeEpoch,
 			ModelId:              state.ModelId,
@@ -120,5 +120,5 @@ func (a *adminService) GetRuntimes(ctx context.Context, request *v1.GetRuntimesR
 		})
 	}
 
-	return &v1.GetRuntimesResponse{Runtimes: runtimes}, nil
+	return &v1.GetExecutorsResponse{Executors: executors}, nil
 }

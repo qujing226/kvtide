@@ -4,8 +4,8 @@ import { createConnectTransport } from "@connectrpc/connect-web";
 
 import {
   AdminService,
-  GetRuntimesRequestSchema,
-  type GetRuntimesResponse,
+  GetExecutorsRequestSchema,
+  type GetExecutorsResponse,
 } from "../gen/kvtide/v1/service_pb";
 
 export type RuntimeInfo = {
@@ -30,15 +30,15 @@ export type RuntimeInventoryClient = {
   list(): Promise<RuntimeInfo[]>;
 };
 
-type GetRuntimesRpc = () => Promise<GetRuntimesResponse>;
+type GetExecutorsRpc = () => Promise<GetExecutorsResponse>;
 
 export function createRuntimeInventoryClient(
-  getRuntimes: GetRuntimesRpc,
+  getExecutors: GetExecutorsRpc,
 ): RuntimeInventoryClient {
   return {
     async list() {
-      const response = await getRuntimes();
-      return response.runtimes.map((runtime) => ({
+      const response = await getExecutors();
+      return response.executors.map((runtime) => ({
         executorId: runtime.executorId,
         runtimeEpoch: runtime.runtimeEpoch,
         modelId: runtime.modelId,
@@ -63,5 +63,5 @@ const transport = createConnectTransport({ baseUrl: window.location.origin });
 const adminClient = createClient(AdminService, transport);
 
 export const runtimeInventoryClient = createRuntimeInventoryClient(() =>
-  adminClient.getRuntimes(create(GetRuntimesRequestSchema)),
+  adminClient.getExecutors(create(GetExecutorsRequestSchema)),
 );

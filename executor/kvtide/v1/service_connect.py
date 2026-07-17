@@ -111,7 +111,7 @@ class AdminService(Protocol):
     async def get_runtime_stats(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
-    async def get_runtimes(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+    async def get_executors(self, request: kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
 
@@ -140,15 +140,15 @@ class AdminServiceASGIApplication(ConnectASGIApplication[AdminService]):
                     ),
                     function=svc.get_runtime_stats,
                 ),
-                "/kvtide.v1.AdminService/GetRuntimes": Endpoint.unary(
+                "/kvtide.v1.AdminService/GetExecutors": Endpoint.unary(
                     method=MethodInfo(
-                        name="GetRuntimes",
+                        name="GetExecutors",
                         service_name="kvtide.v1.AdminService",
-                        input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
-                        output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
+                        input=kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest,
+                        output=kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse,
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
-                    function=svc.get_runtimes,
+                    function=svc.get_executors,
                 ),
             },
             interceptors=interceptors,
@@ -204,20 +204,20 @@ class AdminServiceClient(ConnectClient):
             timeout_ms=timeout_ms,
         )
 
-    async def get_runtimes(
+    async def get_executors(
         self,
-        request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+        request: kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest,
         *,
         headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
-    ) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+    ) -> kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse:
         return await self.execute_unary(
             request=request,
             method=MethodInfo(
-                name="GetRuntimes",
+                name="GetExecutors",
                 service_name="kvtide.v1.AdminService",
-                input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
-                output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
+                input=kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest,
+                output=kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,
@@ -318,7 +318,7 @@ class AdminServiceSync(Protocol):
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
     def get_runtime_stats(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimeStatsResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
-    def get_runtimes(self, request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+    def get_executors(self, request: kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
 
@@ -346,15 +346,15 @@ class AdminServiceWSGIApplication(ConnectWSGIApplication):
                     ),
                     function=service.get_runtime_stats,
                 ),
-                "/kvtide.v1.AdminService/GetRuntimes": EndpointSync.unary(
+                "/kvtide.v1.AdminService/GetExecutors": EndpointSync.unary(
                     method=MethodInfo(
-                        name="GetRuntimes",
+                        name="GetExecutors",
                         service_name="kvtide.v1.AdminService",
-                        input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
-                        output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
+                        input=kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest,
+                        output=kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse,
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
-                    function=service.get_runtimes,
+                    function=service.get_executors,
                 ),
             },
             interceptors=interceptors,
@@ -410,24 +410,23 @@ class AdminServiceClientSync(ConnectClientSync):
             timeout_ms=timeout_ms,
         )
 
-    def get_runtimes(
+    def get_executors(
         self,
-        request: kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
+        request: kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest,
         *,
         headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
-    ) -> kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse:
+    ) -> kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse:
         return self.execute_unary(
             request=request,
             method=MethodInfo(
-                name="GetRuntimes",
+                name="GetExecutors",
                 service_name="kvtide.v1.AdminService",
-                input=kvtide_dot_v1_dot_service__pb2.GetRuntimesRequest,
-                output=kvtide_dot_v1_dot_service__pb2.GetRuntimesResponse,
+                input=kvtide_dot_v1_dot_service__pb2.GetExecutorsRequest,
+                output=kvtide_dot_v1_dot_service__pb2.GetExecutorsResponse,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,
             timeout_ms=timeout_ms,
         )
-
 

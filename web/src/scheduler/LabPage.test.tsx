@@ -15,6 +15,8 @@ describe("LabPage", () => {
     expect(screen.getByRole("region", { name: "Selected batch" })).toBeInTheDocument();
     expect(container.querySelector(".lab-scroll-container")).toBeInTheDocument();
     expect(container.querySelectorAll(".lab-screen")).toHaveLength(1);
+    expect(container.querySelector(".lab-screen[data-snap-screen]")).toBeInTheDocument();
+    expect(container.querySelectorAll(".lab-screen [data-reveal]")).toHaveLength(2);
     expect(screen.queryByText("DECISION LEDGER")).not.toBeInTheDocument();
     expect(screen.queryByText(/stage\s*3/i)).not.toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/[\u4e00-\u9fff]/);

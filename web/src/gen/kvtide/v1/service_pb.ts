@@ -14,7 +14,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kvtide/v1/service.proto.
  */
 export const file_kvtide_v1_service: GenFile = /*@__PURE__*/
-  fileDesc("ChdrdnRpZGUvdjEvc2VydmljZS5wcm90bxIJa3Z0aWRlLnYxIucBCg9HZW5lcmF0ZVJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhAKCG1vZGVsX2lkGAMgASgJEg4KBnByb21wdBgEIAEoCRISCgptYXhfdG9rZW5zGAUgASgNEhIKCnRpbWVvdXRfbXMYBiABKA0SNgoGbGFiZWxzGAogAygLMiYua3Z0aWRlLnYxLkdlbmVyYXRlUmVxdWVzdC5MYWJlbHNFbnRyeRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoACChBHZW5lcmF0ZVJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSEwoLb3V0cHV0X3RleHQYAiABKAkSLgoNZmluaXNoX3JlYXNvbhgDIAEoDjIXLmt2dGlkZS52MS5GaW5pc2hSZWFzb24SHwoFdXNhZ2UYBCABKAsyEC5rdnRpZGUudjEuVXNhZ2USIQoGdGltaW5nGAUgASgLMhEua3Z0aWRlLnYxLlRpbWluZxIjCgViYXRjaBgGIAEoCzIULmt2dGlkZS52MS5CYXRjaEluZm8SEwoLZXhlY3V0b3JfaWQYByABKAkSFQoNZXJyb3JfbWVzc2FnZRgIIAEoCSLEAQoVR2VuZXJhdGVSZXNwb25zZUNodW5rEhIKCnJlcXVlc3RfaWQYASABKAkSDQoFaW5kZXgYAiABKA0SEgoKZGVsdGFfdGV4dBgDIAEoCRIMCgRkb25lGAQgASgIEi4KDWZpbmlzaF9yZWFzb24YBSABKA4yFy5rdnRpZGUudjEuRmluaXNoUmVhc29uEh8KBXVzYWdlGAYgASgLMhAua3Z0aWRlLnYxLlVzYWdlEhUKDWVycm9yX21lc3NhZ2UYByABKAkiDwoNSGVhbHRoUmVxdWVzdCIgCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkiGAoWR2V0UnVudGltZVN0YXRzUmVxdWVzdCKzAQoXR2V0UnVudGltZVN0YXRzUmVzcG9uc2USGQoRcHJlZmlsbF9xdWV1ZV9sZW4YASABKA0SGAoQZGVjb2RlX3F1ZXVlX2xlbhgCIAEoDRIZChFpbmZsaWdodF9yZXF1ZXN0cxgDIAEoDRIYChBpbmZsaWdodF9iYXRjaGVzGAQgASgNEhYKDmJ1c3lfZXhlY3V0b3JzGAUgASgNEhYKDmlkbGVfZXhlY3V0b3JzGAYgASgNIhQKEkdldFJ1bnRpbWVzUmVxdWVzdCJGChNHZXRSdW50aW1lc1Jlc3BvbnNlEi8KCHJ1bnRpbWVzGAEgAygLMh0ua3Z0aWRlLnYxLkdldFJ1bnRpbWVSZXNwb25zZTKpAQoQSW5mZXJlbmNlU2VydmljZRJDCghHZW5lcmF0ZRIaLmt2dGlkZS52MS5HZW5lcmF0ZVJlcXVlc3QaGy5rdnRpZGUudjEuR2VuZXJhdGVSZXNwb25zZRJQCg5HZW5lcmF0ZVN0cmVhbRIaLmt2dGlkZS52MS5HZW5lcmF0ZVJlcXVlc3QaIC5rdnRpZGUudjEuR2VuZXJhdGVSZXNwb25zZUNodW5rMAEy9QEKDEFkbWluU2VydmljZRI9CgZIZWFsdGgSGC5rdnRpZGUudjEuSGVhbHRoUmVxdWVzdBoZLmt2dGlkZS52MS5IZWFsdGhSZXNwb25zZRJYCg9HZXRSdW50aW1lU3RhdHMSIS5rdnRpZGUudjEuR2V0UnVudGltZVN0YXRzUmVxdWVzdBoiLmt2dGlkZS52MS5HZXRSdW50aW1lU3RhdHNSZXNwb25zZRJMCgtHZXRSdW50aW1lcxIdLmt2dGlkZS52MS5HZXRSdW50aW1lc1JlcXVlc3QaHi5rdnRpZGUudjEuR2V0UnVudGltZXNSZXNwb25zZWIGcHJvdG8z", [file_kvtide_v1_core, file_kvtide_v1_executor]);
+  fileDesc("ChdrdnRpZGUvdjEvc2VydmljZS5wcm90bxIJa3Z0aWRlLnYxIucBCg9HZW5lcmF0ZVJlcXVlc3QSEgoKcmVxdWVzdF9pZBgBIAEoCRIPCgd1c2VyX2lkGAIgASgJEhAKCG1vZGVsX2lkGAMgASgJEg4KBnByb21wdBgEIAEoCRISCgptYXhfdG9rZW5zGAUgASgNEhIKCnRpbWVvdXRfbXMYBiABKA0SNgoGbGFiZWxzGAogAygLMiYua3Z0aWRlLnYxLkdlbmVyYXRlUmVxdWVzdC5MYWJlbHNFbnRyeRotCgtMYWJlbHNFbnRyeRILCgNrZXkYASABKAkSDQoFdmFsdWUYAiABKAk6AjgBIoACChBHZW5lcmF0ZVJlc3BvbnNlEhIKCnJlcXVlc3RfaWQYASABKAkSEwoLb3V0cHV0X3RleHQYAiABKAkSLgoNZmluaXNoX3JlYXNvbhgDIAEoDjIXLmt2dGlkZS52MS5GaW5pc2hSZWFzb24SHwoFdXNhZ2UYBCABKAsyEC5rdnRpZGUudjEuVXNhZ2USIQoGdGltaW5nGAUgASgLMhEua3Z0aWRlLnYxLlRpbWluZxIjCgViYXRjaBgGIAEoCzIULmt2dGlkZS52MS5CYXRjaEluZm8SEwoLZXhlY3V0b3JfaWQYByABKAkSFQoNZXJyb3JfbWVzc2FnZRgIIAEoCSLEAQoVR2VuZXJhdGVSZXNwb25zZUNodW5rEhIKCnJlcXVlc3RfaWQYASABKAkSDQoFaW5kZXgYAiABKA0SEgoKZGVsdGFfdGV4dBgDIAEoCRIMCgRkb25lGAQgASgIEi4KDWZpbmlzaF9yZWFzb24YBSABKA4yFy5rdnRpZGUudjEuRmluaXNoUmVhc29uEh8KBXVzYWdlGAYgASgLMhAua3Z0aWRlLnYxLlVzYWdlEhUKDWVycm9yX21lc3NhZ2UYByABKAkiDwoNSGVhbHRoUmVxdWVzdCIgCg5IZWFsdGhSZXNwb25zZRIOCgZzdGF0dXMYASABKAkiGAoWR2V0UnVudGltZVN0YXRzUmVxdWVzdCKzAQoXR2V0UnVudGltZVN0YXRzUmVzcG9uc2USGQoRcHJlZmlsbF9xdWV1ZV9sZW4YASABKA0SGAoQZGVjb2RlX3F1ZXVlX2xlbhgCIAEoDRIZChFpbmZsaWdodF9yZXF1ZXN0cxgDIAEoDRIYChBpbmZsaWdodF9iYXRjaGVzGAQgASgNEhYKDmJ1c3lfZXhlY3V0b3JzGAUgASgNEhYKDmlkbGVfZXhlY3V0b3JzGAYgASgNIhUKE0dldEV4ZWN1dG9yc1JlcXVlc3QiSAoUR2V0RXhlY3V0b3JzUmVzcG9uc2USMAoJZXhlY3V0b3JzGAEgAygLMh0ua3Z0aWRlLnYxLkdldFJ1bnRpbWVSZXNwb25zZTKpAQoQSW5mZXJlbmNlU2VydmljZRJDCghHZW5lcmF0ZRIaLmt2dGlkZS52MS5HZW5lcmF0ZVJlcXVlc3QaGy5rdnRpZGUudjEuR2VuZXJhdGVSZXNwb25zZRJQCg5HZW5lcmF0ZVN0cmVhbRIaLmt2dGlkZS52MS5HZW5lcmF0ZVJlcXVlc3QaIC5rdnRpZGUudjEuR2VuZXJhdGVSZXNwb25zZUNodW5rMAEy+AEKDEFkbWluU2VydmljZRI9CgZIZWFsdGgSGC5rdnRpZGUudjEuSGVhbHRoUmVxdWVzdBoZLmt2dGlkZS52MS5IZWFsdGhSZXNwb25zZRJYCg9HZXRSdW50aW1lU3RhdHMSIS5rdnRpZGUudjEuR2V0UnVudGltZVN0YXRzUmVxdWVzdBoiLmt2dGlkZS52MS5HZXRSdW50aW1lU3RhdHNSZXNwb25zZRJPCgxHZXRFeGVjdXRvcnMSHi5rdnRpZGUudjEuR2V0RXhlY3V0b3JzUmVxdWVzdBofLmt2dGlkZS52MS5HZXRFeGVjdXRvcnNSZXNwb25zZUKZAQoNY29tLmt2dGlkZS52MUIMU2VydmljZVByb3RvUAFaNWdpdGh1Yi5jb20vcXVqaW5nMjI2L2t2dGlkZS9nZW4vZ28va3Z0aWRlL3YxO2t2dGlkZXYxogIDS1hYqgIJS3Z0aWRlLlYxygIJS3Z0aWRlXFYx4gIVS3Z0aWRlXFYxXEdQQk1ldGFkYXRh6gIKS3Z0aWRlOjpWMWIGcHJvdG8z", [file_kvtide_v1_core, file_kvtide_v1_executor]);
 
 /**
  * @generated from message kvtide.v1.GenerateRequest
@@ -250,33 +250,33 @@ export const GetRuntimeStatsResponseSchema: GenMessage<GetRuntimeStatsResponse> 
   messageDesc(file_kvtide_v1_service, 6);
 
 /**
- * @generated from message kvtide.v1.GetRuntimesRequest
+ * @generated from message kvtide.v1.GetExecutorsRequest
  */
-export type GetRuntimesRequest = Message<"kvtide.v1.GetRuntimesRequest"> & {
+export type GetExecutorsRequest = Message<"kvtide.v1.GetExecutorsRequest"> & {
 };
 
 /**
- * Describes the message kvtide.v1.GetRuntimesRequest.
- * Use `create(GetRuntimesRequestSchema)` to create a new message.
+ * Describes the message kvtide.v1.GetExecutorsRequest.
+ * Use `create(GetExecutorsRequestSchema)` to create a new message.
  */
-export const GetRuntimesRequestSchema: GenMessage<GetRuntimesRequest> = /*@__PURE__*/
+export const GetExecutorsRequestSchema: GenMessage<GetExecutorsRequest> = /*@__PURE__*/
   messageDesc(file_kvtide_v1_service, 7);
 
 /**
- * @generated from message kvtide.v1.GetRuntimesResponse
+ * @generated from message kvtide.v1.GetExecutorsResponse
  */
-export type GetRuntimesResponse = Message<"kvtide.v1.GetRuntimesResponse"> & {
+export type GetExecutorsResponse = Message<"kvtide.v1.GetExecutorsResponse"> & {
   /**
-   * @generated from field: repeated kvtide.v1.GetRuntimeResponse runtimes = 1;
+   * @generated from field: repeated kvtide.v1.GetRuntimeResponse executors = 1;
    */
-  runtimes: GetRuntimeResponse[];
+  executors: GetRuntimeResponse[];
 };
 
 /**
- * Describes the message kvtide.v1.GetRuntimesResponse.
- * Use `create(GetRuntimesResponseSchema)` to create a new message.
+ * Describes the message kvtide.v1.GetExecutorsResponse.
+ * Use `create(GetExecutorsResponseSchema)` to create a new message.
  */
-export const GetRuntimesResponseSchema: GenMessage<GetRuntimesResponse> = /*@__PURE__*/
+export const GetExecutorsResponseSchema: GenMessage<GetExecutorsResponse> = /*@__PURE__*/
   messageDesc(file_kvtide_v1_service, 8);
 
 /**
@@ -323,12 +323,12 @@ export const AdminService: GenService<{
     output: typeof GetRuntimeStatsResponseSchema;
   },
   /**
-   * @generated from rpc kvtide.v1.AdminService.GetRuntimes
+   * @generated from rpc kvtide.v1.AdminService.GetExecutors
    */
-  getRuntimes: {
+  getExecutors: {
     methodKind: "unary";
-    input: typeof GetRuntimesRequestSchema;
-    output: typeof GetRuntimesResponseSchema;
+    input: typeof GetExecutorsRequestSchema;
+    output: typeof GetExecutorsResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_kvtide_v1_service, 1);

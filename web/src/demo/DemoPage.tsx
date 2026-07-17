@@ -3,6 +3,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 import { PageTransition } from "../site/PageTransition";
+import { SnapScroller } from "../site/SnapScroller";
 import { generationClient } from "./client";
 import {
   generateResponse,
@@ -91,7 +92,7 @@ function kvInsight(metrics: MetricsSnapshot | null) {
 
 function RuntimeDetails({ runtime, onClose }: { runtime: RuntimeInfo; onClose(): void }) {
   return (
-    <aside className="runtime-details" aria-label={`${runtime.executorId} runtime details`}>
+    <aside className="runtime-details" data-snap-ignore aria-label={`${runtime.executorId} runtime details`}>
       <div className="runtime-details-header">
         <div>
           <span>Executor runtime</span>
@@ -241,17 +242,17 @@ export function DemoPage({
 
   return (
     <PageTransition>
-      <div className="demo-scroll-container">
-        <section className="demo-screen demo-topology-screen" aria-labelledby="demo-topology-title">
+      <SnapScroller className="demo-scroll-container">
+        <section className="demo-screen demo-topology-screen" data-snap-screen aria-labelledby="demo-topology-title">
           <div className="demo-screen-shell">
-            <div className="demo-screen-heading">
+            <div className="demo-screen-heading" data-reveal="1">
               <div>
                 <span className="demo-index">01</span>
                 <h1 id="demo-topology-title" ref={headingRef} tabIndex={-1}>Topology</h1>
               </div>
               <span className={`demo-connection-state is-${runtimeState}`}>{runtimeState}</span>
             </div>
-            <div className={`demo-topology-layout${selectedRuntime ? " has-details" : ""}`}>
+            <div className={`demo-topology-layout${selectedRuntime ? " has-details" : ""}`} data-reveal="2">
               <RuntimeTopology
                 active={isRunning}
                 runtimes={runtimeList}
@@ -265,15 +266,15 @@ export function DemoPage({
           </div>
         </section>
 
-        <section className="demo-screen demo-request-screen" aria-labelledby="demo-request-title">
+        <section className="demo-screen demo-request-screen" data-snap-screen aria-labelledby="demo-request-title">
           <div className="demo-screen-shell demo-request-shell">
-            <div className="demo-screen-heading">
+            <div className="demo-screen-heading" data-reveal="1">
               <div>
                 <span className="demo-index">02</span>
                 <h2 id="demo-request-title">Send a request</h2>
               </div>
             </div>
-            <div className="demo-request-workspace">
+            <div className="demo-request-workspace" data-reveal="2">
               <form
                 className="demo-request-form"
                 onSubmit={(event) => {
@@ -283,6 +284,7 @@ export function DemoPage({
               >
                 <label htmlFor="demo-prompt">Prompt</label>
                 <textarea
+                  data-snap-ignore
                   id="demo-prompt"
                   value={prompt}
                   onChange={(event) => setPrompt(event.target.value)}
@@ -298,7 +300,7 @@ export function DemoPage({
                   <span>Response</span>
                   <strong>{statusLabel(generation.status)}</strong>
                 </div>
-                <div className="demo-response-body">
+                <div className="demo-response-body" data-snap-ignore>
                   {generation.text ? (
                     <Markdown remarkPlugins={[remarkGfm]}>{generation.text}</Markdown>
                   ) : (
@@ -309,7 +311,7 @@ export function DemoPage({
                 </div>
               </section>
             </div>
-            <div className="demo-request-stats" aria-label="Request measurements">
+            <div className="demo-request-stats" data-reveal="3" aria-label="Request measurements">
               <div><span>TTFT</span><strong>{generation.ttftMs == null ? "—" : `${generation.ttftMs} ms`}</strong></div>
               <div><span>Output</span><strong>{generation.outputTokens == null ? "—" : `${generation.outputTokens} tokens`}</strong></div>
               <div><span>Status</span><strong>{statusLabel(generation.status)}</strong></div>
@@ -317,16 +319,16 @@ export function DemoPage({
           </div>
         </section>
 
-        <section className="demo-screen demo-metrics-screen" aria-labelledby="demo-metrics-title">
+        <section className="demo-screen demo-metrics-screen" data-snap-screen aria-labelledby="demo-metrics-title">
           <div className="demo-screen-shell demo-metrics-shell">
-            <div className="demo-screen-heading">
+            <div className="demo-screen-heading" data-reveal="1">
               <div>
                 <span className="demo-index">03</span>
                 <h2 id="demo-metrics-title">Runtime metrics</h2>
               </div>
               <span className={`demo-connection-state is-${metricsState}`}>{metricsState}</span>
             </div>
-            <div className="demo-runtime-grid">
+            <div className="demo-runtime-grid" data-reveal="2">
               <article>
                 <span>Queues</span>
                 <strong>{liveMetrics ? `${liveMetrics.runtime.prefillQueue} P / ${liveMetrics.runtime.decodeQueue} D` : "—"}</strong>
@@ -346,14 +348,14 @@ export function DemoPage({
                 <p>{kvInsight(liveMetrics)}</p>
               </article>
             </div>
-            <div className="demo-window-grid" aria-label="Latest request metrics">
+            <div className="demo-window-grid" data-reveal="3" aria-label="Latest request metrics">
               <div><span>Prefix cache</span><strong>{prefixCache}</strong><small>Latest request</small></div>
               <div><span>Tokens saved</span><strong>{metricsWindow ? metricsWindow.tokensSaved : "—"}</strong><small>Prefix reuse</small></div>
               <div><span>Batches</span><strong>{metricsWindow ? metricsWindow.batches : "—"}</strong><small>Latest request</small></div>
             </div>
           </div>
         </section>
-      </div>
+      </SnapScroller>
     </PageTransition>
   );
 }

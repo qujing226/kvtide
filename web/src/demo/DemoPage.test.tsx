@@ -119,6 +119,8 @@ describe("DemoPage", () => {
 
     expect(screen.queryByRole("heading", { name: "Live runtime" })).not.toBeInTheDocument();
     expect(document.querySelectorAll(".demo-screen")).toHaveLength(3);
+    expect(document.querySelectorAll(".demo-screen[data-snap-screen]")).toHaveLength(3);
+    expect(document.querySelectorAll(".demo-screen [data-reveal]")).toHaveLength(8);
     expect(screen.getByRole("heading", { name: "Topology" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Send a request" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Runtime metrics" })).toBeInTheDocument();

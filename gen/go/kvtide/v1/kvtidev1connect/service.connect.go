@@ -46,9 +46,9 @@ const (
 	// AdminServiceGetRuntimeStatsProcedure is the fully-qualified name of the AdminService's
 	// GetRuntimeStats RPC.
 	AdminServiceGetRuntimeStatsProcedure = "/kvtide.v1.AdminService/GetRuntimeStats"
-	// AdminServiceGetRuntimesProcedure is the fully-qualified name of the AdminService's GetRuntimes
+	// AdminServiceGetExecutorsProcedure is the fully-qualified name of the AdminService's GetExecutors
 	// RPC.
-	AdminServiceGetRuntimesProcedure = "/kvtide.v1.AdminService/GetRuntimes"
+	AdminServiceGetExecutorsProcedure = "/kvtide.v1.AdminService/GetExecutors"
 )
 
 // InferenceServiceClient is a client for the kvtide.v1.InferenceService service.
@@ -155,7 +155,7 @@ func (UnimplementedInferenceServiceHandler) GenerateStream(context.Context, *v1.
 type AdminServiceClient interface {
 	Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error)
 	GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error)
-	GetRuntimes(context.Context, *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error)
+	GetExecutors(context.Context, *v1.GetExecutorsRequest) (*v1.GetExecutorsResponse, error)
 }
 
 // NewAdminServiceClient constructs a client for the kvtide.v1.AdminService service. By default, it
@@ -181,10 +181,10 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 			connect.WithSchema(adminServiceMethods.ByName("GetRuntimeStats")),
 			connect.WithClientOptions(opts...),
 		),
-		getRuntimes: connect.NewClient[v1.GetRuntimesRequest, v1.GetRuntimesResponse](
+		getExecutors: connect.NewClient[v1.GetExecutorsRequest, v1.GetExecutorsResponse](
 			httpClient,
-			baseURL+AdminServiceGetRuntimesProcedure,
-			connect.WithSchema(adminServiceMethods.ByName("GetRuntimes")),
+			baseURL+AdminServiceGetExecutorsProcedure,
+			connect.WithSchema(adminServiceMethods.ByName("GetExecutors")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -194,7 +194,7 @@ func NewAdminServiceClient(httpClient connect.HTTPClient, baseURL string, opts .
 type adminServiceClient struct {
 	health          *connect.Client[v1.HealthRequest, v1.HealthResponse]
 	getRuntimeStats *connect.Client[v1.GetRuntimeStatsRequest, v1.GetRuntimeStatsResponse]
-	getRuntimes     *connect.Client[v1.GetRuntimesRequest, v1.GetRuntimesResponse]
+	getExecutors    *connect.Client[v1.GetExecutorsRequest, v1.GetExecutorsResponse]
 }
 
 // Health calls kvtide.v1.AdminService.Health.
@@ -215,9 +215,9 @@ func (c *adminServiceClient) GetRuntimeStats(ctx context.Context, req *v1.GetRun
 	return nil, err
 }
 
-// GetRuntimes calls kvtide.v1.AdminService.GetRuntimes.
-func (c *adminServiceClient) GetRuntimes(ctx context.Context, req *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error) {
-	response, err := c.getRuntimes.CallUnary(ctx, connect.NewRequest(req))
+// GetExecutors calls kvtide.v1.AdminService.GetExecutors.
+func (c *adminServiceClient) GetExecutors(ctx context.Context, req *v1.GetExecutorsRequest) (*v1.GetExecutorsResponse, error) {
+	response, err := c.getExecutors.CallUnary(ctx, connect.NewRequest(req))
 	if response != nil {
 		return response.Msg, err
 	}
@@ -228,7 +228,7 @@ func (c *adminServiceClient) GetRuntimes(ctx context.Context, req *v1.GetRuntime
 type AdminServiceHandler interface {
 	Health(context.Context, *v1.HealthRequest) (*v1.HealthResponse, error)
 	GetRuntimeStats(context.Context, *v1.GetRuntimeStatsRequest) (*v1.GetRuntimeStatsResponse, error)
-	GetRuntimes(context.Context, *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error)
+	GetExecutors(context.Context, *v1.GetExecutorsRequest) (*v1.GetExecutorsResponse, error)
 }
 
 // NewAdminServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -250,10 +250,10 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 		connect.WithSchema(adminServiceMethods.ByName("GetRuntimeStats")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminServiceGetRuntimesHandler := connect.NewUnaryHandlerSimple(
-		AdminServiceGetRuntimesProcedure,
-		svc.GetRuntimes,
-		connect.WithSchema(adminServiceMethods.ByName("GetRuntimes")),
+	adminServiceGetExecutorsHandler := connect.NewUnaryHandlerSimple(
+		AdminServiceGetExecutorsProcedure,
+		svc.GetExecutors,
+		connect.WithSchema(adminServiceMethods.ByName("GetExecutors")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/kvtide.v1.AdminService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -262,8 +262,8 @@ func NewAdminServiceHandler(svc AdminServiceHandler, opts ...connect.HandlerOpti
 			adminServiceHealthHandler.ServeHTTP(w, r)
 		case AdminServiceGetRuntimeStatsProcedure:
 			adminServiceGetRuntimeStatsHandler.ServeHTTP(w, r)
-		case AdminServiceGetRuntimesProcedure:
-			adminServiceGetRuntimesHandler.ServeHTTP(w, r)
+		case AdminServiceGetExecutorsProcedure:
+			adminServiceGetExecutorsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -281,6 +281,6 @@ func (UnimplementedAdminServiceHandler) GetRuntimeStats(context.Context, *v1.Get
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.AdminService.GetRuntimeStats is not implemented"))
 }
 
-func (UnimplementedAdminServiceHandler) GetRuntimes(context.Context, *v1.GetRuntimesRequest) (*v1.GetRuntimesResponse, error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.AdminService.GetRuntimes is not implemented"))
+func (UnimplementedAdminServiceHandler) GetExecutors(context.Context, *v1.GetExecutorsRequest) (*v1.GetExecutorsResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.AdminService.GetExecutors is not implemented"))
 }

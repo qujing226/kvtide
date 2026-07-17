@@ -45,7 +45,7 @@ func TestAdminMetricsAllowsConfiguredOrigin(t *testing.T) {
 	require.Contains(t, recorder.Header().Get("Content-Type"), "text/plain")
 }
 
-func TestAdminGetRuntimesReturnsExecutorSnapshots(t *testing.T) {
+func TestAdminGetExecutorsReturnsExecutorSnapshots(t *testing.T) {
 	service := &adminService{
 		executors: runtimeStateProviderStub{states: map[string]*model.ExecutorStats{
 			"executor-qwen": {
@@ -68,11 +68,11 @@ func TestAdminGetRuntimesReturnsExecutorSnapshots(t *testing.T) {
 		}},
 	}
 
-	response, err := service.GetRuntimes(context.Background(), &v1.GetRuntimesRequest{})
+	response, err := service.GetExecutors(context.Background(), &v1.GetExecutorsRequest{})
 
 	require.NoError(t, err)
-	require.Len(t, response.Runtimes, 1)
-	runtime := response.Runtimes[0]
+	require.Len(t, response.Executors, 1)
+	runtime := response.Executors[0]
 	require.Equal(t, "executor-qwen", runtime.ExecutorId)
 	require.Equal(t, uint32(42), runtime.RuntimeEpoch)
 	require.Equal(t, "Qwen/Qwen3-0.6B", runtime.ModelId)

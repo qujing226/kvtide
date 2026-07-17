@@ -1,14 +1,14 @@
 import { create } from "@bufbuild/protobuf";
 import { describe, expect, it, vi } from "vitest";
 
-import { GetRuntimesResponseSchema } from "../gen/kvtide/v1/service_pb";
+import { GetExecutorsResponseSchema } from "../gen/kvtide/v1/service_pb";
 import { createRuntimeInventoryClient } from "./runtimes";
 
 describe("createRuntimeInventoryClient", () => {
   it("maps control-plane runtime snapshots to the topology boundary", async () => {
     const rpc = vi.fn().mockResolvedValue(
-      create(GetRuntimesResponseSchema, {
-        runtimes: [
+      create(GetExecutorsResponseSchema, {
+        executors: [
           {
             executorId: "executor-qwen",
             runtimeEpoch: 42,

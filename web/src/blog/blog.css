@@ -1,10 +1,28 @@
+.blog-scroll-container {
+  height: calc(100svh - var(--header-height));
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+}
+
+.blog-scroll-container::-webkit-scrollbar {
+  display: none;
+}
+
 .blog-index {
   width: min(calc(100% - 48px), var(--page-width));
-  min-height: var(--home-screen-height);
+  height: 100%;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
   margin: 0 auto;
   padding: clamp(28px, 4.2vh, 48px) 0;
+  overflow-y: auto;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
 }
 
 .blog-empty {
