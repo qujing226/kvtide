@@ -149,7 +149,7 @@ class QwenTransformersRunner(ModelRunner):
                     slot_mapping=slot_mapping,
                 )
             )
-            
+
         return results
 
     def _execute_one(
