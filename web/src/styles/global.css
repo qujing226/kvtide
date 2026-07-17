@@ -13,13 +13,6 @@
   --accent: #3266d5;
   --page-width: 1200px;
   --header-height: 72px;
-  --font-ui: var(--font-sans);
-  --font-display: var(--font-sans);
-  --paper: #f7f3e8;
-  --orange: #dd6b2c;
-  --green: #238363;
-  --blue: #367bb5;
-  --red: #b83e36;
 }
 
 * {
@@ -380,6 +373,34 @@ a {
 .site-footer small {
   margin-left: auto;
   font-size: inherit;
+}
+
+/* Remove these compatibility scopes as each legacy page migrates to the site theme. */
+.playground-page,
+.scheduler-page,
+.benchmark-page {
+  --font-ui:
+    "Segoe UI Variable", "Avenir Next", "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-display: var(--font-ui);
+  --font-mono:
+    "JetBrains Mono", "Cascadia Code", "SFMono-Regular", "Noto Sans Mono CJK SC",
+    "Microsoft YaHei UI", monospace;
+  --ink: #18211e;
+  --paper: #f7f3e8;
+  --orange: #dd6b2c;
+  --green: #238363;
+  --blue: #367bb5;
+  --red: #b83e36;
+  --line: rgba(24, 33, 30, 0.16);
+  --muted: #6d746e;
+  color: var(--ink);
+  background:
+    linear-gradient(rgba(24, 33, 30, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(24, 33, 30, 0.035) 1px, transparent 1px),
+    #eeeadd;
+  background-size: 32px 32px;
+  font-family: var(--font-ui);
 }
 
 .app-shell[data-language="zh"] {

@@ -123,6 +123,26 @@ describe("App", () => {
     );
   });
 
+  it("integrates the Home route with its title, content, and navigation focus", async () => {
+    const user = userEvent.setup();
+    renderApp("/demo");
+
+    await user.click(
+      within(screen.getByRole("banner")).getByRole("link", { name: "KVTide" }),
+    );
+
+    const homeHeading = await screen.findByRole("heading", {
+      level: 1,
+      name: /KV-aware LLM serving/i,
+    });
+
+    await waitFor(() => expect(homeHeading).toHaveFocus());
+    expect(document.title).toBe("KVTide");
+    expect(
+      screen.getByText(/KVTide is an open inference system for exploring scheduling/i),
+    ).toBeInTheDocument();
+  });
+
   it("renders the not found page and footer for an unknown route", () => {
     renderApp("/missing");
 

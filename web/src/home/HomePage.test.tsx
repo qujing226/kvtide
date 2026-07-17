@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { HomePage } from "./HomePage";
 
 const { reducedMotion } = vi.hoisted(() => ({
-  reducedMotion: vi.fn(() => true),
+  reducedMotion: vi.fn(),
 }));
 
 vi.mock("motion/react", async (importOriginal) => {
@@ -27,7 +27,8 @@ function renderHome() {
 
 describe("HomePage", () => {
   beforeEach(() => {
-    reducedMotion.mockReturnValue(true);
+    reducedMotion.mockReset();
+    reducedMotion.mockReturnValue(false);
   });
 
   it("introduces KVTide with the primary project actions", () => {
@@ -58,14 +59,24 @@ describe("HomePage", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders KV flow as reduced-motion decorative identity without architecture labels", () => {
+  it("renders KV flow as full-motion decorative identity without architecture labels", () => {
     const { container } = renderHome();
     const flow = container.querySelector("svg.home-kv-flow");
 
     expect(reducedMotion).toHaveBeenCalled();
     expect(flow).toHaveAttribute("aria-hidden", "true");
     expect(flow).toHaveAttribute("focusable", "false");
-    expect(flow).toHaveAttribute("data-motion", "reduced");
+    expect(flow).toHaveAttribute("data-motion", "full");
     expect(flow).not.toHaveTextContent(/server|executor|scheduler/i);
+  });
+
+  it("renders KV flow in its static settled frame with reduced motion", () => {
+    reducedMotion.mockReturnValue(true);
+
+    const { container } = renderHome();
+    const flow = container.querySelector("svg.home-kv-flow");
+
+    expect(reducedMotion).toHaveBeenCalled();
+    expect(flow).toHaveAttribute("data-motion", "reduced");
   });
 });
