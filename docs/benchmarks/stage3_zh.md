@@ -2,7 +2,7 @@
 
 [English Version](./stage3_en.md)
 
-本文记录 Mini LLM Serve 在 Stage 3 阶段的 benchmark 结果。
+本文记录 KVTide 在 Stage 3 阶段的 benchmark 结果。
 
 Stage 3 在 serving control plane 模型上补充了：
 

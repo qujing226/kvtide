@@ -1,0 +1,95 @@
+syntax = "proto3";
+
+package kvtide.v1;
+
+import "kvtide/v1/core.proto";
+import "kvtide/v1/block.proto";
+
+service ExecutorService{
+  rpc GetRuntime(GetRuntimeRequest) returns (GetRuntimeResponse);
+  rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
+  rpc ReleaseBlocks(ReleaseBlocksRequest) returns (ReleaseBlocksResponse);
+}
+
+message GetRuntimeRequest{}
+
+message GetRuntimeResponse{
+  string executor_id = 1;
+  uint32 runtime_epoch = 2;
+
+  string model_id = 3;
+  string model_type = 4;
+  string dtype = 5;
+  string device_type = 6;
+
+  uint32 tensor_parallel_size = 7;
+  uint32 block_size = 8;
+  uint32 num_kv_blocks = 9;
+
+  uint32 num_hidden_layers = 10;
+  uint32 num_kv_heads = 11;
+  uint32 head_dim = 12;
+
+  uint64 total_memory_bytes = 13;
+  uint64 available_memory_bytes = 14;
+  uint64 kv_cache_bytes = 15;
+}
+
+message ExecuteBatchRequest{
+  string batch_id = 1;
+  uint32 runtime_epoch = 2;
+  repeated ExecuteItem items = 3;
+}
+
+message ExecuteBatchResponse{
+  string batch_id = 1;
+  // executor_id is not equal with model_id, it is a abstract service name
+  // which assign to an executor instance.
+  string executor_id = 2;
+  repeated ExecuteResult results =3;
+}
+
+message ExecuteItem {
+  string work_id = 1;
+  string request_id = 2;
+  WorkPhase phase = 3;
+
+  repeated uint32 token_ids = 4;
+
+  // prefill: already computed prompt tokens
+  // decode: prompt_tokens + generated_tokens
+  uint32 computed_tokens = 5;
+  // decode only: already generated output tokens
+  uint32 generated_tokens = 6;
+  // prefill: prompt tokens to compute this
+  // decode: normally 1
+  uint32 num_new_tokens = 7;
+
+  // kv block metadata in current work.
+  KVBlockMetadata kv_blocks = 8;
+  // Whether this work should sample a token from its final logits.
+  bool sample = 9;
+}
+
+message ExecuteResult{
+  string work_id = 1;
+  string request_id =2;
+
+  uint32 token_id = 3;
+  bool done = 4;
+  FinishReason finish_reason = 5;
+
+  // delta of this execution step
+  uint32 computed_tokens = 6;
+  uint32 generated_tokens = 7;
+
+  uint32 execution_ms = 8;
+  string error_message = 9;
+}
+
+message ReleaseBlocksRequest{
+  uint32 runtime_epoch = 1;
+  repeated uint32 block_ids = 2;
+}
+
+message ReleaseBlocksResponse{}

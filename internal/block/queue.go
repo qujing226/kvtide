@@ -1,6 +1,6 @@
 package block
 
-import "github.com/qujing226/mini-llm-serve/internal/model"
+import "github.com/qujing226/kvtide/internal/model"
 
 func (m *manager) pushFree(id uint32) {
 	b := &m.blocks[id]

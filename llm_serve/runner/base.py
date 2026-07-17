@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from mini_llm_serve.v1 import executor_pb2
+from kvtide.v1 import executor_pb2
 
 
 @dataclass(frozen=True, slots=True)

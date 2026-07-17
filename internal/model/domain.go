@@ -3,7 +3,7 @@ package model
 import (
 	"time"
 
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
 )
 
 type Request struct {

@@ -1,8 +1,8 @@
 package executor
 
 import (
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/internal/model"
 )
 
 func BatchToExecute(epoch uint32, batch *model.Batch) *v1.ExecuteBatchRequest {

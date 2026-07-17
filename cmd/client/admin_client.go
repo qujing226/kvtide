@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"time"
 
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1/mini_llm_servev1connect"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/gen/go/kvtide/v1/kvtidev1connect"
 )
 
 type AdminClient struct {
 	httpClient *http.Client
 	endpoints  []string
-	client     mini_llm_servev1connect.AdminServiceClient
+	client     kvtidev1connect.AdminServiceClient
 }
 
 func NewAdminClient(endpoints []string) *AdminClient {
@@ -29,7 +29,7 @@ func NewAdminClient(endpoints []string) *AdminClient {
 }
 
 func (a *AdminClient) dial() {
-	a.client = mini_llm_servev1connect.NewAdminServiceClient(a.httpClient, a.endpoints[0])
+	a.client = kvtidev1connect.NewAdminServiceClient(a.httpClient, a.endpoints[0])
 }
 
 func (a *AdminClient) Health(ctx context.Context, request *v1.HealthRequest) (*v1.HealthResponse, error) {

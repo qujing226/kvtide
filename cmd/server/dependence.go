@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/qujing226/mini-llm-serve/internal/block"
-	"github.com/qujing226/mini-llm-serve/internal/executor"
+	"github.com/qujing226/kvtide/internal/block"
+	"github.com/qujing226/kvtide/internal/executor"
 	"go.uber.org/zap"
 )
 

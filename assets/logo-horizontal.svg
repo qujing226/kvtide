@@ -21,7 +21,7 @@
   </svg>
 
   <text x="236" y="86" fill="#0B3954" font-family="Arial, Helvetica, sans-serif" font-size="44" font-weight="700">
-    Mini LLM Serve
+    KVTide
   </text>
   <text x="236" y="126" fill="#4E6A75" font-family="Arial, Helvetica, sans-serif" font-size="22">
     Queue → Batch → Serve

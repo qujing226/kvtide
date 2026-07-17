@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 
-	"github.com/qujing226/mini-llm-serve/internal/executor"
-	"github.com/qujing226/mini-llm-serve/internal/scheduler"
+	"github.com/qujing226/kvtide/internal/executor"
+	"github.com/qujing226/kvtide/internal/scheduler"
 	"go.uber.org/fx"
 	"go.uber.org/zap"
 )

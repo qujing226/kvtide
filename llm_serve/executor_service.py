@@ -4,7 +4,7 @@ from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
-from mini_llm_serve.v1 import executor_connect, executor_pb2
+from kvtide.v1 import executor_connect, executor_pb2
 from runner import ModelRunner
 from setting import ExecutorConfig
 

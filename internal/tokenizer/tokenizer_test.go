@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/qujing226/mini-llm-serve/internal/conf"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/kvtide/internal/conf"
+	"github.com/qujing226/kvtide/internal/model"
 )
 
 func TestNewTokenizerFallsBackToMock(t *testing.T) {

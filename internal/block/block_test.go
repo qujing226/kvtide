@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/internal/metrics"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/internal/metrics"
+	"github.com/qujing226/kvtide/internal/model"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

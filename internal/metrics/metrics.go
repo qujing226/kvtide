@@ -6,7 +6,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/kvtide/internal/model"
 )
 
 type Metrics interface {

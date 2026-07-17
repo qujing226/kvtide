@@ -4,7 +4,7 @@
 
 ## 概述
 
-Stage 2 将 `mini-llm-serve` 从 Stage 1 的 request-level batching 系统，推进成了一个更接近 LLM serving 语义的调度实验系统。
+Stage 2 将 `kvtide` 从 Stage 1 的 request-level batching 系统，推进成了一个更接近 LLM serving 语义的调度实验系统。
 
 Stage 1 的核心对象是“请求”。请求进入 FIFO 队列后被组成 batch，再交给 Python mock executor 执行。这个模型足以验证 serving 主链路，但它无法表达 LLM 推理中最重要的差异：prefill 和 decode 的成本不同，prompt 长度会影响调度压力，streaming 的首 token 延迟和后续 token 间隔需要分开观察，prefix cache 会改变 prefill 成本。
 
@@ -177,7 +177,7 @@ Stage 2 仍然有明确边界：
 
 ## Stage 2 总结
 
-Stage 2 完成后，`mini-llm-serve` 已经不再只是一个 dynamic batching demo。
+Stage 2 完成后，`kvtide` 已经不再只是一个 dynamic batching demo。
 
 它现在具备了一个最小 LLM serving control plane 所需要的关键抽象：
 

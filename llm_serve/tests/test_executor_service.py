@@ -3,7 +3,7 @@ from typing import cast
 from unittest.mock import Mock
 
 from connectrpc.request import RequestContext
-from mini_llm_serve.v1 import core_pb2, executor_pb2
+from kvtide.v1 import core_pb2, executor_pb2
 from executor_service import ExecuteServiceImpl
 from runner import ModelRunner, RuntimeInfo
 from setting import ExecutorConfig, RunnerConfig, RuntimeConfig

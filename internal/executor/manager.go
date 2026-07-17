@@ -5,11 +5,11 @@ import (
 	"sync/atomic"
 	"time"
 
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/internal/block"
-	"github.com/qujing226/mini-llm-serve/internal/errors"
-	"github.com/qujing226/mini-llm-serve/internal/metrics"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/internal/block"
+	"github.com/qujing226/kvtide/internal/errors"
+	"github.com/qujing226/kvtide/internal/metrics"
+	"github.com/qujing226/kvtide/internal/model"
 	"go.uber.org/zap"
 )
 

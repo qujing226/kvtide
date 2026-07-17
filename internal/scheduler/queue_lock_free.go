@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/cockroachdb/errors"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/kvtide/internal/model"
 )
 
 type lockFreeQueue struct {

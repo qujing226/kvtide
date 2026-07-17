@@ -3,7 +3,7 @@ import random
 import re
 from dataclasses import dataclass, field
 
-from mini_llm_serve.v1 import core_pb2, executor_pb2
+from kvtide.v1 import core_pb2, executor_pb2
 from runner.base import ModelRunner, RuntimeInfo
 
 

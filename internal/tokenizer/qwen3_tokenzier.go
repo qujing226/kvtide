@@ -4,7 +4,7 @@ import (
 	"path/filepath"
 
 	gotokenizer "github.com/qujing226/gotokenizer"
-	"github.com/qujing226/mini-llm-serve/internal/conf"
+	"github.com/qujing226/kvtide/internal/conf"
 )
 
 func newQwen3Tokenizer(modelConf conf.ModelConf) (tokenize, error) {

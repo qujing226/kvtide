@@ -1,6 +1,6 @@
 package model
 
-import v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+import v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
 
 // Block stores control-plane metadata for a fixed-size KV cache block.
 // The actual K/V tensors live in the executor runtime; this struct only tracks

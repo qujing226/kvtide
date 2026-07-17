@@ -1,7 +1,7 @@
-# Mini LLM Serve
+# KVTide
 
 <p align="center">
-  <img src="./assets/logo-horizontal.svg" alt="Mini LLM Serve logo" width="420" />
+  <img src="./assets/logo-horizontal.svg" alt="KVTide logo" width="420" />
 </p>
 
 <p align="center">
@@ -30,7 +30,7 @@
 
 ## Overview
 
-`mini-llm-serve` isolates the control-plane mechanics behind modern LLM serving systems.
+`kvtide` isolates the control-plane mechanics behind modern LLM serving systems.
 
 The Go server turns each inference request into schedulable prefill and decode work, builds mixed batches under sequence and token budgets, models prefix-cache and KV-block metadata, and streams generated chunks back to the client. A Python executor can run either the mock runner or the Qwen Transformers CPU runner.
 
@@ -49,11 +49,11 @@ It is not a model runtime and does not replace vLLM, SGLang, TensorRT-LLM, llama
 
 The web interface sends real Connect RPC streaming requests to the Go control plane. It renders Markdown output, reports browser-observed request measurements, and directly scrapes Prometheus metrics for live queues, KV blocks, cache behavior, batches, work items, and latency.
 
-![Mini LLM Serve playground](./assets/front-generate.png)
+![KVTide playground](./assets/front-generate.png)
 
 The scheduler lab visualizes one scheduling step at a time. Adjust sequence and token budgets, add prefill or decode work, and observe which items enter the selected batch and which remain queued.
 
-![Mini LLM Serve scheduler lab](./assets/front-lab.png)
+![KVTide scheduler lab](./assets/front-lab.png)
 
 The third page presents the benchmark profile bundled with the project.
 
@@ -126,7 +126,7 @@ The project separates the user-visible request lifecycle from schedulable execut
 - `BlockManager` models prefix matching, KV block allocation, reuse, and eviction.
 - `ExecutorManager` dispatches each batch to the configured executor.
 
-![Mini LLM Serve architecture](./assets/Stage2_Architecture.svg)
+![KVTide architecture](./assets/Stage2_Architecture.svg)
 
 The main request path is:
 
@@ -150,7 +150,7 @@ The deployment intentionally uses one logical server and one logical executor. A
 
 The benchmark uses the Python mock executor. The results describe control-plane behavior, not GPU inference performance.
 
-![Mini LLM Serve benchmark summary](./assets/Stage3_Benchmark_Summary.svg)
+![KVTide benchmark summary](./assets/Stage3_Benchmark_Summary.svg)
 
 The bundled scenarios cover cache misses, warmed prefix-cache users, mixed prompt lengths, and KV block pressure. They are designed to expose changes in throughput, latency, TTFT, TBT, batch size, prefix hits, saved tokens, and eviction activity.
 
@@ -303,7 +303,7 @@ The repository focuses on the serving control plane. It does not implement:
 - production autoscaling
 - full OpenAI API compatibility
 
-These concerns belong to inference engines or production platforms. Mini LLM Serve models the orchestration around execution: request lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
+These concerns belong to inference engines or production platforms. KVTide models the orchestration around execution: request lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
 
 ## Related Systems
 

@@ -1,4 +1,4 @@
-module github.com/qujing226/mini-llm-serve
+module github.com/qujing226/kvtide
 
 go 1.26.2
 

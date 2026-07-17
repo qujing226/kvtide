@@ -1,7 +1,7 @@
 [project]
-name = "llm-serve"
+name = "kvtide-executor"
 version = "0.1.0"
-description = "Add your description here"
+description = "KVTide model executor runtime"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [

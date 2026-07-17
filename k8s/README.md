@@ -1,6 +1,6 @@
 # Kubernetes Deployment
 
-This directory contains a local Kubernetes deployment for Mini LLM Serve using
+This directory contains a local Kubernetes deployment for KVTide using
 [kind](https://kind.sigs.k8s.io/).
 
 The deployment intentionally uses a one-to-one execution topology:
@@ -25,8 +25,8 @@ KV-aware inference workers.
 - kind
 - kubectl
 - local images:
-  - `mini-llm-server:local`
-  - `mini-llm-executor:local`
+  - `kvtide-server:local`
+  - `kvtide-executor:local`
 
 Build the images:
 
@@ -51,14 +51,14 @@ chooses which worker runs each Pod.
 ```bash
 kubectl config current-context
 kubectl get nodes -o wide
-kubectl get pods,deploy,svc -n mini-llm -o wide
-kubectl get endpointslices -n mini-llm
+kubectl get pods,deploy,svc -n kvtide -o wide
+kubectl get endpointslices -n kvtide
 ```
 
 Expected context:
 
 ```text
-kind-mini-llm
+kind-kvtide
 ```
 
 The `executor` and `server` EndpointSlices should each contain one ready Pod IP.
@@ -91,17 +91,17 @@ Changing ConfigMap data does not hot-reload the Go process. Restart the Server
 Deployment after applying configuration changes:
 
 ```bash
-kubectl rollout restart deployment/server -n mini-llm
-kubectl rollout status deployment/server -n mini-llm
+kubectl rollout restart deployment/server -n kvtide
+kubectl rollout status deployment/server -n kvtide
 ```
 
 ## Observe And Debug
 
 ```bash
-kubectl logs deployment/server -n mini-llm
-kubectl logs deployment/executor -n mini-llm
-kubectl describe pod -n mini-llm -l app=server
-kubectl describe pod -n mini-llm -l app=executor
+kubectl logs deployment/server -n kvtide
+kubectl logs deployment/executor -n kvtide
+kubectl describe pod -n kvtide -l app=server
+kubectl describe pod -n kvtide -l app=executor
 ```
 
 The readiness probes determine whether Pod IPs remain in EndpointSlices.

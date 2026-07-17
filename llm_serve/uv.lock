@@ -252,7 +252,7 @@ wheels = [
 ]
 
 [[package]]
-name = "llm-serve"
+name = "kvtide-executor"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

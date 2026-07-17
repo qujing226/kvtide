@@ -7,10 +7,10 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1/mini_llm_servev1connect"
-	"github.com/qujing226/mini-llm-serve/internal/conf"
-	"github.com/qujing226/mini-llm-serve/internal/metrics"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/gen/go/kvtide/v1/kvtidev1connect"
+	"github.com/qujing226/kvtide/internal/conf"
+	"github.com/qujing226/kvtide/internal/metrics"
 	"go.uber.org/zap"
 	brotli "go.withmatt.com/connect-brotli"
 	"golang.org/x/net/http2"
@@ -33,7 +33,7 @@ func NewAdminService(l *zap.SugaredLogger, cfg *conf.Conf, metrics metrics.Metri
 	}
 
 	mux := http.NewServeMux()
-	path, handler := mini_llm_servev1connect.NewAdminServiceHandler(
+	path, handler := kvtidev1connect.NewAdminServiceHandler(
 		a,
 		connect.WithInterceptors(),
 		connect.WithCompressMinBytes(CompressionMinBytes),

@@ -37,4 +37,4 @@ managed:
       file_option: go_package_prefix
   override:
     - file_option: go_package_prefix
-      value: github.com/qujing226/mini-llm-serve/gen/go
+      value: github.com/qujing226/kvtide/gen/go

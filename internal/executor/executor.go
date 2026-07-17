@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/qujing226/mini-llm-serve/cmd/client"
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/internal/conf"
-	"github.com/qujing226/mini-llm-serve/internal/errors"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	"github.com/qujing226/kvtide/cmd/client"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/internal/conf"
+	"github.com/qujing226/kvtide/internal/errors"
+	"github.com/qujing226/kvtide/internal/model"
 	"go.uber.org/zap"
 )
 
@@ -23,7 +23,7 @@ func NewExecutors(logger *zap.SugaredLogger, cfg *conf.Conf) (map[string]Executo
 
 	for _, ec := range cfg.Executors {
 		if ec.ExecutorID == "" {
-			return nil, fmt.Errorf("executor.id can not be empty")
+			return nil, fmt.Errorf("executor.executorId can not be empty")
 		}
 		if len(ec.Address) == 0 {
 			return nil, fmt.Errorf("executor.address can not be empty")

@@ -4,7 +4,7 @@
 
 ## 概述
 
-Stage 1 使 `mini-llm-serve` 具备了一条完整可运行的 LLM serving 主链路。系统通过基于 Connect 的网关接收推理请求，将请求放入 FIFO 队列，利用基于超时的动态批处理构建 batch，通过 Go 侧 worker 发起执行，并把批次转发到 Python mock executor。
+Stage 1 使 `kvtide` 具备了一条完整可运行的 LLM serving 主链路。系统通过基于 Connect 的网关接收推理请求，将请求放入 FIFO 队列，利用基于超时的动态批处理构建 batch，通过 Go 侧 worker 发起执行，并把批次转发到 Python mock executor。
 
 Stage 1 的目标不是实现推理引擎本身，而是验证 serving pipeline、调度器行为、可观测性接口以及 benchmark 方法论。在这个阶段结束时，项目已经具备完整请求链路、运行时指标、管理接口、压测工具以及后续调度演进所需的基线实现。
 

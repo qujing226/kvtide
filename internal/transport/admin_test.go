@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/qujing226/mini-llm-serve/internal/conf"
-	"github.com/qujing226/mini-llm-serve/internal/metrics"
+	"github.com/qujing226/kvtide/internal/conf"
+	"github.com/qujing226/kvtide/internal/metrics"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )

@@ -2,7 +2,7 @@
 
 [中文版本](./stage2_zh.md)
 
-This document records the Stage 2 benchmark results for Mini LLM Serve.
+This document records the Stage 2 benchmark results for KVTide.
 
 Stage 2 scope:
 

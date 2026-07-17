@@ -2,7 +2,7 @@
 
 [English Version](./stage1_en.md)
 
-本文记录 `mini-llm-serve` 在 Stage 1 阶段的 benchmark 结果。
+本文记录 `kvtide` 在 Stage 1 阶段的 benchmark 结果。
 
 Stage 1 范围：
 

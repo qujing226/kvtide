@@ -19,11 +19,11 @@ nodes:
 # role 决定 Node 是 control-plane 还是 worker
 
 # 创建集群
-# kind create cluster --name mini-llm --config k8s/kind/cluster.yaml
+# kind create cluster --name kvtide --config k8s/kind/cluster.yaml
 
 # 验证集群
-# kubectl cluster-info --context kind-mini-llm
-# docker ps --filter name=mini-llm
+# kubectl cluster-info --context kind-kvtide
+# docker ps --filter name=kvtide
 
 # 观察 Pod 最终位于哪个节点。
-# kubectl get pods -n mini-llm -o wide
+# kubectl get pods -n kvtide -o wide

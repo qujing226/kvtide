@@ -6,14 +6,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1/mini_llm_servev1connect"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/gen/go/kvtide/v1/kvtidev1connect"
 )
 
 type InferenceClient struct {
 	httpClient      *http.Client
 	endpoints       []string
-	inferenceClient mini_llm_servev1connect.InferenceServiceClient
+	inferenceClient kvtidev1connect.InferenceServiceClient
 }
 
 func NewClient(endpoints []string, timeout time.Duration) *InferenceClient {
@@ -44,5 +44,5 @@ func (c *InferenceClient) GenerateStream(
 }
 
 func (c *InferenceClient) dial() {
-	c.inferenceClient = mini_llm_servev1connect.NewInferenceServiceClient(c.httpClient, c.endpoints[0])
+	c.inferenceClient = kvtidev1connect.NewInferenceServiceClient(c.httpClient, c.endpoints[0])
 }

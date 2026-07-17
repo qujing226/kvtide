@@ -2,7 +2,7 @@
 
 [中文版本](./stage1_zh.md)
 
-This document records the Stage 1 benchmark results for the mini LLM serving system.
+This document records the Stage 1 benchmark results for KVTide.
 
 Stage 1 scope:
 

@@ -4,7 +4,7 @@
 
 ## Summary
 
-Stage 2 evolves `mini-llm-serve` from a request-level batching system into a more LLM-aware scheduling playground.
+Stage 2 evolves `kvtide` from a request-level batching system into a more LLM-aware scheduling playground.
 
 In Stage 1, the central unit was a request. A request entered a FIFO queue, was batched, and was sent to the Python mock executor. This was enough to validate the serving pipeline, but it could not express the most important differences in LLM inference: prefill and decode have different costs, prompt length affects scheduling pressure, streaming needs separate first-token and between-token metrics, and prefix cache hits can change prefill cost.
 
@@ -177,7 +177,7 @@ These limits are intentional. The goal of Stage 2 is not to copy vLLM. The goal 
 
 ## Stage 2 Summary
 
-After Stage 2, `mini-llm-serve` is no longer only a dynamic batching demo.
+After Stage 2, `kvtide` is no longer only a dynamic batching demo.
 
 It now has the key abstractions expected from a minimal LLM serving control plane:
 

@@ -1,7 +1,7 @@
 package model
 
 import (
-	"github.com/qujing226/mini-llm-serve/internal/errors"
+	"github.com/qujing226/kvtide/internal/errors"
 )
 
 type LLMModelID string

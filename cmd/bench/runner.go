@@ -12,8 +12,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/qujing226/mini-llm-serve/cmd/client"
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
+	"github.com/qujing226/kvtide/cmd/client"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
 	"go.uber.org/zap"
 )
 

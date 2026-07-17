@@ -2,13 +2,13 @@ import { create } from "@bufbuild/protobuf";
 import { createClient } from "@connectrpc/connect";
 import { createConnectTransport } from "@connectrpc/connect-web";
 
-import { FinishReason } from "../gen/mini_llm_serve/v1/core_pb";
+import { FinishReason } from "../gen/kvtide/v1/core_pb";
 import {
   GenerateRequestSchema,
   InferenceService,
   type GenerateRequest,
   type GenerateResponseChunk,
-} from "../gen/mini_llm_serve/v1/service_pb";
+} from "../gen/kvtide/v1/service_pb";
 import type {
   GenerationChunk,
   GenerationClient,
@@ -39,7 +39,14 @@ export function createGenerationClient(
 ): GenerationClient {
   return {
     async *generateStream(request: GenerationRequest) {
-      const rpcRequest = create(GenerateRequestSchema, request);
+      const rpcRequest = create(GenerateRequestSchema, {
+        requestId: request.requestId,
+        userId: request.userId,
+        modelId: request.model,
+        prompt: request.prompt,
+        maxTokens: request.maxTokens,
+        timeoutMs: request.timeoutMs,
+      });
 
       for await (const chunk of generateStreamRpc(rpcRequest)) {
         yield {

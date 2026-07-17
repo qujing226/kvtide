@@ -1,4 +1,4 @@
-from mini_llm_serve.v1 import executor_connect
+from kvtide.v1 import executor_connect
 from executor_service import ExecuteServiceImpl
 from runner.factory import create_runner
 from setting import load_config

@@ -4,7 +4,7 @@ import torch
 from transformers import Qwen3Config, Qwen3ForCausalLM
 
 from adapter.dynamic_cache import DynamicCacheAdapter
-from mini_llm_serve.v1 import block_pb2, core_pb2, executor_pb2
+from kvtide.v1 import block_pb2, core_pb2, executor_pb2
 from runner.transformers_cpu import QwenTransformersRunner
 from runtime.batch import BatchBuilder
 from runtime.kv_cache import PagedKVCache

@@ -2,7 +2,7 @@
 
 [中文版本](./stage3_zh.md)
 
-This document records the Stage 3 benchmark results for Mini LLM Serve.
+This document records the Stage 3 benchmark results for KVTide.
 
 Stage 3 extends the serving-control-plane model with:
 

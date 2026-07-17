@@ -3,18 +3,18 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 
 metadata:
-  name: minillmruntimes.serving.mini-llm.io
+  name: kvtideruntimes.serving.kvtide.io
 
 spec:
-  group: serving.mini-llm.io
+  group: serving.kvtide.io
   scope: Namespaced
 
   names:
-    plural: minillmruntimes
-    singular: minillmruntime
-    kind: MiniLLMRuntime
+    plural: kvtideruntimes
+    singular: kvtideruntime
+    kind: KVTideRuntime
     shortNames:
-      - mlr
+      - kvt
   
   versions:
     - name: v1alpha1
@@ -74,14 +74,14 @@ spec:
 #        ↓
 # API Server 注册新 REST API
 #        ↓
-# /apis/serving.mini-llm.io/v1alpha1/
+# /apis/serving.kvtide.io/v1alpha1/
 #         ↓
-# kubectl 可以操作 MiniLLMRuntime
+# kubectl 可以操作 KVTideRuntime
 
 # path:
-# /apis/serving.mini-llm.io/v1alpha1/namespaces/mini-llm/minillmruntimes/demo
+# /apis/serving.kvtide.io/v1alpha1/namespaces/kvtide/kvtideruntimes/demo
 
 # 验证：
-# kubectl api-resources | grep -i minillm 
-# kubectl get crd minillmruntimes.serving.mini-llm.io
-# kubectl describe crd minillmruntimes.serving.mini-llm.io
+# kubectl api-resources | grep -i kvtide
+# kubectl get crd kvtideruntimes.serving.kvtide.io
+# kubectl describe crd kvtideruntimes.serving.kvtide.io

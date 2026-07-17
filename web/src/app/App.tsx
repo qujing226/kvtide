@@ -27,7 +27,7 @@ export function App() {
             aria-hidden="true"
           />
           <div className="brand-copy">
-            <strong>MINI LLM SERVE</strong>
+            <strong>KVTIDE</strong>
             <small>{text.lab}</small>
           </div>
         </div>
@@ -80,10 +80,10 @@ export function App() {
 
       <section className="content-shell">
         <header className="topbar">
-          <span>MINI LLM SERVE / CONTROL PLANE</span>
+          <span>KVTIDE / CONTROL PLANE</span>
           <div>
             <a
-              href="https://github.com/qujing226/mini-llm-serve"
+              href="https://github.com/qujing226/kvtide"
               target="_blank"
               rel="noreferrer"
             >

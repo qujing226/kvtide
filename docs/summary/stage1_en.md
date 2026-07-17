@@ -4,7 +4,7 @@
 
 ## Summary
 
-Stage 1 establishes a working LLM serving pipeline in `mini-llm-serve`. The system accepts inference requests through a Connect-based gateway, places them into a FIFO queue, forms batches with timeout-based dynamic batching, dispatches execution through a Go worker, and forwards batches to a Python mock executor.
+Stage 1 establishes a working LLM serving pipeline in `kvtide`. The system accepts inference requests through a Connect-based gateway, places them into a FIFO queue, forms batches with timeout-based dynamic batching, dispatches execution through a Go worker, and forwards batches to a Python mock executor.
 
 The goal of Stage 1 is not to build an inference engine. Instead, it is to validate the serving pipeline, scheduler behavior, observability surface, and benchmark methodology. At the end of this stage, the project already has a complete request path, runtime metrics, admin endpoints, benchmark tooling, and a documented baseline for future scheduler evolution.
 

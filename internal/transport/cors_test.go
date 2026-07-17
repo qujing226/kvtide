@@ -15,7 +15,7 @@ func TestCORSAllowsConfiguredOriginPreflight(t *testing.T) {
 			t.Fatal("preflight should not reach the application handler")
 		}),
 	)
-	req := httptest.NewRequest(http.MethodOptions, "/mini_llm_serve.v1.InferenceService/GenerateStream", nil)
+	req := httptest.NewRequest(http.MethodOptions, "/kvtide.v1.InferenceService/GenerateStream", nil)
 	req.Header.Set("Origin", "http://localhost:5173")
 	req.Header.Set("Access-Control-Request-Method", http.MethodPost)
 	req.Header.Set("Access-Control-Request-Headers", "content-type,connect-protocol-version")
@@ -34,7 +34,7 @@ func TestCORSRejectsUnconfiguredOrigin(t *testing.T) {
 		[]string{"http://localhost:5173"},
 		http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}),
 	)
-	req := httptest.NewRequest(http.MethodOptions, "/mini_llm_serve.v1.InferenceService/GenerateStream", nil)
+	req := httptest.NewRequest(http.MethodOptions, "/kvtide.v1.InferenceService/GenerateStream", nil)
 	req.Header.Set("Origin", "https://example.com")
 	req.Header.Set("Access-Control-Request-Method", http.MethodPost)
 	recorder := httptest.NewRecorder()
@@ -52,7 +52,7 @@ func TestCORSAddsHeadersToStreamingResponse(t *testing.T) {
 			w.WriteHeader(http.StatusOK)
 		}),
 	)
-	req := httptest.NewRequest(http.MethodPost, "/mini_llm_serve.v1.InferenceService/GenerateStream", nil)
+	req := httptest.NewRequest(http.MethodPost, "/kvtide.v1.InferenceService/GenerateStream", nil)
 	req.Header.Set("Origin", "http://127.0.0.1:5173")
 	recorder := httptest.NewRecorder()
 

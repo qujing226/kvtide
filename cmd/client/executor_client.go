@@ -5,13 +5,13 @@ import (
 	"net/http"
 	"time"
 
-	v1 "github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1"
-	"github.com/qujing226/mini-llm-serve/gen/go/mini_llm_serve/v1/mini_llm_servev1connect"
-	"github.com/qujing226/mini-llm-serve/internal/model"
+	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
+	"github.com/qujing226/kvtide/gen/go/kvtide/v1/kvtidev1connect"
+	"github.com/qujing226/kvtide/internal/model"
 )
 
 type ExecutorClient struct {
-	mini_llm_servev1connect.ExecutorServiceClient
+	kvtidev1connect.ExecutorServiceClient
 	httpClient *http.Client
 	endpoints  []string
 }
@@ -25,7 +25,7 @@ func NewExecutorClient(endpoints []string, timeoutMs int) *ExecutorClient {
 		},
 		endpoints: endpoints,
 	}
-	e.ExecutorServiceClient = mini_llm_servev1connect.NewExecutorServiceClient(e.httpClient, e.endpoints[0])
+	e.ExecutorServiceClient = kvtidev1connect.NewExecutorServiceClient(e.httpClient, e.endpoints[0])
 	return e
 }
 

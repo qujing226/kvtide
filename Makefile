@@ -11,14 +11,14 @@ bench-report:
 	go run ./cmd/bench --profile report --target $(TARGET) --metrics-url $(METRICS_URL)
 
 docker-build:
-	docker build -f docker/server.Dockerfile -t mini-llm-server:local .
-	docker build -f docker/executor.Dockerfile -t mini-llm-executor:local .
-	docker build -f docker/web.Dockerfile -t mini-llm-web:local .
+	docker build -f docker/server.Dockerfile -t kvtide-server:local .
+	docker build -f docker/executor.Dockerfile -t kvtide-executor:local .
+	docker build -f docker/web.Dockerfile -t kvtide-web:local .
 
 docker-save:
-	docker save -o deploy/mini-llm-server.tar mini-llm-server:local
-	docker save -o deploy/mini-llm-executor.tar mini-llm-executor:local
-	docker save -o deploy/mini-llm-web.tar mini-llm-web:local
+	docker save -o deploy/kvtide-server.tar kvtide-server:local
+	docker save -o deploy/kvtide-executor.tar kvtide-executor:local
+	docker save -o deploy/kvtide-web.tar kvtide-web:local
 
 .PHONY: test stress-test web-dev web-test web-build kube-start kube-apply kube-down kube-forward
 
@@ -38,26 +38,26 @@ web-build:
 	cd web && npm run build
 
 kube-start:
-	kind create cluster --name mini-llm --config k8s/kind/cluster.yaml
-	kind load docker-image mini-llm-server:local mini-llm-executor:local \
-	  --name mini-llm
+	kind create cluster --name kvtide --config k8s/kind/cluster.yaml
+	kind load docker-image kvtide-server:local kvtide-executor:local \
+	  --name kvtide
 	kubectl apply -k k8s/base
-	kubectl rollout status deployment/executor -n mini-llm
-	kubectl rollout status deployment/server -n mini-llm
+	kubectl rollout status deployment/executor -n kvtide
+	kubectl rollout status deployment/server -n kvtide
 
 kube-apply:
-	kind load docker-image mini-llm-server:local mini-llm-executor:local \
-	  --name mini-llm
+	kind load docker-image kvtide-server:local kvtide-executor:local \
+	  --name kvtide
 	kubectl apply -k k8s/base
-	kubectl rollout restart deployment/executor deployment/server -n mini-llm
-	kubectl rollout status deployment/executor -n mini-llm
-	kubectl rollout status deployment/server -n mini-llm
+	kubectl rollout restart deployment/executor deployment/server -n kvtide
+	kubectl rollout status deployment/executor -n kvtide
+	kubectl rollout status deployment/server -n kvtide
 
 kube-down:
-	kind delete cluster --name mini-llm
+	kind delete cluster --name kvtide
 
 kube-forward:
-	kubectl port-forward -n mini-llm service/server 8800:8800 8801:8801
+	kubectl port-forward -n kvtide service/server 8800:8800 8801:8801
 
 llama-server:
 	llama-server \

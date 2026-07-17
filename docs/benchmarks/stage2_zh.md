@@ -2,7 +2,7 @@
 
 [English Version](./stage2_en.md)
 
-本文记录 Mini LLM Serve 在 Stage 2 阶段的 benchmark 结果。
+本文记录 KVTide 在 Stage 2 阶段的 benchmark 结果。
 
 Stage 2 范围：
 

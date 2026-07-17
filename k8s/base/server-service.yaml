@@ -3,7 +3,7 @@ kind: Service
 
 metadata:
   name: server
-  namespace: mini-llm
+  namespace: kvtide
 
 spec:
   type: ClusterIP
@@ -20,5 +20,5 @@ spec:
 # 应用
 # kubectl apply -f k8s/base/server-service.yaml
 # 验证
-# kubectl get services -n mini-llm
-# kubectl get endpointslices -n mini-llm
+# kubectl get services -n kvtide
+# kubectl get endpointslices -n kvtide

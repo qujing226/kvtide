@@ -3,7 +3,7 @@ kind: Deployment
 
 metadata:
   name: server
-  namespace: mini-llm
+  namespace: kvtide
 
 spec:
   replicas: 1
@@ -25,7 +25,7 @@ spec:
 
       containers:
         - name: server
-          image: mini-llm-server:local
+          image: kvtide-server:local
           imagePullPolicy: IfNotPresent
 
           ports:
@@ -36,11 +36,11 @@ spec:
 
           volumeMounts:
             - name: config
-              mountPath: /etc/mini-llm
+              mountPath: /etc/kvtide
               readOnly: true
 
           args:
-            - --conf=/etc/mini-llm/server.toml
+            - --conf=/etc/kvtide/server.toml
 
           readinessProbe:
             httpGet:

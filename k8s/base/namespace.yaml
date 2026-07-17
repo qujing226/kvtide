@@ -7,7 +7,7 @@ apiVersion: v1
 kind: Namespace
 metadata:
   # 资源名称，后续所有业务资源都部署到该 namespace
-  name: mini-llm
+  name: kvtide
 
 # 应用
 # kubectl apply -f k8s/base/namespace.yaml

@@ -1,6 +1,6 @@
 networks:
-  mini-llm:
-    name: mini-llm
+  kvtide:
+    name: kvtide
     driver: bridge
 
 services:
@@ -9,42 +9,42 @@ services:
     build:
       context: .
       dockerfile: docker/executor.Dockerfile
-    image: mini-llm-executor:local
+    image: kvtide-executor:local
     expose:
       - "19991"
     volumes:
       - ./llm_serve/models/Qwen3-0.6B:/app/models/Qwen3-0.6B:ro
     networks:
-      - mini-llm
+      - kvtide
 
   server:
     container_name: server
     build:
       context: .
       dockerfile: docker/server.Dockerfile
-    image: mini-llm-server:local
+    image: kvtide-server:local
     command:
-      - --conf=/etc/mini-llm/server.toml
+      - --conf=/etc/kvtide/server.toml
     depends_on:
       - executor
     ports:
       - "8800:8800"
       - "8801:8801"
     volumes:
-      - ./config/compose-server.toml:/etc/mini-llm/server.toml:ro
+      - ./config/compose-server.toml:/etc/kvtide/server.toml:ro
       - ./llm_serve/models/Qwen3-0.6B:/models/Qwen3-0.6B:ro
     networks:
-      - mini-llm
+      - kvtide
 
   web:
     container_name: web
     build:
       context: .
       dockerfile: docker/web.Dockerfile
-    image: mini-llm-web:local
+    image: kvtide-web:local
     depends_on:
       - server
     ports:
       - "5173:5173"
     networks:
-      - mini-llm
+      - kvtide
