@@ -109,6 +109,27 @@ class QwenTransformersRunnerTest(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(tuple(key.shape), (1, 3, 8))
             self.assertEqual(tuple(value.shape), (1, 3, 8))
 
+    async def test_execute_invalidates_newly_allocated_block_before_forward(self):
+        runner = build_tiny_runner()
+
+        # 模拟 block 0 残留了上一个请求的数据。
+        runner.kv_cache.valid_slots[:, 0, :] = True
+
+        item = execute_item(
+            work_id="prefill",
+            phase=core_pb2.WORK_PHASE_PREFILL,
+            token_ids=[1, 2],
+            computed_tokens=0,
+        )
+        item.kv_blocks.allocated_blocks.append(0)
+
+        await runner.execute([item])
+
+        # 当前 forward 重写了 slot 0、1。
+        self.assertTrue(bool(runner.kv_cache.valid_slots[:, 0, :2].all().item()))
+        # 上个请求留下的 slot 2、3 必须失效。
+        self.assertFalse(bool(runner.kv_cache.valid_slots[:, 0, 2:].any().item()))
+
 
 if __name__ == "__main__":
     unittest.main()

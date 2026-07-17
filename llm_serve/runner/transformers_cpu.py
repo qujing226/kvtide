@@ -121,6 +121,16 @@ class QwenTransformersRunner(ModelRunner):
             return []
 
         batch = self.batch_builder.build(items)
+
+        allocated_blocks = sorted(
+            {
+                int(block_id)
+                for item in batch.items
+                for block_id in item.kv_blocks.allocated_blocks
+            }
+        )
+        self.kv_cache.release(allocated_blocks)
+
         results: list[executor_pb2.ExecuteResult] = []
 
         for item_index, item in enumerate(batch.items):
@@ -139,7 +149,7 @@ class QwenTransformersRunner(ModelRunner):
                     slot_mapping=slot_mapping,
                 )
             )
-
+            
         return results
 
     def _execute_one(
