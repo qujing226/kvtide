@@ -15,7 +15,7 @@ queueLength = 100
 
 [[models]]
 modelId = "Qwen/Qwen3-0.6B"
-modelPath = "./llm_serve/models/Qwen3-0.6B"
+modelPath = "./executor/models/Qwen3-0.6B"
 
 [[executors]]
 executorId = "executor-qwen3-0.6B"

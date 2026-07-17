@@ -13,7 +13,7 @@ services:
     expose:
       - "19991"
     volumes:
-      - ./llm_serve/models/Qwen3-0.6B:/app/models/Qwen3-0.6B:ro
+      - ./executor/models/Qwen3-0.6B:/app/models/Qwen3-0.6B:ro
     networks:
       - kvtide
 
@@ -32,7 +32,7 @@ services:
       - "8801:8801"
     volumes:
       - ./config/compose-server.toml:/etc/kvtide/server.toml:ro
-      - ./llm_serve/models/Qwen3-0.6B:/models/Qwen3-0.6B:ro
+      - ./executor/models/Qwen3-0.6B:/models/Qwen3-0.6B:ro
     networks:
       - kvtide
 

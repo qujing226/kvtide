@@ -1,0 +1,10 @@
+version: v2
+inputs:
+  - directory: .
+managed:
+  enabled: true
+
+plugins:
+  - remote: buf.build/protocolbuffers/go:v1.36.10
+    out: ../pbgen
+    opt: paths=source_relative

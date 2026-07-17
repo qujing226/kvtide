@@ -24,11 +24,11 @@ plugins:
       - paths=source_relative
 
   - remote: buf.build/protocolbuffers/python
-    out: ../llm_serve
+    out: ../executor
   - remote: buf.build/protocolbuffers/pyi
-    out: ../llm_serve
+    out: ../executor
   - remote: buf.build/connectrpc/python
-    out: ../llm_serve
+    out: ../executor
 
 managed:
   enabled: true

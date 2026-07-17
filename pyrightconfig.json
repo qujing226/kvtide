@@ -1,10 +1,10 @@
 {
   "include": [
-    "llm_serve",
+    "executor",
     "scripts"
   ],
   "ignore": [
-    "llm_serve/vendor"
+    "executor/vendor"
   ]
 }
 

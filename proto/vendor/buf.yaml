@@ -1,0 +1,13 @@
+version: v2
+name: buf.build/daotl/go-enums
+
+lint:
+  use:
+    - STANDARD
+  except:
+    - PACKAGE_VERSION_SUFFIX
+breaking:
+  use:
+    - FILE
+deps:
+ - buf.build/protocolbuffers/wellknowntypes

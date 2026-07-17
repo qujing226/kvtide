@@ -77,7 +77,7 @@ The third page presents the benchmark profile bundled with the project.
 Docker Compose is the recommended way to run the complete project:
 
 ```bash
-cd llm_serve
+cd executor
 uv run hf download Qwen/Qwen3-0.6B --local-dir ./models/Qwen3-0.6B
 cd ..
 docker compose up --build -d
@@ -178,7 +178,7 @@ cd ..
 Start the Python executor:
 
 ```bash
-cd llm_serve
+cd executor
 make run
 ```
 
@@ -284,7 +284,7 @@ internal/
   state/        request lifecycle state machine
   tokenizer/    model-aware tokenizer registry
   transport/    Connect RPC, admin, and CORS handlers
-llm_serve/      Python executor runners
+executor/       Python executor runners
 web/            React playground, scheduler lab, and benchmark view
 proto/          protobuf API definitions
 k8s/            kind cluster configuration and Kubernetes manifests

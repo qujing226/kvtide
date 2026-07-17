@@ -12,4 +12,4 @@ build
 **/.pytest_cache
 **/.mypy_cache
 **/.ruff_cache
-llm_serve/.venv
+executor/.venv
