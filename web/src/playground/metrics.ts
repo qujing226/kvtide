@@ -282,14 +282,12 @@ export function calculateMetricsWindow(
   };
 }
 
-export function resolveMetricsUrl(
-  location: Pick<Location, "protocol" | "hostname">,
-): string {
-  return `${location.protocol}//${location.hostname}:8801/metrics`;
+export function resolveMetricsUrl(): string {
+  return "/api/metrics";
 }
 
 export function createMetricsClient(
-  url = resolveMetricsUrl(window.location),
+  url = resolveMetricsUrl(),
   fetcher: typeof fetch = fetch,
 ): MetricsClient {
   return {

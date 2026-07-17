@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router";
 
 import { HomePage } from "../home/HomePage";
+import { DemoPage } from "../demo/DemoPage";
 import { NotFoundPage } from "../site/NotFoundPage";
 import { RoutePage } from "../site/RoutePage";
 import { SiteLayout } from "../site/SiteLayout";
@@ -35,7 +36,7 @@ export function App() {
           <Route path="/" element={<HomePage focusOnMount={focusOnMount} />} />
           <Route
             path="/demo"
-            element={<RoutePlaceholder title="Demo" focusOnMount={focusOnMount} />}
+            element={<DemoPage focusOnMount={focusOnMount} />}
           />
           <Route
             path="/lab"

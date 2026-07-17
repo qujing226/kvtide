@@ -120,13 +120,8 @@ describe("Prometheus metrics", () => {
     expect(window.batches).toBe(0);
   });
 
-  it("uses the browser host and admin port for metrics", () => {
-    expect(
-      resolveMetricsUrl({
-        protocol: "http:",
-        hostname: "192.168.1.10",
-      }),
-    ).toBe("http://192.168.1.10:8801/metrics");
+  it("uses the same-origin metrics endpoint", () => {
+    expect(resolveMetricsUrl()).toBe("/api/metrics");
   });
 
   it("refreshes quickly while generating and slowly while idle", () => {

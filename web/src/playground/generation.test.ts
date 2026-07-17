@@ -45,7 +45,7 @@ describe("generateResponse", () => {
     expect(generateStream).toHaveBeenCalledWith({
       requestId: "req-test",
       userId: "web-user",
-      model: "mock",
+      model: "Qwen/Qwen3-0.6B",
       prompt: "Explain continuous batching.",
       maxTokens: 128,
       timeoutMs: 30_000,

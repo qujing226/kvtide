@@ -91,21 +91,21 @@ describe("App", () => {
     const banner = screen.getByRole("banner");
     const main = screen.getByRole("main");
     const footer = screen.getByRole("contentinfo");
-    const demoHeading = screen.getByRole("heading", { name: "Demo" });
+    const demoHeading = screen.getByRole("heading", { name: "Live runtime" });
 
-    expect(document.title).toBe("Demo | KVTide");
+    expect(document.title).toBe("Live runtime | KVTide");
     expect(demoHeading).not.toHaveFocus();
 
     await user.click(
       within(banner).getByRole("link", { name: "Lab" }),
     );
 
-    expect(screen.getByRole("heading", { name: "Demo" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Live runtime" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { name: "Lab" })).not.toBeInTheDocument();
 
     const labHeading = await screen.findByRole("heading", { name: "Lab" });
 
-    expect(screen.queryByRole("heading", { name: "Demo" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Live runtime" })).not.toBeInTheDocument();
     await waitFor(() => expect(labHeading).toHaveFocus());
     expect(document.title).toBe("Lab | KVTide");
     expect(screen.getByRole("banner")).toBe(banner);

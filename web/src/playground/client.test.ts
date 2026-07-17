@@ -9,13 +9,12 @@ import {
 import { createGenerationClient, resolveInferenceBaseUrl } from "./client";
 
 describe("resolveInferenceBaseUrl", () => {
-  it("targets the backend port on the current browser host", () => {
+  it("uses the current origin so production traffic stays behind the web proxy", () => {
     expect(
       resolveInferenceBaseUrl({
-        protocol: "http:",
-        hostname: "127.0.0.1",
+        origin: "https://kvtide.example",
       }),
-    ).toBe("http://127.0.0.1:8800");
+    ).toBe("https://kvtide.example");
   });
 });
 

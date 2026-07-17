@@ -68,7 +68,7 @@ export async function generateResponse({
     for await (const chunk of client.generateStream({
       requestId,
       userId,
-      model: "mock",
+      model: "Qwen/Qwen3-0.6B",
       prompt,
       maxTokens: 128,
       timeoutMs: 30_000,

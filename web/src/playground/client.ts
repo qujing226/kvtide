@@ -71,7 +71,7 @@ export const generationClient = createGenerationClient((request) =>
 );
 
 export function resolveInferenceBaseUrl(
-  location: Pick<Location, "protocol" | "hostname">,
+  location: Pick<Location, "origin">,
 ): string {
-  return `${location.protocol}//${location.hostname}:8800`;
+  return location.origin;
 }
