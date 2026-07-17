@@ -4,6 +4,7 @@ import { Route, Routes, useLocation } from "react-router";
 
 import { HomePage } from "../home/HomePage";
 import { DemoPage } from "../demo/DemoPage";
+import { LabPage } from "../scheduler/LabPage";
 import { NotFoundPage } from "../site/NotFoundPage";
 import { RoutePage } from "../site/RoutePage";
 import { SiteLayout } from "../site/SiteLayout";
@@ -40,7 +41,7 @@ export function App() {
           />
           <Route
             path="/lab"
-            element={<RoutePlaceholder title="Lab" focusOnMount={focusOnMount} />}
+            element={<LabPage focusOnMount={focusOnMount} />}
           />
           <Route
             path="/blog"

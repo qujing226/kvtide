@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 
-import type { Language } from "../app/content";
 import {
   completeBatch,
   scheduleStep,
@@ -15,38 +14,34 @@ export const BATCH_EXECUTION_MS = 2_000;
 
 type TransitionDirection = "to-selected" | "to-waiting" | null;
 
-interface SchedulerLabProps {
-  language: Language;
-}
-
 const presets: Array<{
-  label: Record<Language, string>;
+  label: string;
   phase: WorkPhase;
   tokens: number;
 }> = [
   {
-    label: { en: "Short prefill", zh: "短提示词预填充" },
+    label: "Short prefill",
     phase: "prefill",
     tokens: 8,
   },
   {
-    label: { en: "Long prefill", zh: "长提示词预填充" },
+    label: "Long prefill",
     phase: "prefill",
     tokens: 24,
   },
   {
-    label: { en: "Decode step", zh: "单步解码" },
+    label: "Decode step",
     phase: "decode",
     tokens: 1,
   },
 ];
 
-const initialQueue = (language: Language): WorkItem[] => [
+const initialQueue = (): WorkItem[] => [
   {
     workId: "REQ-A-decode-1",
     requestId: "REQ-A",
     parentWorkId: null,
-    requestLabel: language === "zh" ? "请求 A" : "Request A",
+    requestLabel: "Request A",
     phase: "decode",
     tokens: 1,
     decodeRound: 1,
@@ -55,8 +50,8 @@ const initialQueue = (language: Language): WorkItem[] => [
     workId: "REQ-B-prefill",
     requestId: "REQ-B",
     parentWorkId: null,
-    requestLabel: language === "zh" ? "请求 B" : "Request B",
-    detail: language === "zh" ? "短提示词" : "Short prompt",
+    requestLabel: "Request B",
+    detail: "Short prompt",
     phase: "prefill",
     tokens: 8,
     decodeRound: 0,
@@ -65,8 +60,8 @@ const initialQueue = (language: Language): WorkItem[] => [
     workId: "REQ-C-prefill",
     requestId: "REQ-C",
     parentWorkId: null,
-    requestLabel: language === "zh" ? "请求 C" : "Request C",
-    detail: language === "zh" ? "长提示词" : "Long prompt",
+    requestLabel: "Request C",
+    detail: "Long prompt",
     phase: "prefill",
     tokens: 24,
     decodeRound: 0,
@@ -75,7 +70,7 @@ const initialQueue = (language: Language): WorkItem[] => [
     workId: "REQ-D-decode-1",
     requestId: "REQ-D",
     parentWorkId: null,
-    requestLabel: language === "zh" ? "请求 D" : "Request D",
+    requestLabel: "Request D",
     phase: "decode",
     tokens: 1,
     decodeRound: 1,
@@ -83,7 +78,7 @@ const initialQueue = (language: Language): WorkItem[] => [
 ];
 
 function requestColor(requestId: string) {
-  const palette = ["#dd6b2c", "#317257", "#356f9a", "#a05752", "#82712c"];
+  const palette = ["#3266d5", "#2f7c6d", "#52637a", "#8b5d5a", "#7b6a2f"];
   const hash = Array.from(requestId).reduce(
     (total, character) => total + character.charCodeAt(0),
     0,
@@ -112,12 +107,10 @@ function workLineage(item: WorkItem) {
 
 function WorkPill({
   item,
-  language,
   transitioning = false,
   arriving = false,
 }: {
   item: WorkItem;
-  language: Language;
   transitioning?: boolean;
   arriving?: boolean;
 }) {
@@ -137,17 +130,15 @@ function WorkPill({
       <div>
         <strong>{workLabel(item)}</strong>
         <small>
-          {workLineage(item)} ·{" "}
-          {language === "zh" ? `${item.tokens} 个 token` : `${item.tokens} tokens`}
+          {workLineage(item)} · {item.tokens} tokens
         </small>
       </div>
     </div>
   );
 }
 
-export function SchedulerLab({ language }: SchedulerLabProps) {
-  const isZh = language === "zh";
-  const [queue, setQueue] = useState(() => initialQueue(language));
+export function SchedulerLab() {
+  const [queue, setQueue] = useState(initialQueue);
   const [maxSequences, setMaxSequences] = useState(3);
   const [maxTokens, setMaxTokens] = useState(16);
   const [lastResult, setLastResult] = useState<ScheduleResult | null>(null);
@@ -185,9 +176,8 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
         workId: `${requestId}-${preset.phase}`,
         requestId,
         parentWorkId: null,
-        requestLabel:
-          language === "zh" ? `请求 ${nextID}` : `Request ${nextID}`,
-        detail: preset.phase === "prefill" ? preset.label[language] : undefined,
+        requestLabel: `Request ${nextID}`,
+        detail: preset.phase === "prefill" ? preset.label : undefined,
         phase: preset.phase,
         tokens: preset.tokens,
         decodeRound: preset.phase === "decode" ? 1 : 0,
@@ -279,7 +269,7 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
       window.clearTimeout(executionTimer.current);
       executionTimer.current = null;
     }
-    setQueue(initialQueue(language));
+    setQueue(initialQueue());
     setLastResult(null);
     setLastCompletion(null);
     setSelectedBatch([]);
@@ -290,18 +280,18 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
   };
 
   return (
-    <main className="page scheduler-page">
+    <div className="page scheduler-page">
       <section className="scheduler-heading">
         <div className="eyebrow">
-          {isZh ? "TOKEN-AWARE 调度 · 单步模式" : "TOKEN-AWARE SCHEDULING · STEP MODE"}
+          TOKEN-AWARE SCHEDULING · STEP MODE
         </div>
       </section>
 
       <section className="scheduler-layout">
         <aside className="control-panel">
-          <div className="section-kicker">{isZh ? "调度预算" : "BUDGET"}</div>
+          <div className="section-kicker">BUDGET</div>
           <label>
-            <span>{isZh ? "最大序列数" : "Max sequences"}</span>
+            <span>Max sequences</span>
             <output>{maxSequences}</output>
             <input
               aria-label="Max sequences"
@@ -314,7 +304,7 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
             />
           </label>
           <label>
-            <span>{isZh ? "最大 token 数" : "Max tokens"}</span>
+            <span>Max tokens</span>
             <output>{maxTokens}</output>
             <input
               aria-label="Max tokens"
@@ -329,28 +319,20 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
           </label>
 
           <div className="section-kicker preset-title">
-            {isZh ? "添加任务" : "ADD WORK"}
+            ADD WORK
           </div>
           <div className="preset-buttons">
             {presets.map((preset) => (
               <button
-                key={preset.label.en}
+                key={preset.label}
                 type="button"
-                aria-label={
-                  isZh
-                    ? `添加${preset.label.zh}`
-                    : `Add ${preset.label.en}`
-                }
+                aria-label={`Add ${preset.label}`}
                 disabled={isTransitioning}
                 onClick={() => addWork(preset)}
               >
                 <span>{preset.phase === "decode" ? "D" : "P"}</span>
-                <strong>{preset.label[language]}</strong>
-                <small>
-                  {isZh
-                    ? `${preset.tokens} 个 token`
-                    : `${preset.tokens} tokens`}
-                </small>
+                <strong>{preset.label}</strong>
+                <small>{preset.tokens} tokens</small>
               </button>
             ))}
           </div>
@@ -364,16 +346,10 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
               (queue.length === 0 && selectedBatch.length === 0)
             }
           >
-            {isTransitioning
-              ? isZh
-                ? "迁移中"
-                : "Moving work"
-              : isZh
-                ? "执行下一步"
-                : "Run next step"}
+            {isTransitioning ? "Moving work" : "Run next step"}
           </button>
           <button className="reset-button" type="button" onClick={reset}>
-            {isZh ? "重置实验" : "Reset experiment"}
+            Reset experiment
           </button>
         </aside>
 
@@ -387,22 +363,21 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
         >
           <section
             className="queue-column"
-            aria-label={isZh ? "等待队列" : "Waiting queue"}
+            aria-label="Waiting queue"
           >
-            <header>
+            <div className="queue-header">
               <div>
                 <span>01</span>
-                <h2>{isZh ? "等待队列" : "Waiting queue"}</h2>
+                <h2>Waiting queue</h2>
               </div>
               <strong>{queue.length}</strong>
-            </header>
+            </div>
             <div className="work-stack">
               {queue.length > 0 ? (
                 queue.map((item) => (
                   <WorkPill
                     item={item}
                     key={item.workId}
-                    language={language}
                     transitioning={
                       transitionDirection === "to-selected" &&
                       transitioningWorkIds.includes(item.workId)
@@ -412,7 +387,7 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
                 ))
               ) : (
                 <p className="empty-state">
-                  {isZh ? "队列已清空。" : "The queue is empty."}
+                  The queue is empty.
                 </p>
               )}
             </div>
@@ -420,22 +395,21 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
 
           <section
             className="queue-column selected-column"
-            aria-label={isZh ? "选中批次" : "Selected batch"}
+            aria-label="Selected batch"
           >
-            <header>
+            <div className="queue-header">
               <div>
                 <span>02</span>
-                <h2>{isZh ? "选中批次" : "Selected batch"}</h2>
+                <h2>Selected batch</h2>
               </div>
               <strong>{selectedBatch.length}</strong>
-            </header>
+            </div>
             <div className="work-stack">
               {selectedBatch.length > 0 ? (
                 selectedBatch.map((item) => (
                   <WorkPill
                     item={item}
                     key={item.workId}
-                    language={language}
                     transitioning={
                       transitionDirection === "to-waiting" &&
                       transitioningWorkIds.includes(item.workId)
@@ -445,9 +419,7 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
                 ))
               ) : (
                 <p className="empty-state">
-                  {isZh
-                    ? "调整预算，然后执行一个调度 step。"
-                    : "Tune the budget, then run one scheduling step."}
+                  Tune the budget, then run one scheduling step.
                 </p>
               )}
             </div>
@@ -457,15 +429,11 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
 
       <section className="decision-ledger">
         <div>
-          <span>{isZh ? "调度决策" : "DECISION LEDGER"}</span>
+          <span>DECISION LEDGER</span>
           <strong>
             {lastResult
-              ? isZh
-                ? `选中 ${lastResult.selected.length} 项 · 延后 ${lastResult.skipped.length} 项`
-                : `${lastResult.selected.length} selected · ${lastResult.skipped.length} deferred`
-              : isZh
-                ? "尚未执行调度"
-                : "No scheduling decision yet"}
+              ? `${lastResult.selected.length} selected · ${lastResult.skipped.length} deferred`
+              : "No scheduling decision yet"}
           </strong>
         </div>
         <p>
@@ -473,24 +441,14 @@ export function SchedulerLab({ language }: SchedulerLabProps) {
             ? lastResult.skipped
                 .map(
                   ({ item, reason }) =>
-                    isZh
-                      ? `${workLabel(item)}：${
-                          reason === "token-budget"
-                            ? "超出 token 预算"
-                            : "超出序列预算"
-                        }`
-                      : `${workLabel(item)}: ${reason.replace("-", " ")}`,
+                    `${workLabel(item)}: ${reason.replace("-", " ")}`,
                 )
                 .join(" · ")
             : lastCompletion && lastCompletion.finishedRequestIds.length > 0
-              ? isZh
-                ? `${lastCompletion.finishedRequestIds.join("、")} 已完成两轮 Decode。`
-                : `${lastCompletion.finishedRequestIds.join(", ")} completed two Decode rounds.`
-            : isZh
-              ? "无法放入当前 budget 的工作会保留在队列中。"
+              ? `${lastCompletion.finishedRequestIds.join(", ")} completed two Decode rounds.`
               : "Work that cannot fit the current budget remains queued."}
         </p>
       </section>
-    </main>
+    </div>
   );
 }

@@ -17,15 +17,15 @@ describe("SchedulerLab", () => {
   });
 
   it("keeps the selected batch empty until scheduling finishes", async () => {
-    render(<SchedulerLab language="zh" />);
+    render(<SchedulerLab />);
 
-    const selectedBatch = screen.getByRole("region", { name: "选中批次" });
+    const selectedBatch = screen.getByRole("region", { name: "Selected batch" });
     expect(within(selectedBatch).getByText("0")).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: "执行下一步" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run next step" }));
 
     expect(within(selectedBatch).getByText("0")).toBeInTheDocument();
-    expect(screen.getByText("请求 A · Decode 1/2").closest(".work-pill")).toHaveClass(
+    expect(screen.getByText("Request A · Decode 1/2").closest(".work-pill")).toHaveClass(
       "work-transitioning",
     );
 
@@ -35,23 +35,23 @@ describe("SchedulerLab", () => {
 
     expect(within(selectedBatch).getByText("3")).toBeInTheDocument();
     expect(
-      within(selectedBatch).getByText("请求 A · Decode 1/2"),
+      within(selectedBatch).getByText("Request A · Decode 1/2"),
     ).toBeInTheDocument();
   });
 
   it("automatically returns successor work to the waiting queue after two seconds", () => {
-    render(<SchedulerLab language="zh" />);
-    const schedule = screen.getByRole("button", { name: "执行下一步" });
+    render(<SchedulerLab />);
+    const schedule = screen.getByRole("button", { name: "Run next step" });
 
     fireEvent.click(schedule);
     act(() => {
       vi.advanceTimersByTime(SCHEDULE_TRANSITION_MS);
     });
 
-    const selectedBatch = screen.getByRole("region", { name: "选中批次" });
+    const selectedBatch = screen.getByRole("region", { name: "Selected batch" });
     expect(within(selectedBatch).getByText("3")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "执行下一步" }),
+      screen.getByRole("button", { name: "Run next step" }),
     ).toBeInTheDocument();
 
     act(() => {
@@ -64,7 +64,7 @@ describe("SchedulerLab", () => {
     });
     expect(
       within(selectedBatch)
-        .getByText("请求 A · Decode 1/2")
+        .getByText("Request A · Decode 1/2")
         .closest(".work-pill"),
     ).toHaveClass("work-transitioning");
 
@@ -72,36 +72,36 @@ describe("SchedulerLab", () => {
       vi.advanceTimersByTime(SCHEDULE_TRANSITION_MS);
     });
 
-    const waitingQueue = screen.getByRole("region", { name: "等待队列" });
+    const waitingQueue = screen.getByRole("region", { name: "Waiting queue" });
     expect(within(selectedBatch).getByText("0")).toBeInTheDocument();
     expect(
-      within(waitingQueue).getByText("请求 A · Decode 2/2"),
+      within(waitingQueue).getByText("Request A · Decode 2/2"),
     ).toBeInTheDocument();
     expect(
-      within(waitingQueue).getByText("请求 B · Decode 1/2"),
+      within(waitingQueue).getByText("Request B · Decode 1/2"),
     ).toBeInTheDocument();
     expect(
       within(waitingQueue).getByText(/REQ-A · D2\/2 · FROM D1/),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "执行下一步" }),
+      screen.getByRole("button", { name: "Run next step" }),
     ).toBeInTheDocument();
   });
 
   it("lets the user finish the selected batch before the timer expires", () => {
-    render(<SchedulerLab language="zh" />);
+    render(<SchedulerLab />);
 
-    fireEvent.click(screen.getByRole("button", { name: "执行下一步" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run next step" }));
     act(() => {
       vi.advanceTimersByTime(SCHEDULE_TRANSITION_MS);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: "执行下一步" }));
+    fireEvent.click(screen.getByRole("button", { name: "Run next step" }));
 
-    const selectedBatch = screen.getByRole("region", { name: "选中批次" });
+    const selectedBatch = screen.getByRole("region", { name: "Selected batch" });
     expect(
       within(selectedBatch)
-        .getByText("请求 B · 短提示词")
+        .getByText("Request B · Short prompt")
         .closest(".work-pill"),
     ).toHaveClass("work-transitioning");
 
@@ -109,13 +109,13 @@ describe("SchedulerLab", () => {
       vi.advanceTimersByTime(SCHEDULE_TRANSITION_MS);
     });
 
-    const waitingQueue = screen.getByRole("region", { name: "等待队列" });
+    const waitingQueue = screen.getByRole("region", { name: "Waiting queue" });
     expect(within(selectedBatch).getByText("0")).toBeInTheDocument();
     expect(
-      within(waitingQueue).getByText("请求 B · Decode 1/2"),
+      within(waitingQueue).getByText("Request B · Decode 1/2"),
     ).toBeInTheDocument();
     expect(
-      within(waitingQueue).queryByText("请求 B · Decode 2/2"),
+      within(waitingQueue).queryByText("Request B · Decode 2/2"),
     ).not.toBeInTheDocument();
   });
 });

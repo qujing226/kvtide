@@ -808,7 +808,6 @@ a {
 
 /* Remove these compatibility scopes as each legacy page migrates to the site theme. */
 .playground-page,
-.scheduler-page,
 .benchmark-page {
   --font-ui:
     "Segoe UI Variable", "Avenir Next", "Segoe UI", "PingFang SC",
@@ -1897,7 +1896,7 @@ h2 {
   background: rgba(226, 235, 227, 0.7);
 }
 
-.queue-column header {
+.queue-column .queue-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1905,25 +1904,25 @@ h2 {
   border-bottom: 1px solid var(--line);
 }
 
-.queue-column header div {
+.queue-column .queue-header div {
   display: flex;
   align-items: baseline;
   gap: 10px;
 }
 
-.queue-column header span,
-.queue-column header > strong {
+.queue-column .queue-header span,
+.queue-column .queue-header > strong {
   font-family: var(--font-mono);
   font-size: 10px;
 }
 
-.queue-column header h2 {
+.queue-column .queue-header h2 {
   margin: 0;
   font-size: 24px;
   font-weight: 500;
 }
 
-.queue-column header > strong {
+.queue-column .queue-header > strong {
   display: grid;
   place-items: center;
   width: 30px;
@@ -2062,6 +2061,121 @@ h2 {
   color: rgba(255, 255, 255, 0.78);
   font-size: 11px;
   line-height: 1.65;
+}
+
+.scheduler-page {
+  --paper: var(--surface);
+  --orange: var(--accent);
+  --blue: var(--ink);
+  --font-ui: var(--font-sans);
+  width: 100%;
+  margin: 58px 0 0;
+  padding: 0;
+  color: var(--ink);
+  background: transparent;
+  font-family: var(--font-sans);
+  animation: none;
+}
+
+.scheduler-page .scheduler-heading {
+  align-items: center;
+  padding: 18px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.scheduler-page .eyebrow,
+.scheduler-page .section-kicker {
+  color: var(--muted);
+  font-family: var(--font-mono);
+}
+
+.scheduler-page .control-panel {
+  color: var(--ink);
+  background: var(--surface-soft);
+  border: 1px solid var(--line);
+}
+
+.scheduler-page .control-panel output {
+  color: var(--accent);
+}
+
+.scheduler-page .control-panel input {
+  accent-color: var(--accent);
+}
+
+.scheduler-page .preset-title {
+  color: var(--muted);
+}
+
+.scheduler-page .preset-buttons button {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.scheduler-page .preset-buttons button:hover:not(:disabled),
+.scheduler-page .preset-buttons button:focus-visible:not(:disabled) {
+  border-color: #aeb9ca;
+}
+
+.scheduler-page .preset-buttons button > span {
+  color: var(--accent);
+  background: #edf2fc;
+}
+
+.scheduler-page .preset-buttons small {
+  color: var(--muted);
+}
+
+.scheduler-page .run-button {
+  color: #fff;
+  background: var(--accent);
+}
+
+.scheduler-page .run-button:hover:not(:disabled),
+.scheduler-page .run-button:focus-visible:not(:disabled) {
+  background: #2858bd;
+}
+
+.scheduler-page .reset-button {
+  color: var(--muted);
+  background: transparent;
+  border-color: var(--line);
+}
+
+.scheduler-page .queue-column,
+.scheduler-page .selected-column {
+  background: var(--surface);
+  border-color: var(--line);
+}
+
+.scheduler-page .selected-column {
+  background: #f5f7fb;
+}
+
+.scheduler-page .work-pill {
+  background: var(--surface);
+  box-shadow: 0 8px 24px rgba(17, 19, 24, 0.04);
+}
+
+.scheduler-page .work-prefill > span {
+  color: #2858bd;
+  background: #e7eefc;
+}
+
+.scheduler-page .work-decode > span {
+  color: #226957;
+  background: #e2f1ec;
+}
+
+.scheduler-page .decision-ledger {
+  color: #fff;
+  background: var(--ink);
+}
+
+.scheduler-page .decision-ledger p {
+  color: #b9c0ca;
 }
 
 .app-shell[data-language="zh"] .sidebar nav button {
