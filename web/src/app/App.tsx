@@ -2,6 +2,7 @@ import { AnimatePresence } from "motion/react";
 import { useEffect, useState } from "react";
 import { Route, Routes, useLocation } from "react-router";
 
+import { HomePage } from "../home/HomePage";
 import { NotFoundPage } from "../site/NotFoundPage";
 import { RoutePage } from "../site/RoutePage";
 import { SiteLayout } from "../site/SiteLayout";
@@ -31,10 +32,7 @@ export function App() {
     <SiteLayout>
       <AnimatePresence initial={false} mode="wait">
         <Routes location={location} key={location.pathname}>
-          <Route
-            path="/"
-            element={<RoutePlaceholder title="KVTide" focusOnMount={focusOnMount} />}
-          />
+          <Route path="/" element={<HomePage focusOnMount={focusOnMount} />} />
           <Route
             path="/demo"
             element={<RoutePlaceholder title="Demo" focusOnMount={focusOnMount} />}
