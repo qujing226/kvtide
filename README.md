@@ -1,7 +1,8 @@
 # KVTide
 
+![1](./assets/banner.svg)
 <p align="center">
-  <img src="./assets/logo-horizontal.svg" alt="KVTide logo" width="420" />
+  <strong>KV-aware LLM serving, built from the runtime up.</strong>
 </p>
 
 <p align="center">
@@ -10,10 +11,6 @@
   <img src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB" alt="React 19" />
   <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
   <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
-</p>
-
-<p align="center">
-  <strong>An interactive LLM serving control plane for studying request lifecycles, token-aware scheduling, prefix caching, KV block management, and streaming inference.</strong>
 </p>
 
 <p align="center">
@@ -28,83 +25,92 @@
 
 ---
 
-## Overview
+## What is KVTide?
 
-`kvtide` isolates the control-plane mechanics behind modern LLM serving systems.
+KVTide is an open LLM serving runtime that makes scheduling, request state, and KV-cache ownership explicit. A Go control plane tokenizes requests, schedules prefill and decode work under token budgets, manages prefix-cache and block metadata, and streams results. A Python executor runs either a synthetic mock workload or a real Qwen Transformers CPU forward path.
 
-The Go server turns each inference request into schedulable prefill and decode work, builds mixed batches under sequence and token budgets, models prefix-cache and KV-block metadata, and streams generated chunks back to the client. A Python executor can run either the mock runner or the Qwen Transformers CPU runner.
+The current runtime intentionally uses **one control plane, one executor, and one KV block pool**. It is a coherent baseline for studying runtime behavior, not a claim that ordinary service replication creates distributed inference.
 
-This project is intended to make the following questions observable:
+> **Vision:** KV cache should move toward available compute automatically. KVTide is working toward a Kubernetes-native runtime where compatible executors can proactively push reusable KV blocks to peers and update ownership without forcing prefix recomputation.
 
-- How does a request move through queued, prefill, decode, streaming, and cleanup states?
-- Why are `Request` and `WorkItem` different objects?
-- How does token-aware batching differ from request-level FIFO?
-- What do TTFT and TBT reveal about serving behavior?
-- What does a prefix-cache hit save?
-- How does KV block pressure affect scheduling and cache eviction?
+## Runtime Console
 
-KVTide includes a reference Qwen CPU executor, but it is not a replacement for optimized GPU runtimes such as vLLM, SGLang, or TensorRT-LLM.
+The website is part of the runtime rather than a static project page.
 
-## Website
+- **Demo / Topology** discovers the connected executor through `GetExecutors` and shows its model, runtime epoch, device, dtype, and KV capacity.
+- **Demo / Request** sends a real Connect RPC stream through the Go control plane and renders the generated Markdown response.
+- **Demo / Metrics** reads Prometheus metrics and explains queue, batch, request, latency, prefix-cache, and block-pool behavior.
+- **Lab** provides a step-driven token-budget scheduling experiment isolated from production runtime state.
 
-The public website is also the runtime console:
+<p align="center">
+  <img src="./assets/front-topology.png" alt="KVTide runtime topology" width="920" />
+</p>
 
-- **Demo** sends a real Connect RPC stream through the Go control plane, renders Markdown output, and shows live Prometheus queue, batch, and KV-block metrics.
-- **Lab** exposes the token-budget scheduler as a step-by-step experiment without changing production runtime state.
-- **Blog** is an empty publishing surface for future design notes.
-
-The browser only communicates with the Web service. Its same-origin proxy forwards the inference stream and the limited metrics endpoint to the internal Go service, so public deployments do not need to expose control-plane ports.
-
-## Features
+## Current Capabilities
 
 | Area | Implementation |
 |---|---|
-| API | Connect RPC unary and server-streaming inference endpoints |
-| Request lifecycle | State machine for queued, prefill, decode, finished, timeout, canceled, and failed states |
-| Scheduling | Separate prefill/decode queues, small/large prefill classification, mixed batches, sequence and token budgets |
-| Execution | One Go control plane connected to one Python executor |
-| Streaming | Incremental response chunks with TTFT, TBT, usage, and finish-reason tracking |
-| Prefix cache | Per-user cache salt, full-block hash matching, hit/miss counters, and saved-token metrics |
-| KV block model | Block tables, free-list reuse, cached blocks, allocation failures, and eviction counters |
-| Observability | Prometheus metrics and runtime statistics for queues, batches, requests, latency, and KV blocks |
-| Web interface | Project home, live runtime demo, scheduler lab, and design blog |
-| Deployment | Docker Compose and local Kubernetes manifests for kind |
+| API | Connect RPC server-streaming inference plus executor and admin RPCs |
+| Lifecycle | Queued, prefill, decode, streaming, finished, timeout, and failure transitions |
+| Scheduling | Separate prefill/decode queues, chunked prefill, mixed work batches, sequence and token budgets |
+| Prefix cache | User-scoped cache salt, chained full-block hashes, hit/miss and saved-token metrics |
+| KV blocks | Logical block tables, free-list allocation, cached block reuse, rollback, release, and eviction accounting |
+| Execution | Mock runner and Qwen3-0.6B Transformers CPU runner |
+| KV tensors | Executor-side paged KV storage with a Hugging Face `DynamicCache` adapter |
+| Streaming | Incremental text, TTFT/TBT observations, usage, finish reason, and errors |
+| Observability | Prometheus metrics plus executor runtime inventory |
+| Deployment | Docker Compose, a low-resource cloud Mock profile, and local Kubernetes manifests for kind |
+
+## Architecture
+
+KVTide separates the user-visible request from the work selected for one model execution step:
+
+- `Request` owns input tokens, lifecycle state, generated output, usage, and completion.
+- `WorkItem` describes one schedulable prefill chunk or decode step.
+- `Scheduler` selects work under sequence and token budgets.
+- `BlockManager` owns prefix matching and logical KV-block metadata.
+- `ExecutorManager` sends a batch to the configured runtime.
+- `Event` commits or rolls back block state and advances the request lifecycle.
+
+![KVTide architecture](./assets/Stage2_Architecture.svg)
+
+```text
+GenerateStream
+  -> model-aware tokenizer
+  -> request state manager
+  -> prefix lookup and block allocation
+  -> prefill/decode WorkItem
+  -> token-budget scheduler
+  -> executor manager
+  -> Python model runner
+  -> Event
+  -> next WorkItem or streamed completion
+  -> block release / cache retention
+```
+
+The control plane sends token IDs, block tables, newly allocated block IDs, computed-token offsets, and a runtime epoch to the executor. The executor uses that metadata to reconstruct historical KV, write new slots, and reject work addressed to a stale runtime instance.
 
 ## Quick Start
 
-Docker Compose is the recommended way to run the complete project:
+### Real Qwen CPU Executor
+
+The default Compose stack runs Qwen3-0.6B on CPU. Download the model first:
 
 ```bash
 cd executor
 uv run hf download Qwen/Qwen3-0.6B --local-dir ./models/Qwen3-0.6B
 cd ..
+
 docker compose up --build -d
 ```
 
-It starts a one-to-one topology:
+Open `http://127.0.0.1:5173`.
 
-```text
-Browser
-  -> Web container
-  -> Go control plane
-  -> Python Qwen executor
-```
-
-Open the web interface:
-
-```text
-http://127.0.0.1:5173
-```
-
-Available endpoints:
-
-| Endpoint | Address |
+| Service | Address |
 |---|---|
-| Web interface | `http://127.0.0.1:5173` |
-| Inference service | `http://127.0.0.1:8800` |
-| Admin and Prometheus metrics | `http://127.0.0.1:8801` |
-
-Inspect or stop the stack:
+| Web runtime console | `http://127.0.0.1:5173` |
+| Inference API | `http://127.0.0.1:8800` |
+| Admin API and metrics | `http://127.0.0.1:8801` |
 
 ```bash
 docker compose ps
@@ -113,105 +119,26 @@ curl http://127.0.0.1:8801/metrics
 docker compose down
 ```
 
-## Architecture
+The default executor uses fp32 weights and a 512 MiB KV-cache budget. Use a machine with at least 8 GiB RAM for this profile.
 
-The project separates the user-visible request lifecycle from schedulable execution work:
+## Benchmark
 
-- `Request` owns lifecycle state, streaming output, usage, and final completion.
-- `WorkItem` represents one prefill or decode unit that can enter a batch.
-- `Scheduler` selects mixed work under sequence and token budgets.
-- `Event` carries executor results back into the lifecycle state machine.
-- `BlockManager` models prefix matching, KV block allocation, reuse, and eviction.
-- `ExecutorManager` dispatches each batch to the configured executor.
-
-![KVTide architecture](./assets/Stage2_Architecture.svg)
-
-The main request path is:
-
-```text
-GenerateRequest
-  -> Tokenizer
-  -> Request lifecycle manager
-  -> Prefix-cache lookup and KV block allocation
-  -> Prefill/decode WorkItem
-  -> Token-budget scheduler
-  -> Executor manager
-  -> Python executor
-  -> Event
-  -> Next WorkItem or final streamed response
-  -> KV block cleanup
-```
-
-The deployment intentionally uses one logical server and one logical executor. Adding replicas behind a Kubernetes Service would load-balance requests but would not create a coherent distributed KV-aware inference engine.
-
-## Benchmark Profile
-
-The benchmark uses the Python mock executor. The results describe control-plane behavior, not GPU inference performance.
+The benchmark uses the Mock Executor and measures control-plane behavior, not GPU kernel performance.
 
 ![KVTide benchmark summary](./assets/Stage3_Benchmark_Summary.svg)
 
-The bundled scenarios cover cache misses, warmed prefix-cache users, mixed prompt lengths, and KV block pressure. They are designed to expose changes in throughput, latency, TTFT, TBT, batch size, prefix hits, saved tokens, and eviction activity.
-
-Historical benchmark details remain available in [`docs/benchmarks`](./docs/benchmarks).
-
-Run the fast regression profile or the full report profile:
+The bundled profiles cover cold prefixes, warmed user-scoped prefixes, mixed prompt lengths, token-budget batching, and KV-block pressure. Reported signals include throughput, average and tail latency, TTFT, TBT, batch size, prefix hits, saved tokens, allocation failures, and evictions.
 
 ```bash
 make bench-quick
 make bench-report
 ```
 
-## Run From Source
+Historical reports are retained in [`docs/benchmarks`](./docs/benchmarks).
 
-The recommended tool versions are declared in [`mise.toml`](./mise.toml). `kubectl` is intentionally not managed by mise because it commonly comes from Docker Desktop or the user's Kubernetes installation.
+## Kubernetes with kind
 
-Install the web dependencies:
-
-```bash
-cd web
-npm install
-cd ..
-```
-
-Start the Python executor:
-
-```bash
-cd executor
-make run
-```
-
-Start the Go server from the repository root in another terminal:
-
-```bash
-make run
-```
-
-Start the Vite development server in a third terminal:
-
-```bash
-make web-dev
-```
-
-Vite proxies inference traffic to `127.0.0.1:8800` and metrics traffic to `127.0.0.1:8801` during local development. The browser remains on the `5173` origin, so no development CORS configuration is required.
-
-
-## Server Deployment
-
-Use the production Compose overlay when deploying to a server without a domain:
-
-```bash
-KVTIDE_WEB_PORT=80 \
-docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d
-```
-
-Then open `http://<server-ip>/`. To use another public port, change only `KVTIDE_WEB_PORT`, for example `KVTIDE_WEB_PORT=8080`.
-
-The production overlay publishes only the Web service. Ports `8800`, `8801`, and `19991` remain on the private Compose network. Open only the selected Web port in the host firewall or cloud security group.
-
-
-## Kubernetes With kind
-
-Build the images, create the local three-node cluster, and deploy the one-to-one server/executor topology:
+The Kubernetes manifests preserve the same one-to-one runtime topology:
 
 ```bash
 make docker-build
@@ -219,59 +146,45 @@ make kube-start
 make kube-forward
 ```
 
-See [`k8s/README.md`](./k8s/README.md) for manifests, verification commands, probes, rollout behavior, and cleanup.
+See [`k8s/README.md`](./k8s/README.md) for manifests, probes, rollout behavior, inspection commands, and cleanup.
 
-## Project Layout
+The executor Deployment intentionally has one replica. Adding replicas behind a Kubernetes Service would load-balance batches without preserving executor-local KV ownership.
 
-```text
-cmd/
-  bench/        benchmark CLI
-  client/       inference, executor, and admin clients
-  server/       Go control-plane process
-internal/
-  block/        prefix matching, KV block tables, reuse, and eviction
-  executor/     executor manager and Connect backend
-  handler/      request admission and streaming output
-  metrics/      Prometheus metrics and runtime statistics
-  model/        Request, WorkItem, Event, Batch, and block metadata
-  scheduler/    token-budget scheduler and prefill/decode queues
-  state/        request lifecycle state machine
-  tokenizer/    model-aware tokenizer registry
-  transport/    Connect RPC, admin, and CORS handlers
-executor/       Python executor runners
-web/            React website, live runtime demo, scheduler lab, and blog shell
-proto/          protobuf API definitions
-k8s/            kind cluster configuration and Kubernetes manifests
-docs/           historical summaries and benchmark reports
-docker/         server, executor, and web images
-```
+## Scope and Boundaries
 
-## Scope
+Implemented today:
 
-The repository focuses on the serving control plane. It does not implement:
+- A working Go scheduling and request-lifecycle control plane
+- Real streaming RPC and Prometheus observability
+- Model-aware Go tokenization
+- A real CPU forward path with executor-side paged KV storage
+- Prefix-cache and KV-block ownership metadata in a one-executor runtime
 
-- CUDA, PagedAttention, or FlashAttention kernels
-- real GPU KV tensors
-- tensor or pipeline parallelism
-- a distributed KV cache
-- production autoscaling
-- full OpenAI API compatibility
+Not implemented yet:
 
-These concerns belong to inference engines or production platforms. KVTide models the orchestration around execution: request lifecycle, scheduling, streaming, cache metadata, KV block pressure, and observability.
+- CUDA, FlashAttention, or a custom PagedAttention kernel
+- Tensor, pipeline, or expert parallelism
+- Mixed-phase execution in one GPU forward
+- Multi-executor block namespaces and placement policy
+- Peer-to-peer KV transfer
+- A production Kubernetes Operator or autoscaler
+- Full OpenAI API compatibility
 
-## Vision
+## Roadmap: From Ownership to Mobility
 
-KVTide is moving toward executor-aware KV mobility. Executors with the same model family, weights, dtype, and tensor-parallel configuration should be able to discover one another. When one executor's KV pressure becomes imbalanced, it should proactively push selected cache blocks to a compatible peer and update ownership without forcing the next request to recompute its prefix.
+The next architectural boundary is executor-aware block ownership. Each block table must be scoped by executor and runtime epoch before the control plane can recover safely from restarts or place work across replicas.
 
-That direction requires executor-scoped block tables, runtime-epoch recovery, placement policy, transfer protocols, and measurements that distinguish useful reuse from transfer overhead. The current one-to-one runtime is the baseline for evaluating those mechanisms rather than pretending they already exist.
+From there, KVTide can evaluate its central hypothesis: when compatible executors run the same model weights, dtype, and tensor-parallel configuration, an overloaded executor should be able to **push** selected KV blocks to an available peer. The control plane should observe the new placement, update metadata, and measure whether reuse saved more work than transfer consumed.
+
+That path requires evidence, not only functionality. Future evaluations should compare recomputation, local reuse, and remote transfer across TTFT, TBT, throughput, transfer bandwidth, cache pressure, and tail latency.
 
 ## Related Systems
 
 - [vLLM](https://github.com/vllm-project/vllm)
 - [SGLang](https://github.com/sgl-project/sglang)
+- [LMCache](https://github.com/LMCache/LMCache)
 - [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
 - [llama.cpp](https://github.com/ggml-org/llama.cpp)
-- [Ollama](https://github.com/ollama/ollama)
 
 ## License
 
