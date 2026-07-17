@@ -261,13 +261,11 @@ describe("createRuntimeProxy", () => {
     expect(upstreamRequests).toBe(0);
   });
 
-  it("terminates upstream when a chunked body crosses the limit", async () => {
-    let upstreamTerminated;
-    const terminated = new Promise((resolve) => {
-      upstreamTerminated = resolve;
-    });
+  it("validates a chunked body before contacting upstream", async () => {
+    let upstreamRequests = 0;
     const api = await listen((request) => {
-      request.on("close", upstreamTerminated);
+      upstreamRequests += 1;
+      request.resume();
     });
     const metrics = await listen((_request, response) => response.end());
     const proxy = await listenProxy({
@@ -290,12 +288,12 @@ describe("createRuntimeProxy", () => {
       );
       request.on("error", reject);
       request.write("1234");
-      setTimeout(() => request.end("5"), 15);
+      setTimeout(() => request.end("5"), 50);
     });
 
     const result = await resultPromise;
-    await terminated;
     expect(result.statusCode).toBe(413);
+    expect(upstreamRequests).toBe(0);
   });
 
   it("limits concurrency and releases the slot after completion", async () => {

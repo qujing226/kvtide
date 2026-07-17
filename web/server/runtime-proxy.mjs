@@ -48,6 +48,43 @@ function requestFor(upstream) {
   return upstream.protocol === "https:" ? httpsRequest : httpRequest;
 }
 
+function readRequestBody(request, maxBodyBytes) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let receivedBytes = 0;
+    let settled = false;
+
+    const cleanup = () => {
+      request.off("data", onData);
+      request.off("end", onEnd);
+      request.off("aborted", onAborted);
+      request.off("error", onAborted);
+    };
+    const settle = (result) => {
+      if (settled) return;
+      settled = true;
+      cleanup();
+      resolve(result);
+    };
+    const onData = (chunk) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxBodyBytes) {
+        request.resume();
+        settle({ oversized: true, body: null });
+        return;
+      }
+      chunks.push(chunk);
+    };
+    const onEnd = () => settle({ oversized: false, body: Buffer.concat(chunks) });
+    const onAborted = () => settle({ aborted: true, oversized: false, body: null });
+
+    request.on("data", onData);
+    request.once("end", onEnd);
+    request.once("aborted", onAborted);
+    request.once("error", onAborted);
+  });
+}
+
 export function createRuntimeProxy({
   apiUpstream,
   metricsUpstream,
@@ -90,7 +127,6 @@ export function createRuntimeProxy({
   }) {
     let upstreamResponse;
     let timedOut = false;
-    let oversized = false;
     let settled = false;
 
     const finish = () => {
@@ -152,38 +188,17 @@ export function createRuntimeProxy({
 
     upstreamRequest.once("error", () => {
       clearTimeout(timeout);
-      if (!timedOut && !oversized && !request.aborted) {
+      if (!timedOut && !request.aborted) {
         sendJson(response, 502, "Upstream connection failed");
       }
       finish();
     });
 
-    if (!body) {
+    if (body === null) {
       upstreamRequest.end();
       return;
     }
-
-    let receivedBytes = 0;
-    request.on("data", (chunk) => {
-      if (oversized) return;
-      receivedBytes += chunk.length;
-      if (receivedBytes > maxBodyBytes) {
-        oversized = true;
-        clearTimeout(timeout);
-        upstreamRequest.destroy();
-        sendJson(response, 413, "Request body too large");
-        finish();
-        return;
-      }
-      if (!upstreamRequest.write(chunk)) {
-        request.pause();
-        upstreamRequest.once("drain", () => request.resume());
-      }
-    });
-    request.once("end", () => {
-      if (!oversized && !upstreamRequest.destroyed) upstreamRequest.end();
-    });
-    request.once("error", destroyUpstream);
+    upstreamRequest.end(body);
   }
 
   return async function proxyRuntimeRequest(request, response) {
@@ -203,7 +218,7 @@ export function createRuntimeProxy({
         upstream: metrics,
         path: "/metrics",
         method: "GET",
-        body: false,
+        body: null,
       });
       return true;
     }
@@ -241,11 +256,21 @@ export function createRuntimeProxy({
       released = true;
       activeInference -= 1;
     };
+    const body = await readRequestBody(request, maxBodyBytes);
+    if (body.aborted) {
+      release();
+      return true;
+    }
+    if (body.oversized) {
+      sendJson(response, 413, "Request body too large");
+      release();
+      return true;
+    }
     forward(request, response, {
       upstream: api,
       path: generatePath,
       method: "POST",
-      body: true,
+      body: body.body,
       release,
     });
     return true;
