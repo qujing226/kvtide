@@ -48,6 +48,9 @@ KVTide explores a different direction: move reusable KV state toward available c
 ## Architecture
 
 ![KVTide architecture](./assets/Architecture.svg)
+![Block_Manager](./assets/Block_Manager.svg)
+![Tensor_Mobility](./assets/Tensor_Mobility.svg)
+
 
 ## Protocol
 The communication between Engine and Executor is using proto, see [protocol introduce](./proto/kvtide/v1/executor.proto)
