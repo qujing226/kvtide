@@ -14,13 +14,15 @@ docker-build:
 	docker build -f docker/server.Dockerfile -t kvtide-server:local .
 	docker build -f docker/executor.Dockerfile -t kvtide-executor:local .
 	docker build -f docker/web.Dockerfile -t kvtide-web:local .
+	docker build -f docker/dashboard.Dockerfile -t kvtide-dashboard:local .
 
 docker-save:
 	docker save -o deploy/kvtide-server.tar kvtide-server:local
 	docker save -o deploy/kvtide-executor.tar kvtide-executor:local
 	docker save -o deploy/kvtide-web.tar kvtide-web:local
+	docker save -o deploy/kvtide-dashboard.tar kvtide-dashboard:local
 
-.PHONY: test stress-test web-dev web-test web-build docker-up-prod kube-start kube-apply kube-down kube-forward
+.PHONY: test stress-test web-dev web-test web-build dashboard-dev dashboard-test dashboard-build docker-up-prod kube-start kube-apply kube-down kube-forward
 
 test:
 	go test ./...
@@ -36,6 +38,15 @@ web-test:
 
 web-build:
 	cd web && npm run build
+
+dashboard-dev:
+	cd dashboard && npm run dev
+
+dashboard-test:
+	cd dashboard && npm run test:run
+
+dashboard-build:
+	cd dashboard && npm run build
 
 docker-up-prod:
 	docker compose -f docker-compose.yaml -f docker-compose.prod.yaml up --build -d

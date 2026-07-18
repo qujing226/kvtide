@@ -51,3 +51,18 @@ services:
       - "5173:5173"
     networks:
       - kvtide
+
+  dashboard:
+    container_name: dashboard
+    build:
+      context: .
+      dockerfile: docker/dashboard.Dockerfile
+    image: kvtide-dashboard:local
+    depends_on:
+      - server
+    environment:
+      KVTIDE_ADMIN_UPSTREAM: http://server:8801
+    ports:
+      - "5174:5174"
+    networks:
+      - kvtide
