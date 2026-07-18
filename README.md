@@ -15,11 +15,13 @@
 
 <p align="center">
   <a href="./README_zh.md">中文</a>
-  ·
+  |
+  <a href="http://118.178.120.11:8802/">Documentation</a>  
+  |
   <a href="#quick-start">Quick Start</a>
-  ·
+  |
   <a href="#architecture">Architecture</a>
-  ·
+  |
   <a href="./k8s/README.md">Kubernetes</a>
 </p>
 
@@ -72,7 +74,7 @@ KVTide separates the user-visible request from the work selected for one model e
 - `ExecutorManager` sends a batch to the configured runtime.
 - `Event` commits or rolls back block state and advances the request lifecycle.
 
-![KVTide architecture](./assets/Stage2_Architecture.svg)
+![KVTide architecture](./assets/Architecture.svg)
 
 ```text
 GenerateStream
