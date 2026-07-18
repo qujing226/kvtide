@@ -2,7 +2,7 @@
 
 ![1](./assets/banner.svg)
 <p align="center">
-  <strong>KV-aware LLM serving, built from the runtime up.</strong>
+  <strong>A scalable KV-aware LLM serving system, built from the runtime up.</strong>
 </p>
 
 <p align="center">
