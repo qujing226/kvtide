@@ -183,6 +183,38 @@ class PagedKVCache:
         # soft delete
         self.valid_slots[:, ids, :] = False
 
+    def export_blocks(
+        self,
+        block_ids: list[int],
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """
+        only export full-writed blocks.
+        [block_ids] ->
+        [[num_layers, num_kv_heads, len(block_ids), block_size, head_dim]]
+        """
+        if not block_ids:
+            raise ValueError("block_ids can not be empty")
+
+        ids = torch.tensor(
+            block_ids,
+            dtype=torch.long,
+            device=self.valid_slots.device,
+        )
+        if torch.any(ids < 0) or torch.any(ids >= self.num_blocks):
+            raise ValueError("invalid block id")
+
+        if ids.unique().numel() != ids.numel():
+            raise ValueError("block_ids contains duplicate block ids")
+
+        selected_valid = self.valid_slots.index_select(1, ids)
+        if not bool(selected_valid.all().item()):
+            raise ValueError("cannot export blocks that are not fully written")
+
+        return (
+            self.key_cache.index_select(2, ids),
+            self.value_cache.index_select(2, ids),
+        )
+
     @property
     def cache_bytes(self) -> int:
         return sum(
