@@ -5,8 +5,8 @@ description = "KVTide model executor runtime"
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 dependencies = [
-    "connectrpc>=0.9.0",
-    "protobuf>=7.35.1",
+    "connectrpc==0.11.1",
+    "protobuf==7.36.1",
     "psutil>=7.2.2",
     "torch>=2.12.1",
     "transformers>=5.13.0",

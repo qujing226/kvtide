@@ -5,11 +5,11 @@ inputs:
   - directory: .
 
 plugins:
-  - remote: buf.build/protocolbuffers/go
+  - remote: buf.build/protocolbuffers/go:v1.36.12
     out: ../gen/go
     opt:
       - paths=source_relative
-  - remote: buf.build/connectrpc/go
+  - remote: buf.build/connectrpc/go:v1.20.0
     out: ../gen/go
     opt:
       - paths=source_relative
@@ -23,12 +23,14 @@ plugins:
     opt:
       - paths=source_relative
 
-  - remote: buf.build/protocolbuffers/python
+  - remote: buf.build/protocolbuffers/python:v36.1
     out: ../executor
-  - remote: buf.build/protocolbuffers/pyi
+  - remote: buf.build/protocolbuffers/pyi:v36.1
     out: ../executor
-  - remote: buf.build/connectrpc/python
+  - remote: buf.build/connectrpc/py:v0.11.1
     out: ../executor
+    opt:
+      - protobuf=google
 
 managed:
   enabled: true
