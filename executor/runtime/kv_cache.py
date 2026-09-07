@@ -215,6 +215,60 @@ class PagedKVCache:
             self.value_cache.index_select(2, ids),
         )
 
+    def import_blocks(
+        self,
+        block_ids: list[int],
+        key: torch.Tensor,
+        value: torch.Tensor,
+    ) -> None:
+        """
+        block_ids won't need to be equal with the ids which
+        were assigned from the other executer.
+        """
+        if not block_ids:
+            raise ValueError("block_ids can not be empty")
+
+        ids = torch.tensor(
+            block_ids,
+            dtype=torch.long,
+            device=self.valid_slots.device,
+        )
+        if torch.any(ids < 0) or torch.any(ids >= self.num_blocks):
+            raise ValueError("invalid block id")
+
+        if ids.unique().numel() != ids.numel():
+            raise ValueError("block_ids contains duplicate block ids")
+
+        if bool(self.valid_slots.index_select(1, ids).any().item()):
+            raise ValueError("destination blocks must be empty")
+
+        if key.dtype != self.key_cache.dtype:
+            raise ValueError("key dtype mismatch")
+        if value.dtype != self.value_cache.dtype:
+            raise ValueError("value dtype mismatch")
+
+        if key.device != self.key_cache.device:
+            raise ValueError("key device mismatch")
+        if value.device != self.value_cache.device:
+            raise ValueError("value device mismatch")
+
+        valid_shape = (
+            self.num_layers,
+            self.num_kv_heads,
+            len(block_ids),
+            self.block_size,
+            self.head_dim,
+        )
+
+        if key.shape != valid_shape or value.shape != valid_shape:
+            raise ValueError("shape mismatch")
+
+        # start copy
+        self.key_cache.index_copy_(2, ids, key)
+        self.value_cache.index_copy_(2, ids, value)
+
+        self.valid_slots[:, ids, :] = True
+
     @property
     def cache_bytes(self) -> int:
         return sum(
