@@ -7,7 +7,7 @@ from typing import ClassVar as _ClassVar, Optional as _Optional
 DESCRIPTOR: _descriptor.FileDescriptor
 
 class KVBlockMetadata(_message.Message):
-    __slots__ = ()
+    __slots__ = ("block_size", "block_table", "allocated_blocks")
     BLOCK_SIZE_FIELD_NUMBER: _ClassVar[int]
     BLOCK_TABLE_FIELD_NUMBER: _ClassVar[int]
     ALLOCATED_BLOCKS_FIELD_NUMBER: _ClassVar[int]

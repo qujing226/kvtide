@@ -9,6 +9,7 @@ service ExecutorService{
   rpc GetRuntime(GetRuntimeRequest) returns (GetRuntimeResponse);
   rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
   rpc ReleaseBlocks(ReleaseBlocksRequest) returns (ReleaseBlocksResponse);
+  rpc PushKV(PushKVRequest) returns (PushKVResponse);
 }
 
 message GetRuntimeRequest{}
@@ -33,6 +34,16 @@ message GetRuntimeResponse{
   uint64 total_memory_bytes = 13;
   uint64 available_memory_bytes = 14;
   uint64 kv_cache_bytes = 15;
+  
+  // Immutable model weights revision; not a mutable branch name.
+  string model_revision = 16;
+  // Version of the KV tensor layout and wire encoding.
+  uint32 kv_layout_version = 17;
+  // Fingerprint of all settings required for KV compatibility.
+  string kv_compatibility_id = 18;
+  // Peer-reachable address of the KV transfer service.
+  string transfer_endpoint = 19;
+
 }
 
 message ExecuteBatchRequest{
@@ -93,3 +104,43 @@ message ReleaseBlocksRequest{
 }
 
 message ReleaseBlocksResponse{}
+
+message PushKVRequest {
+  string transfer_id = 1;
+
+  string source_executor_id = 2;
+  uint32 source_runtime_epoch = 3;
+
+  string destination_executor_id = 4;
+  uint32 destination_runtime_epoch = 5;
+
+  // Must match the destination's KV compatibility fingerprint.
+  string kv_compatibility_id = 6;
+
+  // Identifies the complete prefix, including its cache namespace.
+  // Final prefix-chain hash, with CacheSalt included in hash computation.
+  string prefix_hash = 7;
+  // Complete prefix starting at token position 0. It must be positive and equeal to:
+  // len(destination_block_ids) * block_size.
+  uint32 prefix_tokens = 8;
+
+  // Destination blocks reserved for this transfer, in logical order.
+  repeated uint32 destination_block_ids = 9;
+
+  // Layout v1: contiguous little-endian raw tensor bytes.
+  // Shape: [layers, kv_heads, blocks, block_size, head_dim]
+  // Both payloads are required and must have the exact expected byte length.
+  bytes key_data = 10;
+  bytes value_data = 11;
+}
+
+message PushKVResponse {
+  string transfer_id = 1;
+  string destination_executor_id = 2;
+  uint32 destination_runtime_epoch = 3;
+
+  // Success means all layers' K/V writes have completed on the
+  // destination device and the imported prefix is ready for inference.
+  // Enqueuing a device copy alone is not success.
+  // Failures are returned as RPC errors.
+}

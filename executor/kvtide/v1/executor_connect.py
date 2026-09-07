@@ -27,6 +27,9 @@ class ExecutorService(Protocol):
     async def release_blocks(self, request: kvtide_dot_v1_dot_executor__pb2.ReleaseBlocksRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_executor__pb2.ReleaseBlocksResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
+    async def push_k_v(self, request: kvtide_dot_v1_dot_executor__pb2.PushKVRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_executor__pb2.PushKVResponse:
+        raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
+
 
 class ExecutorServiceASGIApplication(ConnectASGIApplication[ExecutorService]):
     def __init__(self, service: ExecutorService | AsyncGenerator[ExecutorService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
@@ -62,6 +65,16 @@ class ExecutorServiceASGIApplication(ConnectASGIApplication[ExecutorService]):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=svc.release_blocks,
+                ),
+                "/kvtide.v1.ExecutorService/PushKV": Endpoint.unary(
+                    method=MethodInfo(
+                        name="PushKV",
+                        service_name="kvtide.v1.ExecutorService",
+                        input=kvtide_dot_v1_dot_executor__pb2.PushKVRequest,
+                        output=kvtide_dot_v1_dot_executor__pb2.PushKVResponse,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=svc.push_k_v,
                 ),
             },
             interceptors=interceptors,
@@ -137,6 +150,26 @@ class ExecutorServiceClient(ConnectClient):
             timeout_ms=timeout_ms,
         )
 
+    async def push_k_v(
+        self,
+        request: kvtide_dot_v1_dot_executor__pb2.PushKVRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> kvtide_dot_v1_dot_executor__pb2.PushKVResponse:
+        return await self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="PushKV",
+                service_name="kvtide.v1.ExecutorService",
+                input=kvtide_dot_v1_dot_executor__pb2.PushKVRequest,
+                output=kvtide_dot_v1_dot_executor__pb2.PushKVResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
 
 
 
@@ -147,6 +180,8 @@ class ExecutorServiceSync(Protocol):
     def execute_batch(self, request: kvtide_dot_v1_dot_executor__pb2.ExecuteBatchRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_executor__pb2.ExecuteBatchResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
     def release_blocks(self, request: kvtide_dot_v1_dot_executor__pb2.ReleaseBlocksRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_executor__pb2.ReleaseBlocksResponse:
+        raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
+    def push_k_v(self, request: kvtide_dot_v1_dot_executor__pb2.PushKVRequest, ctx: RequestContext) -> kvtide_dot_v1_dot_executor__pb2.PushKVResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
 
 
@@ -183,6 +218,16 @@ class ExecutorServiceWSGIApplication(ConnectWSGIApplication):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=service.release_blocks,
+                ),
+                "/kvtide.v1.ExecutorService/PushKV": EndpointSync.unary(
+                    method=MethodInfo(
+                        name="PushKV",
+                        service_name="kvtide.v1.ExecutorService",
+                        input=kvtide_dot_v1_dot_executor__pb2.PushKVRequest,
+                        output=kvtide_dot_v1_dot_executor__pb2.PushKVResponse,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=service.push_k_v,
                 ),
             },
             interceptors=interceptors,
@@ -252,6 +297,26 @@ class ExecutorServiceClientSync(ConnectClientSync):
                 service_name="kvtide.v1.ExecutorService",
                 input=kvtide_dot_v1_dot_executor__pb2.ReleaseBlocksRequest,
                 output=kvtide_dot_v1_dot_executor__pb2.ReleaseBlocksResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
+    def push_k_v(
+        self,
+        request: kvtide_dot_v1_dot_executor__pb2.PushKVRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> kvtide_dot_v1_dot_executor__pb2.PushKVResponse:
+        return self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="PushKV",
+                service_name="kvtide.v1.ExecutorService",
+                input=kvtide_dot_v1_dot_executor__pb2.PushKVRequest,
+                output=kvtide_dot_v1_dot_executor__pb2.PushKVResponse,
                 idempotency_level=IdempotencyLevel.UNKNOWN,
             ),
             headers=headers,

@@ -43,7 +43,7 @@ EVENT_TYPE_REQUEST_FAILED: EventType
 EVENT_TYPE_REQUEST_CANCELED: EventType
 
 class Usage(_message.Message):
-    __slots__ = ()
+    __slots__ = ("input_tokens", "output_tokens", "total_tokens")
     INPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     OUTPUT_TOKENS_FIELD_NUMBER: _ClassVar[int]
     TOTAL_TOKENS_FIELD_NUMBER: _ClassVar[int]
@@ -53,7 +53,7 @@ class Usage(_message.Message):
     def __init__(self, input_tokens: _Optional[int] = ..., output_tokens: _Optional[int] = ..., total_tokens: _Optional[int] = ...) -> None: ...
 
 class Timing(_message.Message):
-    __slots__ = ()
+    __slots__ = ("queue_ms", "batch_wait_ms", "execution_ms", "total_ms")
     QUEUE_MS_FIELD_NUMBER: _ClassVar[int]
     BATCH_WAIT_MS_FIELD_NUMBER: _ClassVar[int]
     EXECUTION_MS_FIELD_NUMBER: _ClassVar[int]
@@ -65,7 +65,7 @@ class Timing(_message.Message):
     def __init__(self, queue_ms: _Optional[int] = ..., batch_wait_ms: _Optional[int] = ..., execution_ms: _Optional[int] = ..., total_ms: _Optional[int] = ...) -> None: ...
 
 class BatchInfo(_message.Message):
-    __slots__ = ()
+    __slots__ = ("batch_id", "batch_size")
     BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     BATCH_SIZE_FIELD_NUMBER: _ClassVar[int]
     batch_id: str

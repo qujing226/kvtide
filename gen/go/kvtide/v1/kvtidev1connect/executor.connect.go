@@ -42,6 +42,8 @@ const (
 	// ExecutorServiceReleaseBlocksProcedure is the fully-qualified name of the ExecutorService's
 	// ReleaseBlocks RPC.
 	ExecutorServiceReleaseBlocksProcedure = "/kvtide.v1.ExecutorService/ReleaseBlocks"
+	// ExecutorServicePushKVProcedure is the fully-qualified name of the ExecutorService's PushKV RPC.
+	ExecutorServicePushKVProcedure = "/kvtide.v1.ExecutorService/PushKV"
 )
 
 // ExecutorServiceClient is a client for the kvtide.v1.ExecutorService service.
@@ -49,11 +51,12 @@ type ExecutorServiceClient interface {
 	GetRuntime(context.Context, *v1.GetRuntimeRequest) (*v1.GetRuntimeResponse, error)
 	ExecuteBatch(context.Context, *v1.ExecuteBatchRequest) (*v1.ExecuteBatchResponse, error)
 	ReleaseBlocks(context.Context, *v1.ReleaseBlocksRequest) (*v1.ReleaseBlocksResponse, error)
+	PushKV(context.Context, *v1.PushKVRequest) (*v1.PushKVResponse, error)
 }
 
-// NewExecutorServiceClient constructs a client for the kvtide.v1.ExecutorService service.
-// By default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped
-// responses, and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
+// NewExecutorServiceClient constructs a client for the kvtide.v1.ExecutorService service. By
+// default, it uses the Connect protocol with the binary Protobuf Codec, asks for gzipped responses,
+// and sends uncompressed requests. To use the gRPC or gRPC-Web protocols, supply the
 // connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
@@ -80,6 +83,12 @@ func NewExecutorServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(executorServiceMethods.ByName("ReleaseBlocks")),
 			connect.WithClientOptions(opts...),
 		),
+		pushKV: connect.NewClient[v1.PushKVRequest, v1.PushKVResponse](
+			httpClient,
+			baseURL+ExecutorServicePushKVProcedure,
+			connect.WithSchema(executorServiceMethods.ByName("PushKV")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -88,6 +97,7 @@ type executorServiceClient struct {
 	getRuntime    *connect.Client[v1.GetRuntimeRequest, v1.GetRuntimeResponse]
 	executeBatch  *connect.Client[v1.ExecuteBatchRequest, v1.ExecuteBatchResponse]
 	releaseBlocks *connect.Client[v1.ReleaseBlocksRequest, v1.ReleaseBlocksResponse]
+	pushKV        *connect.Client[v1.PushKVRequest, v1.PushKVResponse]
 }
 
 // GetRuntime calls kvtide.v1.ExecutorService.GetRuntime.
@@ -117,11 +127,21 @@ func (c *executorServiceClient) ReleaseBlocks(ctx context.Context, req *v1.Relea
 	return nil, err
 }
 
+// PushKV calls kvtide.v1.ExecutorService.PushKV.
+func (c *executorServiceClient) PushKV(ctx context.Context, req *v1.PushKVRequest) (*v1.PushKVResponse, error) {
+	response, err := c.pushKV.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
+}
+
 // ExecutorServiceHandler is an implementation of the kvtide.v1.ExecutorService service.
 type ExecutorServiceHandler interface {
 	GetRuntime(context.Context, *v1.GetRuntimeRequest) (*v1.GetRuntimeResponse, error)
 	ExecuteBatch(context.Context, *v1.ExecuteBatchRequest) (*v1.ExecuteBatchResponse, error)
 	ReleaseBlocks(context.Context, *v1.ReleaseBlocksRequest) (*v1.ReleaseBlocksResponse, error)
+	PushKV(context.Context, *v1.PushKVRequest) (*v1.PushKVResponse, error)
 }
 
 // NewExecutorServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -149,6 +169,12 @@ func NewExecutorServiceHandler(svc ExecutorServiceHandler, opts ...connect.Handl
 		connect.WithSchema(executorServiceMethods.ByName("ReleaseBlocks")),
 		connect.WithHandlerOptions(opts...),
 	)
+	executorServicePushKVHandler := connect.NewUnaryHandlerSimple(
+		ExecutorServicePushKVProcedure,
+		svc.PushKV,
+		connect.WithSchema(executorServiceMethods.ByName("PushKV")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/kvtide.v1.ExecutorService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ExecutorServiceGetRuntimeProcedure:
@@ -157,6 +183,8 @@ func NewExecutorServiceHandler(svc ExecutorServiceHandler, opts ...connect.Handl
 			executorServiceExecuteBatchHandler.ServeHTTP(w, r)
 		case ExecutorServiceReleaseBlocksProcedure:
 			executorServiceReleaseBlocksHandler.ServeHTTP(w, r)
+		case ExecutorServicePushKVProcedure:
+			executorServicePushKVHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -176,4 +204,8 @@ func (UnimplementedExecutorServiceHandler) ExecuteBatch(context.Context, *v1.Exe
 
 func (UnimplementedExecutorServiceHandler) ReleaseBlocks(context.Context, *v1.ReleaseBlocksRequest) (*v1.ReleaseBlocksResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.ExecutorService.ReleaseBlocks is not implemented"))
+}
+
+func (UnimplementedExecutorServiceHandler) PushKV(context.Context, *v1.PushKVRequest) (*v1.PushKVResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.ExecutorService.PushKV is not implemented"))
 }

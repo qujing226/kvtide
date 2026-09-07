@@ -13,7 +13,7 @@ class GetRuntimeRequest(_message.Message):
     def __init__(self) -> None: ...
 
 class GetRuntimeResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("executor_id", "runtime_epoch", "model_id", "model_type", "dtype", "device_type", "tensor_parallel_size", "block_size", "num_kv_blocks", "num_hidden_layers", "num_kv_heads", "head_dim", "total_memory_bytes", "available_memory_bytes", "kv_cache_bytes", "model_revision", "kv_layout_version", "kv_compatibility_id", "transfer_endpoint")
     EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
     RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
     MODEL_ID_FIELD_NUMBER: _ClassVar[int]
@@ -29,6 +29,10 @@ class GetRuntimeResponse(_message.Message):
     TOTAL_MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
     AVAILABLE_MEMORY_BYTES_FIELD_NUMBER: _ClassVar[int]
     KV_CACHE_BYTES_FIELD_NUMBER: _ClassVar[int]
+    MODEL_REVISION_FIELD_NUMBER: _ClassVar[int]
+    KV_LAYOUT_VERSION_FIELD_NUMBER: _ClassVar[int]
+    KV_COMPATIBILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    TRANSFER_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
     executor_id: str
     runtime_epoch: int
     model_id: str
@@ -44,10 +48,14 @@ class GetRuntimeResponse(_message.Message):
     total_memory_bytes: int
     available_memory_bytes: int
     kv_cache_bytes: int
-    def __init__(self, executor_id: _Optional[str] = ..., runtime_epoch: _Optional[int] = ..., model_id: _Optional[str] = ..., model_type: _Optional[str] = ..., dtype: _Optional[str] = ..., device_type: _Optional[str] = ..., tensor_parallel_size: _Optional[int] = ..., block_size: _Optional[int] = ..., num_kv_blocks: _Optional[int] = ..., num_hidden_layers: _Optional[int] = ..., num_kv_heads: _Optional[int] = ..., head_dim: _Optional[int] = ..., total_memory_bytes: _Optional[int] = ..., available_memory_bytes: _Optional[int] = ..., kv_cache_bytes: _Optional[int] = ...) -> None: ...
+    model_revision: str
+    kv_layout_version: int
+    kv_compatibility_id: str
+    transfer_endpoint: str
+    def __init__(self, executor_id: _Optional[str] = ..., runtime_epoch: _Optional[int] = ..., model_id: _Optional[str] = ..., model_type: _Optional[str] = ..., dtype: _Optional[str] = ..., device_type: _Optional[str] = ..., tensor_parallel_size: _Optional[int] = ..., block_size: _Optional[int] = ..., num_kv_blocks: _Optional[int] = ..., num_hidden_layers: _Optional[int] = ..., num_kv_heads: _Optional[int] = ..., head_dim: _Optional[int] = ..., total_memory_bytes: _Optional[int] = ..., available_memory_bytes: _Optional[int] = ..., kv_cache_bytes: _Optional[int] = ..., model_revision: _Optional[str] = ..., kv_layout_version: _Optional[int] = ..., kv_compatibility_id: _Optional[str] = ..., transfer_endpoint: _Optional[str] = ...) -> None: ...
 
 class ExecuteBatchRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("batch_id", "runtime_epoch", "items")
     BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
     ITEMS_FIELD_NUMBER: _ClassVar[int]
@@ -57,7 +65,7 @@ class ExecuteBatchRequest(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., runtime_epoch: _Optional[int] = ..., items: _Optional[_Iterable[_Union[ExecuteItem, _Mapping]]] = ...) -> None: ...
 
 class ExecuteBatchResponse(_message.Message):
-    __slots__ = ()
+    __slots__ = ("batch_id", "executor_id", "results")
     BATCH_ID_FIELD_NUMBER: _ClassVar[int]
     EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
     RESULTS_FIELD_NUMBER: _ClassVar[int]
@@ -67,7 +75,7 @@ class ExecuteBatchResponse(_message.Message):
     def __init__(self, batch_id: _Optional[str] = ..., executor_id: _Optional[str] = ..., results: _Optional[_Iterable[_Union[ExecuteResult, _Mapping]]] = ...) -> None: ...
 
 class ExecuteItem(_message.Message):
-    __slots__ = ()
+    __slots__ = ("work_id", "request_id", "phase", "token_ids", "computed_tokens", "generated_tokens", "num_new_tokens", "kv_blocks", "sample")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     PHASE_FIELD_NUMBER: _ClassVar[int]
@@ -89,7 +97,7 @@ class ExecuteItem(_message.Message):
     def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., phase: _Optional[_Union[_core_pb2.WorkPhase, str]] = ..., token_ids: _Optional[_Iterable[int]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., num_new_tokens: _Optional[int] = ..., kv_blocks: _Optional[_Union[_block_pb2.KVBlockMetadata, _Mapping]] = ..., sample: _Optional[bool] = ...) -> None: ...
 
 class ExecuteResult(_message.Message):
-    __slots__ = ()
+    __slots__ = ("work_id", "request_id", "token_id", "done", "finish_reason", "computed_tokens", "generated_tokens", "execution_ms", "error_message")
     WORK_ID_FIELD_NUMBER: _ClassVar[int]
     REQUEST_ID_FIELD_NUMBER: _ClassVar[int]
     TOKEN_ID_FIELD_NUMBER: _ClassVar[int]
@@ -111,7 +119,7 @@ class ExecuteResult(_message.Message):
     def __init__(self, work_id: _Optional[str] = ..., request_id: _Optional[str] = ..., token_id: _Optional[int] = ..., done: _Optional[bool] = ..., finish_reason: _Optional[_Union[_core_pb2.FinishReason, str]] = ..., computed_tokens: _Optional[int] = ..., generated_tokens: _Optional[int] = ..., execution_ms: _Optional[int] = ..., error_message: _Optional[str] = ...) -> None: ...
 
 class ReleaseBlocksRequest(_message.Message):
-    __slots__ = ()
+    __slots__ = ("runtime_epoch", "block_ids")
     RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
     BLOCK_IDS_FIELD_NUMBER: _ClassVar[int]
     runtime_epoch: int
@@ -121,3 +129,39 @@ class ReleaseBlocksRequest(_message.Message):
 class ReleaseBlocksResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
+
+class PushKVRequest(_message.Message):
+    __slots__ = ("transfer_id", "source_executor_id", "source_runtime_epoch", "destination_executor_id", "destination_runtime_epoch", "kv_compatibility_id", "prefix_hash", "prefix_tokens", "destination_block_ids", "key_data", "value_data")
+    TRANSFER_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    KV_COMPATIBILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    PREFIX_HASH_FIELD_NUMBER: _ClassVar[int]
+    PREFIX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_BLOCK_IDS_FIELD_NUMBER: _ClassVar[int]
+    KEY_DATA_FIELD_NUMBER: _ClassVar[int]
+    VALUE_DATA_FIELD_NUMBER: _ClassVar[int]
+    transfer_id: str
+    source_executor_id: str
+    source_runtime_epoch: int
+    destination_executor_id: str
+    destination_runtime_epoch: int
+    kv_compatibility_id: str
+    prefix_hash: str
+    prefix_tokens: int
+    destination_block_ids: _containers.RepeatedScalarFieldContainer[int]
+    key_data: bytes
+    value_data: bytes
+    def __init__(self, transfer_id: _Optional[str] = ..., source_executor_id: _Optional[str] = ..., source_runtime_epoch: _Optional[int] = ..., destination_executor_id: _Optional[str] = ..., destination_runtime_epoch: _Optional[int] = ..., kv_compatibility_id: _Optional[str] = ..., prefix_hash: _Optional[str] = ..., prefix_tokens: _Optional[int] = ..., destination_block_ids: _Optional[_Iterable[int]] = ..., key_data: _Optional[bytes] = ..., value_data: _Optional[bytes] = ...) -> None: ...
+
+class PushKVResponse(_message.Message):
+    __slots__ = ("transfer_id", "destination_executor_id", "destination_runtime_epoch")
+    TRANSFER_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    transfer_id: str
+    destination_executor_id: str
+    destination_runtime_epoch: int
+    def __init__(self, transfer_id: _Optional[str] = ..., destination_executor_id: _Optional[str] = ..., destination_runtime_epoch: _Optional[int] = ...) -> None: ...
