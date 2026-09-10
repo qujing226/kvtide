@@ -1,21 +1,20 @@
 import asyncio
 import copy
-from dataclasses import replace
 import unittest
+from dataclasses import replace
 from unittest.mock import patch
 
 import torch
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
-
 from executor_service import ExecuteServiceImpl
 from kvtide.v1 import core_pb2, executor_pb2
 from runner.transformers import Runner
 from setting import ExecutorConfig, RunnerConfig, RuntimeConfig
 from test_executor_service import RecordingRunner
 from test_kv_transfer import build_transfer
-from transformers import Qwen3Config, Qwen3ForCausalLM
 from transfer_http import create_executor_app
+from transformers import Qwen3Config, Qwen3ForCausalLM
 
 
 async def asgi_push(service, request, *, encoding=None, max_wire_bytes=None):
@@ -38,7 +37,9 @@ async def asgi_push(service, request, *, encoding=None, max_wire_bytes=None):
 
     async def send(message):
         messages.append(message)
-        if message["type"] == "http.response.body" and not message.get("more_body", False):
+        if message["type"] == "http.response.body" and not message.get(
+            "more_body", False
+        ):
             finished.set()
 
     path = "/kvtide.v1.ExecutorService/PushKV"
@@ -122,8 +123,12 @@ class PushKVTest(unittest.IsolatedAsyncioTestCase):
         )
 
     async def test_runtime_advertises_actual_compatibility(self):
-        response = await self.service.get_runtime(executor_pb2.GetRuntimeRequest(), None)
-        self.assertEqual(response.model_revision, self.source.compatibility.model_revision)
+        response = await self.service.get_runtime(
+            executor_pb2.GetRuntimeRequest(), None
+        )
+        self.assertEqual(
+            response.model_revision, self.source.compatibility.model_revision
+        )
         self.assertEqual(response.kv_compatibility_id, self.request.kv_compatibility_id)
         self.assertEqual(response.kv_layout_version, 1)
         self.assertEqual(response.transfer_endpoint, "http://destination:19991")
@@ -169,7 +174,9 @@ class PushKVTest(unittest.IsolatedAsyncioTestCase):
             (torch.frombuffer(bytearray(push.key_data), dtype=torch.float32) == 3).all()
         )
         self.assertTrue(
-            (torch.frombuffer(bytearray(push.value_data), dtype=torch.float32) == 4).all()
+            (
+                torch.frombuffer(bytearray(push.value_data), dtype=torch.float32) == 4
+            ).all()
         )
         self.assertIsNone(timeout_ms)
 
@@ -282,7 +289,9 @@ class PushKVTest(unittest.IsolatedAsyncioTestCase):
         with patch.object(self.runner, "execute", side_effect=execute):
             task = asyncio.create_task(
                 self.service.execute_batch(
-                    executor_pb2.ExecuteBatchRequest(runtime_epoch=self.service.runtime_epoch),
+                    executor_pb2.ExecuteBatchRequest(
+                        runtime_epoch=self.service.runtime_epoch
+                    ),
                     None,
                 )
             )
@@ -372,13 +381,19 @@ class PushKVInferenceTest(unittest.IsolatedAsyncioTestCase):
             services.append(ExecuteServiceImpl(runner, cfg))
         source, destination = services
         source_info = await source.get_runtime(executor_pb2.GetRuntimeRequest(), None)
-        destination_info = await destination.get_runtime(executor_pb2.GetRuntimeRequest(), None)
-        self.assertEqual(source_info.kv_compatibility_id, destination_info.kv_compatibility_id)
+        destination_info = await destination.get_runtime(
+            executor_pb2.GetRuntimeRequest(), None
+        )
+        self.assertEqual(
+            source_info.kv_compatibility_id, destination_info.kv_compatibility_id
+        )
         prefix = [1, 5, 2, 9, 3, 7, 4, 11] * 4
         suffix = [6, 10]
 
         def batch(service, tokens, past, table, allocated):
-            request = executor_pb2.ExecuteBatchRequest(runtime_epoch=service.runtime_epoch)
+            request = executor_pb2.ExecuteBatchRequest(
+                runtime_epoch=service.runtime_epoch
+            )
             item = request.items.add(
                 work_id="work",
                 request_id="request",
