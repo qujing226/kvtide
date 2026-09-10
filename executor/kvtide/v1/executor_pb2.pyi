@@ -130,16 +130,53 @@ class ReleaseBlocksResponse(_message.Message):
     __slots__ = ()
     def __init__(self) -> None: ...
 
+class TriggerKVPushRequest(_message.Message):
+    __slots__ = ("transfer_id", "source_executor_id", "source_runtime_epoch", "source_block_ids", "destination_executor_id", "destination_runtime_epoch", "destination_transfer_endpoint", "kv_compatibility_id", "block_hashes", "destination_block_ids")
+    TRANSFER_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_BLOCK_IDS_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_TRANSFER_ENDPOINT_FIELD_NUMBER: _ClassVar[int]
+    KV_COMPATIBILITY_ID_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_HASHES_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_BLOCK_IDS_FIELD_NUMBER: _ClassVar[int]
+    transfer_id: str
+    source_executor_id: str
+    source_runtime_epoch: int
+    source_block_ids: _containers.RepeatedScalarFieldContainer[int]
+    destination_executor_id: str
+    destination_runtime_epoch: int
+    destination_transfer_endpoint: str
+    kv_compatibility_id: str
+    block_hashes: _containers.RepeatedScalarFieldContainer[str]
+    destination_block_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, transfer_id: _Optional[str] = ..., source_executor_id: _Optional[str] = ..., source_runtime_epoch: _Optional[int] = ..., source_block_ids: _Optional[_Iterable[int]] = ..., destination_executor_id: _Optional[str] = ..., destination_runtime_epoch: _Optional[int] = ..., destination_transfer_endpoint: _Optional[str] = ..., kv_compatibility_id: _Optional[str] = ..., block_hashes: _Optional[_Iterable[str]] = ..., destination_block_ids: _Optional[_Iterable[int]] = ...) -> None: ...
+
+class TriggerKVPushResponse(_message.Message):
+    __slots__ = ("transfer_id", "source_executor_id", "source_runtime_epoch", "destination_executor_id", "destination_runtime_epoch")
+    TRANSFER_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
+    DESTINATION_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
+    transfer_id: str
+    source_executor_id: str
+    source_runtime_epoch: int
+    destination_executor_id: str
+    destination_runtime_epoch: int
+    def __init__(self, transfer_id: _Optional[str] = ..., source_executor_id: _Optional[str] = ..., source_runtime_epoch: _Optional[int] = ..., destination_executor_id: _Optional[str] = ..., destination_runtime_epoch: _Optional[int] = ...) -> None: ...
+
 class PushKVRequest(_message.Message):
-    __slots__ = ("transfer_id", "source_executor_id", "source_runtime_epoch", "destination_executor_id", "destination_runtime_epoch", "kv_compatibility_id", "prefix_hash", "prefix_tokens", "destination_block_ids", "key_data", "value_data")
+    __slots__ = ("transfer_id", "source_executor_id", "source_runtime_epoch", "destination_executor_id", "destination_runtime_epoch", "kv_compatibility_id", "block_hashes", "destination_block_ids", "key_data", "value_data")
     TRANSFER_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
     SOURCE_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_EXECUTOR_ID_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_RUNTIME_EPOCH_FIELD_NUMBER: _ClassVar[int]
     KV_COMPATIBILITY_ID_FIELD_NUMBER: _ClassVar[int]
-    PREFIX_HASH_FIELD_NUMBER: _ClassVar[int]
-    PREFIX_TOKENS_FIELD_NUMBER: _ClassVar[int]
+    BLOCK_HASHES_FIELD_NUMBER: _ClassVar[int]
     DESTINATION_BLOCK_IDS_FIELD_NUMBER: _ClassVar[int]
     KEY_DATA_FIELD_NUMBER: _ClassVar[int]
     VALUE_DATA_FIELD_NUMBER: _ClassVar[int]
@@ -149,12 +186,11 @@ class PushKVRequest(_message.Message):
     destination_executor_id: str
     destination_runtime_epoch: int
     kv_compatibility_id: str
-    prefix_hash: str
-    prefix_tokens: int
+    block_hashes: _containers.RepeatedScalarFieldContainer[str]
     destination_block_ids: _containers.RepeatedScalarFieldContainer[int]
     key_data: bytes
     value_data: bytes
-    def __init__(self, transfer_id: _Optional[str] = ..., source_executor_id: _Optional[str] = ..., source_runtime_epoch: _Optional[int] = ..., destination_executor_id: _Optional[str] = ..., destination_runtime_epoch: _Optional[int] = ..., kv_compatibility_id: _Optional[str] = ..., prefix_hash: _Optional[str] = ..., prefix_tokens: _Optional[int] = ..., destination_block_ids: _Optional[_Iterable[int]] = ..., key_data: _Optional[bytes] = ..., value_data: _Optional[bytes] = ...) -> None: ...
+    def __init__(self, transfer_id: _Optional[str] = ..., source_executor_id: _Optional[str] = ..., source_runtime_epoch: _Optional[int] = ..., destination_executor_id: _Optional[str] = ..., destination_runtime_epoch: _Optional[int] = ..., kv_compatibility_id: _Optional[str] = ..., block_hashes: _Optional[_Iterable[str]] = ..., destination_block_ids: _Optional[_Iterable[int]] = ..., key_data: _Optional[bytes] = ..., value_data: _Optional[bytes] = ...) -> None: ...
 
 class PushKVResponse(_message.Message):
     __slots__ = ("transfer_id", "destination_executor_id", "destination_runtime_epoch")

@@ -18,7 +18,7 @@ from connectrpc.protocol import ProtocolType
 from connectrpc.server import ConnectASGIApplication, ConnectWSGIApplication, Endpoint, EndpointSync
 from pyqwest import Client, SyncClient
 
-from .executor_pb2 import ExecuteBatchRequest, ExecuteBatchResponse, GetRuntimeRequest, GetRuntimeResponse, PushKVRequest, PushKVResponse, ReleaseBlocksRequest, ReleaseBlocksResponse
+from .executor_pb2 import ExecuteBatchRequest, ExecuteBatchResponse, GetRuntimeRequest, GetRuntimeResponse, PushKVRequest, PushKVResponse, ReleaseBlocksRequest, ReleaseBlocksResponse, TriggerKVPushRequest, TriggerKVPushResponse
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterable, Mapping
@@ -42,6 +42,9 @@ class ExecutorService(Protocol):
         raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
 
     async def release_blocks(self, request: ReleaseBlocksRequest, ctx: RequestContext[ReleaseBlocksRequest, ReleaseBlocksResponse]) -> ReleaseBlocksResponse:
+        raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
+
+    async def trigger_kv_push(self, request: TriggerKVPushRequest, ctx: RequestContext[TriggerKVPushRequest, TriggerKVPushResponse]) -> TriggerKVPushResponse:
         raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
 
     async def push_kv(self, request: PushKVRequest, ctx: RequestContext[PushKVRequest, PushKVResponse]) -> PushKVResponse:
@@ -90,6 +93,16 @@ class ExecutorServiceASGIApplication(ConnectASGIApplication[ExecutorService]):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=svc.release_blocks,
+                ),
+                "/kvtide.v1.ExecutorService/TriggerKVPush": Endpoint.unary(
+                    method=MethodInfo(
+                        name="TriggerKVPush",
+                        service_name="kvtide.v1.ExecutorService",
+                        input=TriggerKVPushRequest,
+                        output=TriggerKVPushResponse,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=svc.trigger_kv_push,
                 ),
                 "/kvtide.v1.ExecutorService/PushKV": Endpoint.unary(
                     method=MethodInfo(
@@ -143,7 +156,7 @@ class ExecutorServiceClient(ConnectClient):
         self,
         request: GetRuntimeRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> GetRuntimeResponse:
         return await self.execute_unary(
@@ -163,7 +176,7 @@ class ExecutorServiceClient(ConnectClient):
         self,
         request: ExecuteBatchRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> ExecuteBatchResponse:
         return await self.execute_unary(
@@ -183,7 +196,7 @@ class ExecutorServiceClient(ConnectClient):
         self,
         request: ReleaseBlocksRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> ReleaseBlocksResponse:
         return await self.execute_unary(
@@ -199,11 +212,31 @@ class ExecutorServiceClient(ConnectClient):
             timeout_ms=timeout_ms,
         )
 
+    async def trigger_kv_push(
+        self,
+        request: TriggerKVPushRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> TriggerKVPushResponse:
+        return await self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="TriggerKVPush",
+                service_name="kvtide.v1.ExecutorService",
+                input=TriggerKVPushRequest,
+                output=TriggerKVPushResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
     async def push_kv(
         self,
         request: PushKVRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> PushKVResponse:
         return await self.execute_unary(
@@ -227,6 +260,9 @@ class ExecutorServiceSync(Protocol):
         raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
 
     def release_blocks(self, request: ReleaseBlocksRequest, ctx: RequestContext[ReleaseBlocksRequest, ReleaseBlocksResponse]) -> ReleaseBlocksResponse:
+        raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
+
+    def trigger_kv_push(self, request: TriggerKVPushRequest, ctx: RequestContext[TriggerKVPushRequest, TriggerKVPushResponse]) -> TriggerKVPushResponse:
         raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
 
     def push_kv(self, request: PushKVRequest, ctx: RequestContext[PushKVRequest, PushKVResponse]) -> PushKVResponse:
@@ -273,6 +309,16 @@ class ExecutorServiceWSGIApplication(ConnectWSGIApplication):
                         idempotency_level=IdempotencyLevel.UNKNOWN,
                     ),
                     function=service.release_blocks,
+                ),
+                "/kvtide.v1.ExecutorService/TriggerKVPush": EndpointSync.unary(
+                    method=MethodInfo(
+                        name="TriggerKVPush",
+                        service_name="kvtide.v1.ExecutorService",
+                        input=TriggerKVPushRequest,
+                        output=TriggerKVPushResponse,
+                        idempotency_level=IdempotencyLevel.UNKNOWN,
+                    ),
+                    function=service.trigger_kv_push,
                 ),
                 "/kvtide.v1.ExecutorService/PushKV": EndpointSync.unary(
                     method=MethodInfo(
@@ -326,7 +372,7 @@ class ExecutorServiceClientSync(ConnectClientSync):
         self,
         request: GetRuntimeRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> GetRuntimeResponse:
         return self.execute_unary(
@@ -345,7 +391,7 @@ class ExecutorServiceClientSync(ConnectClientSync):
         self,
         request: ExecuteBatchRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> ExecuteBatchResponse:
         return self.execute_unary(
@@ -364,7 +410,7 @@ class ExecutorServiceClientSync(ConnectClientSync):
         self,
         request: ReleaseBlocksRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> ReleaseBlocksResponse:
         return self.execute_unary(
@@ -379,11 +425,30 @@ class ExecutorServiceClientSync(ConnectClientSync):
             headers=headers,
             timeout_ms=timeout_ms,
         )
+    def trigger_kv_push(
+        self,
+        request: TriggerKVPushRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> TriggerKVPushResponse:
+        return self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="TriggerKVPush",
+                service_name="kvtide.v1.ExecutorService",
+                input=TriggerKVPushRequest,
+                output=TriggerKVPushResponse,
+                idempotency_level=IdempotencyLevel.UNKNOWN,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
     def push_kv(
         self,
         request: PushKVRequest,
         *,
-        headers: Headers | Mapping[str, str] | None = None, 
+        headers: Headers | Mapping[str, str] | None = None,
         timeout_ms: int | None = None,
     ) -> PushKVResponse:
         return self.execute_unary(

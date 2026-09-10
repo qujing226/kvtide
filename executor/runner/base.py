@@ -1,7 +1,11 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from kvtide.v1 import executor_pb2
+
+if TYPE_CHECKING:
+    from runtime.kv_transfer import KVTransferRuntime
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +26,11 @@ class RuntimeInfo:
 
 
 class ModelRunner(ABC):
+    @property
+    def kv_transfer(self) -> "KVTransferRuntime | None":
+        """Mock/non-KV runners do not advertise a transferable cache."""
+        return getattr(self, "_kv_transfer", None)
+
     @property
     @abstractmethod
     def runtime_info(self) -> RuntimeInfo:

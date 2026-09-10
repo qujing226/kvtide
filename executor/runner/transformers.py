@@ -4,6 +4,7 @@ import torch
 from adapter import DynamicCacheAdapter
 from kvtide.v1 import core_pb2, executor_pb2
 from runtime import BatchBuilder, PagedKVCache
+from runtime.kv_transfer import KVTransferRuntime
 from setting import RunnerConfig, RuntimeConfig
 from transformers import AutoConfig, AutoModelForCausalLM, PreTrainedModel
 
@@ -122,6 +123,13 @@ class Runner(ModelRunner):
         )
 
         self.eos_token_ids = normalize_eos_token_ids(self.model_config.eos_token_id)
+
+        self._kv_transfer = KVTransferRuntime(
+            model=cast(torch.nn.Module, self.model),
+            model_config=self.model.config.to_dict(),
+            cache=self.kv_cache,
+            tensor_parallel_size=runtime_cfg.tensor_parallel_size,
+        )
 
         self.timer = create_execution_timer(self.device)
 

@@ -42,6 +42,9 @@ const (
 	// ExecutorServiceReleaseBlocksProcedure is the fully-qualified name of the ExecutorService's
 	// ReleaseBlocks RPC.
 	ExecutorServiceReleaseBlocksProcedure = "/kvtide.v1.ExecutorService/ReleaseBlocks"
+	// ExecutorServiceTriggerKVPushProcedure is the fully-qualified name of the ExecutorService's
+	// TriggerKVPush RPC.
+	ExecutorServiceTriggerKVPushProcedure = "/kvtide.v1.ExecutorService/TriggerKVPush"
 	// ExecutorServicePushKVProcedure is the fully-qualified name of the ExecutorService's PushKV RPC.
 	ExecutorServicePushKVProcedure = "/kvtide.v1.ExecutorService/PushKV"
 )
@@ -51,6 +54,9 @@ type ExecutorServiceClient interface {
 	GetRuntime(context.Context, *v1.GetRuntimeRequest) (*v1.GetRuntimeResponse, error)
 	ExecuteBatch(context.Context, *v1.ExecuteBatchRequest) (*v1.ExecuteBatchResponse, error)
 	ReleaseBlocks(context.Context, *v1.ReleaseBlocksRequest) (*v1.ReleaseBlocksResponse, error)
+	// Control plane: Engine asks the source executor to copy blocks to a peer.
+	TriggerKVPush(context.Context, *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error)
+	// Data plane: the source executor writes the exported KV into the destination.
 	PushKV(context.Context, *v1.PushKVRequest) (*v1.PushKVResponse, error)
 }
 
@@ -83,6 +89,12 @@ func NewExecutorServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(executorServiceMethods.ByName("ReleaseBlocks")),
 			connect.WithClientOptions(opts...),
 		),
+		triggerKVPush: connect.NewClient[v1.TriggerKVPushRequest, v1.TriggerKVPushResponse](
+			httpClient,
+			baseURL+ExecutorServiceTriggerKVPushProcedure,
+			connect.WithSchema(executorServiceMethods.ByName("TriggerKVPush")),
+			connect.WithClientOptions(opts...),
+		),
 		pushKV: connect.NewClient[v1.PushKVRequest, v1.PushKVResponse](
 			httpClient,
 			baseURL+ExecutorServicePushKVProcedure,
@@ -97,6 +109,7 @@ type executorServiceClient struct {
 	getRuntime    *connect.Client[v1.GetRuntimeRequest, v1.GetRuntimeResponse]
 	executeBatch  *connect.Client[v1.ExecuteBatchRequest, v1.ExecuteBatchResponse]
 	releaseBlocks *connect.Client[v1.ReleaseBlocksRequest, v1.ReleaseBlocksResponse]
+	triggerKVPush *connect.Client[v1.TriggerKVPushRequest, v1.TriggerKVPushResponse]
 	pushKV        *connect.Client[v1.PushKVRequest, v1.PushKVResponse]
 }
 
@@ -127,6 +140,15 @@ func (c *executorServiceClient) ReleaseBlocks(ctx context.Context, req *v1.Relea
 	return nil, err
 }
 
+// TriggerKVPush calls kvtide.v1.ExecutorService.TriggerKVPush.
+func (c *executorServiceClient) TriggerKVPush(ctx context.Context, req *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error) {
+	response, err := c.triggerKVPush.CallUnary(ctx, connect.NewRequest(req))
+	if response != nil {
+		return response.Msg, err
+	}
+	return nil, err
+}
+
 // PushKV calls kvtide.v1.ExecutorService.PushKV.
 func (c *executorServiceClient) PushKV(ctx context.Context, req *v1.PushKVRequest) (*v1.PushKVResponse, error) {
 	response, err := c.pushKV.CallUnary(ctx, connect.NewRequest(req))
@@ -141,6 +163,9 @@ type ExecutorServiceHandler interface {
 	GetRuntime(context.Context, *v1.GetRuntimeRequest) (*v1.GetRuntimeResponse, error)
 	ExecuteBatch(context.Context, *v1.ExecuteBatchRequest) (*v1.ExecuteBatchResponse, error)
 	ReleaseBlocks(context.Context, *v1.ReleaseBlocksRequest) (*v1.ReleaseBlocksResponse, error)
+	// Control plane: Engine asks the source executor to copy blocks to a peer.
+	TriggerKVPush(context.Context, *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error)
+	// Data plane: the source executor writes the exported KV into the destination.
 	PushKV(context.Context, *v1.PushKVRequest) (*v1.PushKVResponse, error)
 }
 
@@ -169,6 +194,12 @@ func NewExecutorServiceHandler(svc ExecutorServiceHandler, opts ...connect.Handl
 		connect.WithSchema(executorServiceMethods.ByName("ReleaseBlocks")),
 		connect.WithHandlerOptions(opts...),
 	)
+	executorServiceTriggerKVPushHandler := connect.NewUnaryHandlerSimple(
+		ExecutorServiceTriggerKVPushProcedure,
+		svc.TriggerKVPush,
+		connect.WithSchema(executorServiceMethods.ByName("TriggerKVPush")),
+		connect.WithHandlerOptions(opts...),
+	)
 	executorServicePushKVHandler := connect.NewUnaryHandlerSimple(
 		ExecutorServicePushKVProcedure,
 		svc.PushKV,
@@ -183,6 +214,8 @@ func NewExecutorServiceHandler(svc ExecutorServiceHandler, opts ...connect.Handl
 			executorServiceExecuteBatchHandler.ServeHTTP(w, r)
 		case ExecutorServiceReleaseBlocksProcedure:
 			executorServiceReleaseBlocksHandler.ServeHTTP(w, r)
+		case ExecutorServiceTriggerKVPushProcedure:
+			executorServiceTriggerKVPushHandler.ServeHTTP(w, r)
 		case ExecutorServicePushKVProcedure:
 			executorServicePushKVHandler.ServeHTTP(w, r)
 		default:
@@ -204,6 +237,10 @@ func (UnimplementedExecutorServiceHandler) ExecuteBatch(context.Context, *v1.Exe
 
 func (UnimplementedExecutorServiceHandler) ReleaseBlocks(context.Context, *v1.ReleaseBlocksRequest) (*v1.ReleaseBlocksResponse, error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.ExecutorService.ReleaseBlocks is not implemented"))
+}
+
+func (UnimplementedExecutorServiceHandler) TriggerKVPush(context.Context, *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("kvtide.v1.ExecutorService.TriggerKVPush is not implemented"))
 }
 
 func (UnimplementedExecutorServiceHandler) PushKV(context.Context, *v1.PushKVRequest) (*v1.PushKVResponse, error) {

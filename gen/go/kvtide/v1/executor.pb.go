@@ -683,6 +683,200 @@ func (*ReleaseBlocksResponse) Descriptor() ([]byte, []int) {
 	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{7}
 }
 
+type TriggerKVPushRequest struct {
+	state                       protoimpl.MessageState `protogen:"open.v1"`
+	TransferId                  string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	SourceExecutorId            string                 `protobuf:"bytes,2,opt,name=source_executor_id,json=sourceExecutorId,proto3" json:"source_executor_id,omitempty"`
+	SourceRuntimeEpoch          uint32                 `protobuf:"varint,3,opt,name=source_runtime_epoch,json=sourceRuntimeEpoch,proto3" json:"source_runtime_epoch,omitempty"`
+	SourceBlockIds              []uint32               `protobuf:"varint,4,rep,packed,name=source_block_ids,json=sourceBlockIds,proto3" json:"source_block_ids,omitempty"`
+	DestinationExecutorId       string                 `protobuf:"bytes,5,opt,name=destination_executor_id,json=destinationExecutorId,proto3" json:"destination_executor_id,omitempty"`
+	DestinationRuntimeEpoch     uint32                 `protobuf:"varint,6,opt,name=destination_runtime_epoch,json=destinationRuntimeEpoch,proto3" json:"destination_runtime_epoch,omitempty"`
+	DestinationTransferEndpoint string                 `protobuf:"bytes,7,opt,name=destination_transfer_endpoint,json=destinationTransferEndpoint,proto3" json:"destination_transfer_endpoint,omitempty"`
+	KvCompatibilityId           string                 `protobuf:"bytes,8,opt,name=kv_compatibility_id,json=kvCompatibilityId,proto3" json:"kv_compatibility_id,omitempty"`
+	// Engine-owned prefix identities, one per full block, in logical order.
+	BlockHashes []string `protobuf:"bytes,9,rep,name=block_hashes,json=blockHashes,proto3" json:"block_hashes,omitempty"`
+	// Engine-reserved destination blocks, one-to-one with source_block_ids.
+	DestinationBlockIds []uint32 `protobuf:"varint,10,rep,packed,name=destination_block_ids,json=destinationBlockIds,proto3" json:"destination_block_ids,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *TriggerKVPushRequest) Reset() {
+	*x = TriggerKVPushRequest{}
+	mi := &file_kvtide_v1_executor_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerKVPushRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerKVPushRequest) ProtoMessage() {}
+
+func (x *TriggerKVPushRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kvtide_v1_executor_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerKVPushRequest.ProtoReflect.Descriptor instead.
+func (*TriggerKVPushRequest) Descriptor() ([]byte, []int) {
+	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *TriggerKVPushRequest) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushRequest) GetSourceExecutorId() string {
+	if x != nil {
+		return x.SourceExecutorId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushRequest) GetSourceRuntimeEpoch() uint32 {
+	if x != nil {
+		return x.SourceRuntimeEpoch
+	}
+	return 0
+}
+
+func (x *TriggerKVPushRequest) GetSourceBlockIds() []uint32 {
+	if x != nil {
+		return x.SourceBlockIds
+	}
+	return nil
+}
+
+func (x *TriggerKVPushRequest) GetDestinationExecutorId() string {
+	if x != nil {
+		return x.DestinationExecutorId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushRequest) GetDestinationRuntimeEpoch() uint32 {
+	if x != nil {
+		return x.DestinationRuntimeEpoch
+	}
+	return 0
+}
+
+func (x *TriggerKVPushRequest) GetDestinationTransferEndpoint() string {
+	if x != nil {
+		return x.DestinationTransferEndpoint
+	}
+	return ""
+}
+
+func (x *TriggerKVPushRequest) GetKvCompatibilityId() string {
+	if x != nil {
+		return x.KvCompatibilityId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushRequest) GetBlockHashes() []string {
+	if x != nil {
+		return x.BlockHashes
+	}
+	return nil
+}
+
+func (x *TriggerKVPushRequest) GetDestinationBlockIds() []uint32 {
+	if x != nil {
+		return x.DestinationBlockIds
+	}
+	return nil
+}
+
+type TriggerKVPushResponse struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	TransferId              string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
+	SourceExecutorId        string                 `protobuf:"bytes,2,opt,name=source_executor_id,json=sourceExecutorId,proto3" json:"source_executor_id,omitempty"`
+	SourceRuntimeEpoch      uint32                 `protobuf:"varint,3,opt,name=source_runtime_epoch,json=sourceRuntimeEpoch,proto3" json:"source_runtime_epoch,omitempty"`
+	DestinationExecutorId   string                 `protobuf:"bytes,4,opt,name=destination_executor_id,json=destinationExecutorId,proto3" json:"destination_executor_id,omitempty"`
+	DestinationRuntimeEpoch uint32                 `protobuf:"varint,5,opt,name=destination_runtime_epoch,json=destinationRuntimeEpoch,proto3" json:"destination_runtime_epoch,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *TriggerKVPushResponse) Reset() {
+	*x = TriggerKVPushResponse{}
+	mi := &file_kvtide_v1_executor_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TriggerKVPushResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TriggerKVPushResponse) ProtoMessage() {}
+
+func (x *TriggerKVPushResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kvtide_v1_executor_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TriggerKVPushResponse.ProtoReflect.Descriptor instead.
+func (*TriggerKVPushResponse) Descriptor() ([]byte, []int) {
+	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *TriggerKVPushResponse) GetTransferId() string {
+	if x != nil {
+		return x.TransferId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushResponse) GetSourceExecutorId() string {
+	if x != nil {
+		return x.SourceExecutorId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushResponse) GetSourceRuntimeEpoch() uint32 {
+	if x != nil {
+		return x.SourceRuntimeEpoch
+	}
+	return 0
+}
+
+func (x *TriggerKVPushResponse) GetDestinationExecutorId() string {
+	if x != nil {
+		return x.DestinationExecutorId
+	}
+	return ""
+}
+
+func (x *TriggerKVPushResponse) GetDestinationRuntimeEpoch() uint32 {
+	if x != nil {
+		return x.DestinationRuntimeEpoch
+	}
+	return 0
+}
+
 type PushKVRequest struct {
 	state                   protoimpl.MessageState `protogen:"open.v1"`
 	TransferId              string                 `protobuf:"bytes,1,opt,name=transfer_id,json=transferId,proto3" json:"transfer_id,omitempty"`
@@ -692,26 +886,23 @@ type PushKVRequest struct {
 	DestinationRuntimeEpoch uint32                 `protobuf:"varint,5,opt,name=destination_runtime_epoch,json=destinationRuntimeEpoch,proto3" json:"destination_runtime_epoch,omitempty"`
 	// Must match the destination's KV compatibility fingerprint.
 	KvCompatibilityId string `protobuf:"bytes,6,opt,name=kv_compatibility_id,json=kvCompatibilityId,proto3" json:"kv_compatibility_id,omitempty"`
-	// Identifies the complete prefix, including its cache namespace.
-	// Final prefix-chain hash, with CacheSalt included in hash computation.
-	PrefixHash string `protobuf:"bytes,7,opt,name=prefix_hash,json=prefixHash,proto3" json:"prefix_hash,omitempty"`
-	// Complete prefix starting at token position 0. It must be positive and equeal to:
-	// len(destination_block_ids) * block_size.
-	PrefixTokens uint32 `protobuf:"varint,8,opt,name=prefix_tokens,json=prefixTokens,proto3" json:"prefix_tokens,omitempty"`
+	// Engine-owned prefix identities, passed through by the source executor.
+	// One hash per complete block, in logical order.
+	BlockHashes []string `protobuf:"bytes,7,rep,name=block_hashes,json=blockHashes,proto3" json:"block_hashes,omitempty"`
 	// Destination blocks reserved for this transfer, in logical order.
-	DestinationBlockIds []uint32 `protobuf:"varint,9,rep,packed,name=destination_block_ids,json=destinationBlockIds,proto3" json:"destination_block_ids,omitempty"`
+	DestinationBlockIds []uint32 `protobuf:"varint,8,rep,packed,name=destination_block_ids,json=destinationBlockIds,proto3" json:"destination_block_ids,omitempty"`
 	// Layout v1: contiguous little-endian raw tensor bytes.
 	// Shape: [layers, kv_heads, blocks, block_size, head_dim]
 	// Both payloads are required and must have the exact expected byte length.
-	KeyData       []byte `protobuf:"bytes,10,opt,name=key_data,json=keyData,proto3" json:"key_data,omitempty"`
-	ValueData     []byte `protobuf:"bytes,11,opt,name=value_data,json=valueData,proto3" json:"value_data,omitempty"`
+	KeyData       []byte `protobuf:"bytes,9,opt,name=key_data,json=keyData,proto3" json:"key_data,omitempty"`
+	ValueData     []byte `protobuf:"bytes,10,opt,name=value_data,json=valueData,proto3" json:"value_data,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PushKVRequest) Reset() {
 	*x = PushKVRequest{}
-	mi := &file_kvtide_v1_executor_proto_msgTypes[8]
+	mi := &file_kvtide_v1_executor_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -723,7 +914,7 @@ func (x *PushKVRequest) String() string {
 func (*PushKVRequest) ProtoMessage() {}
 
 func (x *PushKVRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_kvtide_v1_executor_proto_msgTypes[8]
+	mi := &file_kvtide_v1_executor_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -736,7 +927,7 @@ func (x *PushKVRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushKVRequest.ProtoReflect.Descriptor instead.
 func (*PushKVRequest) Descriptor() ([]byte, []int) {
-	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{8}
+	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PushKVRequest) GetTransferId() string {
@@ -781,18 +972,11 @@ func (x *PushKVRequest) GetKvCompatibilityId() string {
 	return ""
 }
 
-func (x *PushKVRequest) GetPrefixHash() string {
+func (x *PushKVRequest) GetBlockHashes() []string {
 	if x != nil {
-		return x.PrefixHash
+		return x.BlockHashes
 	}
-	return ""
-}
-
-func (x *PushKVRequest) GetPrefixTokens() uint32 {
-	if x != nil {
-		return x.PrefixTokens
-	}
-	return 0
+	return nil
 }
 
 func (x *PushKVRequest) GetDestinationBlockIds() []uint32 {
@@ -827,7 +1011,7 @@ type PushKVResponse struct {
 
 func (x *PushKVResponse) Reset() {
 	*x = PushKVResponse{}
-	mi := &file_kvtide_v1_executor_proto_msgTypes[9]
+	mi := &file_kvtide_v1_executor_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -839,7 +1023,7 @@ func (x *PushKVResponse) String() string {
 func (*PushKVResponse) ProtoMessage() {}
 
 func (x *PushKVResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kvtide_v1_executor_proto_msgTypes[9]
+	mi := &file_kvtide_v1_executor_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -852,7 +1036,7 @@ func (x *PushKVResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PushKVResponse.ProtoReflect.Descriptor instead.
 func (*PushKVResponse) Descriptor() ([]byte, []int) {
-	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{9}
+	return file_kvtide_v1_executor_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *PushKVResponse) GetTransferId() string {
@@ -942,7 +1126,27 @@ const file_kvtide_v1_executor_proto_rawDesc = "" +
 	"\x14ReleaseBlocksRequest\x12#\n" +
 	"\rruntime_epoch\x18\x01 \x01(\rR\fruntimeEpoch\x12\x1b\n" +
 	"\tblock_ids\x18\x02 \x03(\rR\bblockIds\"\x17\n" +
-	"\x15ReleaseBlocksResponse\"\xe8\x03\n" +
+	"\x15ReleaseBlocksResponse\"\x80\x04\n" +
+	"\x14TriggerKVPushRequest\x12\x1f\n" +
+	"\vtransfer_id\x18\x01 \x01(\tR\n" +
+	"transferId\x12,\n" +
+	"\x12source_executor_id\x18\x02 \x01(\tR\x10sourceExecutorId\x120\n" +
+	"\x14source_runtime_epoch\x18\x03 \x01(\rR\x12sourceRuntimeEpoch\x12(\n" +
+	"\x10source_block_ids\x18\x04 \x03(\rR\x0esourceBlockIds\x126\n" +
+	"\x17destination_executor_id\x18\x05 \x01(\tR\x15destinationExecutorId\x12:\n" +
+	"\x19destination_runtime_epoch\x18\x06 \x01(\rR\x17destinationRuntimeEpoch\x12B\n" +
+	"\x1ddestination_transfer_endpoint\x18\a \x01(\tR\x1bdestinationTransferEndpoint\x12.\n" +
+	"\x13kv_compatibility_id\x18\b \x01(\tR\x11kvCompatibilityId\x12!\n" +
+	"\fblock_hashes\x18\t \x03(\tR\vblockHashes\x122\n" +
+	"\x15destination_block_ids\x18\n" +
+	" \x03(\rR\x13destinationBlockIds\"\x8c\x02\n" +
+	"\x15TriggerKVPushResponse\x12\x1f\n" +
+	"\vtransfer_id\x18\x01 \x01(\tR\n" +
+	"transferId\x12,\n" +
+	"\x12source_executor_id\x18\x02 \x01(\tR\x10sourceExecutorId\x120\n" +
+	"\x14source_runtime_epoch\x18\x03 \x01(\rR\x12sourceRuntimeEpoch\x126\n" +
+	"\x17destination_executor_id\x18\x04 \x01(\tR\x15destinationExecutorId\x12:\n" +
+	"\x19destination_runtime_epoch\x18\x05 \x01(\rR\x17destinationRuntimeEpoch\"\xc5\x03\n" +
 	"\rPushKVRequest\x12\x1f\n" +
 	"\vtransfer_id\x18\x01 \x01(\tR\n" +
 	"transferId\x12,\n" +
@@ -950,25 +1154,24 @@ const file_kvtide_v1_executor_proto_rawDesc = "" +
 	"\x14source_runtime_epoch\x18\x03 \x01(\rR\x12sourceRuntimeEpoch\x126\n" +
 	"\x17destination_executor_id\x18\x04 \x01(\tR\x15destinationExecutorId\x12:\n" +
 	"\x19destination_runtime_epoch\x18\x05 \x01(\rR\x17destinationRuntimeEpoch\x12.\n" +
-	"\x13kv_compatibility_id\x18\x06 \x01(\tR\x11kvCompatibilityId\x12\x1f\n" +
-	"\vprefix_hash\x18\a \x01(\tR\n" +
-	"prefixHash\x12#\n" +
-	"\rprefix_tokens\x18\b \x01(\rR\fprefixTokens\x122\n" +
-	"\x15destination_block_ids\x18\t \x03(\rR\x13destinationBlockIds\x12\x19\n" +
-	"\bkey_data\x18\n" +
-	" \x01(\fR\akeyData\x12\x1d\n" +
+	"\x13kv_compatibility_id\x18\x06 \x01(\tR\x11kvCompatibilityId\x12!\n" +
+	"\fblock_hashes\x18\a \x03(\tR\vblockHashes\x122\n" +
+	"\x15destination_block_ids\x18\b \x03(\rR\x13destinationBlockIds\x12\x19\n" +
+	"\bkey_data\x18\t \x01(\fR\akeyData\x12\x1d\n" +
 	"\n" +
-	"value_data\x18\v \x01(\fR\tvalueData\"\xa5\x01\n" +
+	"value_data\x18\n" +
+	" \x01(\fR\tvalueData\"\xa5\x01\n" +
 	"\x0ePushKVResponse\x12\x1f\n" +
 	"\vtransfer_id\x18\x01 \x01(\tR\n" +
 	"transferId\x126\n" +
 	"\x17destination_executor_id\x18\x02 \x01(\tR\x15destinationExecutorId\x12:\n" +
-	"\x19destination_runtime_epoch\x18\x03 \x01(\rR\x17destinationRuntimeEpoch2\xc0\x02\n" +
+	"\x19destination_runtime_epoch\x18\x03 \x01(\rR\x17destinationRuntimeEpoch2\x94\x03\n" +
 	"\x0fExecutorService\x12I\n" +
 	"\n" +
 	"GetRuntime\x12\x1c.kvtide.v1.GetRuntimeRequest\x1a\x1d.kvtide.v1.GetRuntimeResponse\x12O\n" +
 	"\fExecuteBatch\x12\x1e.kvtide.v1.ExecuteBatchRequest\x1a\x1f.kvtide.v1.ExecuteBatchResponse\x12R\n" +
-	"\rReleaseBlocks\x12\x1f.kvtide.v1.ReleaseBlocksRequest\x1a .kvtide.v1.ReleaseBlocksResponse\x12=\n" +
+	"\rReleaseBlocks\x12\x1f.kvtide.v1.ReleaseBlocksRequest\x1a .kvtide.v1.ReleaseBlocksResponse\x12R\n" +
+	"\rTriggerKVPush\x12\x1f.kvtide.v1.TriggerKVPushRequest\x1a .kvtide.v1.TriggerKVPushResponse\x12=\n" +
 	"\x06PushKV\x12\x18.kvtide.v1.PushKVRequest\x1a\x19.kvtide.v1.PushKVResponseB\x9a\x01\n" +
 	"\rcom.kvtide.v1B\rExecutorProtoP\x01Z5github.com/qujing226/kvtide/gen/go/kvtide/v1;kvtidev1\xa2\x02\x03KXX\xaa\x02\tKvtide.V1\xca\x02\tKvtide\\V1\xe2\x02\x15Kvtide\\V1\\GPBMetadata\xea\x02\n" +
 	"Kvtide::V1b\x06proto3"
@@ -985,7 +1188,7 @@ func file_kvtide_v1_executor_proto_rawDescGZIP() []byte {
 	return file_kvtide_v1_executor_proto_rawDescData
 }
 
-var file_kvtide_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_kvtide_v1_executor_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_kvtide_v1_executor_proto_goTypes = []any{
 	(*GetRuntimeRequest)(nil),     // 0: kvtide.v1.GetRuntimeRequest
 	(*GetRuntimeResponse)(nil),    // 1: kvtide.v1.GetRuntimeResponse
@@ -995,28 +1198,32 @@ var file_kvtide_v1_executor_proto_goTypes = []any{
 	(*ExecuteResult)(nil),         // 5: kvtide.v1.ExecuteResult
 	(*ReleaseBlocksRequest)(nil),  // 6: kvtide.v1.ReleaseBlocksRequest
 	(*ReleaseBlocksResponse)(nil), // 7: kvtide.v1.ReleaseBlocksResponse
-	(*PushKVRequest)(nil),         // 8: kvtide.v1.PushKVRequest
-	(*PushKVResponse)(nil),        // 9: kvtide.v1.PushKVResponse
-	(WorkPhase)(0),                // 10: kvtide.v1.WorkPhase
-	(*KVBlockMetadata)(nil),       // 11: kvtide.v1.KVBlockMetadata
-	(FinishReason)(0),             // 12: kvtide.v1.FinishReason
+	(*TriggerKVPushRequest)(nil),  // 8: kvtide.v1.TriggerKVPushRequest
+	(*TriggerKVPushResponse)(nil), // 9: kvtide.v1.TriggerKVPushResponse
+	(*PushKVRequest)(nil),         // 10: kvtide.v1.PushKVRequest
+	(*PushKVResponse)(nil),        // 11: kvtide.v1.PushKVResponse
+	(WorkPhase)(0),                // 12: kvtide.v1.WorkPhase
+	(*KVBlockMetadata)(nil),       // 13: kvtide.v1.KVBlockMetadata
+	(FinishReason)(0),             // 14: kvtide.v1.FinishReason
 }
 var file_kvtide_v1_executor_proto_depIdxs = []int32{
 	4,  // 0: kvtide.v1.ExecuteBatchRequest.items:type_name -> kvtide.v1.ExecuteItem
 	5,  // 1: kvtide.v1.ExecuteBatchResponse.results:type_name -> kvtide.v1.ExecuteResult
-	10, // 2: kvtide.v1.ExecuteItem.phase:type_name -> kvtide.v1.WorkPhase
-	11, // 3: kvtide.v1.ExecuteItem.kv_blocks:type_name -> kvtide.v1.KVBlockMetadata
-	12, // 4: kvtide.v1.ExecuteResult.finish_reason:type_name -> kvtide.v1.FinishReason
+	12, // 2: kvtide.v1.ExecuteItem.phase:type_name -> kvtide.v1.WorkPhase
+	13, // 3: kvtide.v1.ExecuteItem.kv_blocks:type_name -> kvtide.v1.KVBlockMetadata
+	14, // 4: kvtide.v1.ExecuteResult.finish_reason:type_name -> kvtide.v1.FinishReason
 	0,  // 5: kvtide.v1.ExecutorService.GetRuntime:input_type -> kvtide.v1.GetRuntimeRequest
 	2,  // 6: kvtide.v1.ExecutorService.ExecuteBatch:input_type -> kvtide.v1.ExecuteBatchRequest
 	6,  // 7: kvtide.v1.ExecutorService.ReleaseBlocks:input_type -> kvtide.v1.ReleaseBlocksRequest
-	8,  // 8: kvtide.v1.ExecutorService.PushKV:input_type -> kvtide.v1.PushKVRequest
-	1,  // 9: kvtide.v1.ExecutorService.GetRuntime:output_type -> kvtide.v1.GetRuntimeResponse
-	3,  // 10: kvtide.v1.ExecutorService.ExecuteBatch:output_type -> kvtide.v1.ExecuteBatchResponse
-	7,  // 11: kvtide.v1.ExecutorService.ReleaseBlocks:output_type -> kvtide.v1.ReleaseBlocksResponse
-	9,  // 12: kvtide.v1.ExecutorService.PushKV:output_type -> kvtide.v1.PushKVResponse
-	9,  // [9:13] is the sub-list for method output_type
-	5,  // [5:9] is the sub-list for method input_type
+	8,  // 8: kvtide.v1.ExecutorService.TriggerKVPush:input_type -> kvtide.v1.TriggerKVPushRequest
+	10, // 9: kvtide.v1.ExecutorService.PushKV:input_type -> kvtide.v1.PushKVRequest
+	1,  // 10: kvtide.v1.ExecutorService.GetRuntime:output_type -> kvtide.v1.GetRuntimeResponse
+	3,  // 11: kvtide.v1.ExecutorService.ExecuteBatch:output_type -> kvtide.v1.ExecuteBatchResponse
+	7,  // 12: kvtide.v1.ExecutorService.ReleaseBlocks:output_type -> kvtide.v1.ReleaseBlocksResponse
+	9,  // 13: kvtide.v1.ExecutorService.TriggerKVPush:output_type -> kvtide.v1.TriggerKVPushResponse
+	11, // 14: kvtide.v1.ExecutorService.PushKV:output_type -> kvtide.v1.PushKVResponse
+	10, // [10:15] is the sub-list for method output_type
+	5,  // [5:10] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -1035,7 +1242,7 @@ func file_kvtide_v1_executor_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kvtide_v1_executor_proto_rawDesc), len(file_kvtide_v1_executor_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   10,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

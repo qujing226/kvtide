@@ -71,4 +71,8 @@ type ExecutorStats struct {
 	TotalMemoryBytes     uint64
 	AvailableMemoryBytes uint64
 	KVCacheBytes         uint64
+	ModelRevision        string
+	KVLayoutVersion      uint32
+	KVCompatibilityID    string
+	TransferEndpoint     string
 }

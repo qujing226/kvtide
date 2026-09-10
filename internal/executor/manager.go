@@ -16,6 +16,7 @@ import (
 type Manager interface {
 	Consume(ctx context.Context)
 	Submit(ctx context.Context, batch *model.Batch) error
+	TriggerKVPush(ctx context.Context, request *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error)
 	Events() <-chan *model.Event
 	GetRuntimeStates() map[string]*model.ExecutorStats
 }
@@ -80,6 +81,20 @@ func (e *executorManager) Submit(ctx context.Context, batch *model.Batch) error 
 
 func (e *executorManager) Events() <-chan *model.Event {
 	return e.eventChan
+}
+
+func (e *executorManager) TriggerKVPush(
+	ctx context.Context,
+	request *v1.TriggerKVPushRequest,
+) (*v1.TriggerKVPushResponse, error) {
+	source, ok := e.executors[request.GetSourceExecutorId()]
+	if !ok {
+		return nil, errors.New(
+			errors.CodeExecutorUnavailable,
+			"source executor "+request.GetSourceExecutorId()+" is unavailable",
+		)
+	}
+	return source.TriggerKVPush(ctx, request)
 }
 
 func (e *executorManager) Consume(ctx context.Context) {

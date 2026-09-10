@@ -117,6 +117,10 @@ func (a *adminService) GetExecutors(ctx context.Context, request *v1.GetExecutor
 			TotalMemoryBytes:     state.TotalMemoryBytes,
 			AvailableMemoryBytes: state.AvailableMemoryBytes,
 			KvCacheBytes:         state.KVCacheBytes,
+			ModelRevision:        state.ModelRevision,
+			KvLayoutVersion:      state.KVLayoutVersion,
+			KvCompatibilityId:    state.KVCompatibilityID,
+			TransferEndpoint:     state.TransferEndpoint,
 		})
 	}
 

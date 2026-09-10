@@ -64,6 +64,10 @@ func TestAdminGetExecutorsReturnsExecutorSnapshots(t *testing.T) {
 				TotalMemoryBytes:     8_000_000_000,
 				AvailableMemoryBytes: 2_000_000_000,
 				KVCacheBytes:         512_000_000,
+				ModelRevision:        "sha256:weights",
+				KVLayoutVersion:      1,
+				KVCompatibilityID:    "compatibility",
+				TransferEndpoint:     "http://executor-qwen:19991",
 			},
 		}},
 	}
@@ -77,4 +81,8 @@ func TestAdminGetExecutorsReturnsExecutorSnapshots(t *testing.T) {
 	require.Equal(t, uint32(42), runtime.RuntimeEpoch)
 	require.Equal(t, "Qwen/Qwen3-0.6B", runtime.ModelId)
 	require.Equal(t, uint64(512_000_000), runtime.KvCacheBytes)
+	require.Equal(t, "sha256:weights", runtime.ModelRevision)
+	require.Equal(t, uint32(1), runtime.KvLayoutVersion)
+	require.Equal(t, "compatibility", runtime.KvCompatibilityId)
+	require.Equal(t, "http://executor-qwen:19991", runtime.TransferEndpoint)
 }

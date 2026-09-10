@@ -15,6 +15,7 @@ import (
 
 type Executor interface {
 	Execute(ctx context.Context, batch *model.Batch) ([]*model.Event, error)
+	TriggerKVPush(ctx context.Context, request *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error)
 	GetRuntimeStates() *model.ExecutorStats
 }
 
@@ -136,6 +137,13 @@ func (m *executor) Execute(ctx context.Context, batch *model.Batch) ([]*model.Ev
 
 func (m *executor) GetRuntimeStates() *model.ExecutorStats {
 	return m.runtime
+}
+
+func (m *executor) TriggerKVPush(
+	ctx context.Context,
+	request *v1.TriggerKVPushRequest,
+) (*v1.TriggerKVPushResponse, error) {
+	return m.client.TriggerKVPush(ctx, request)
 }
 
 func nextPhase(item *model.WorkItem, err error) v1.EventType {

@@ -111,6 +111,10 @@ func RuntimeProtoToModel(res *v1.GetRuntimeResponse) *ExecutorStats {
 		TotalMemoryBytes:     res.TotalMemoryBytes,
 		AvailableMemoryBytes: res.AvailableMemoryBytes,
 		KVCacheBytes:         res.KvCacheBytes,
+		ModelRevision:        res.ModelRevision,
+		KVLayoutVersion:      res.KvLayoutVersion,
+		KVCompatibilityID:    res.KvCompatibilityId,
+		TransferEndpoint:     res.TransferEndpoint,
 	}
 }
 

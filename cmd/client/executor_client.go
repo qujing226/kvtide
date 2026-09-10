@@ -49,3 +49,8 @@ func (e *ExecutorClient) ReleaseBlocks(ctx context.Context, epoch uint32, blockI
 	})
 	return resp, err
 }
+
+func (e *ExecutorClient) TriggerKVPush(ctx context.Context, request *v1.TriggerKVPushRequest) (*v1.TriggerKVPushResponse, error) {
+	resp, err := e.ExecutorServiceClient.TriggerKVPush(ctx, request)
+	return resp, err
+}

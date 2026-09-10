@@ -9,6 +9,9 @@ service ExecutorService{
   rpc GetRuntime(GetRuntimeRequest) returns (GetRuntimeResponse);
   rpc ExecuteBatch(ExecuteBatchRequest) returns (ExecuteBatchResponse);
   rpc ReleaseBlocks(ReleaseBlocksRequest) returns (ReleaseBlocksResponse);
+  // Control plane: Engine asks the source executor to copy blocks to a peer.
+  rpc TriggerKVPush(TriggerKVPushRequest) returns (TriggerKVPushResponse);
+  // Data plane: the source executor writes the exported KV into the destination.
   rpc PushKV(PushKVRequest) returns (PushKVResponse);
 }
 
@@ -105,6 +108,35 @@ message ReleaseBlocksRequest{
 
 message ReleaseBlocksResponse{}
 
+message TriggerKVPushRequest {
+  string transfer_id = 1;
+
+  string source_executor_id = 2;
+  uint32 source_runtime_epoch = 3;
+  repeated uint32 source_block_ids = 4;
+
+  string destination_executor_id = 5;
+  uint32 destination_runtime_epoch = 6;
+  string destination_transfer_endpoint = 7;
+
+  string kv_compatibility_id = 8;
+
+  // Engine-owned prefix identities, one per full block, in logical order.
+  repeated string block_hashes = 9;
+  // Engine-reserved destination blocks, one-to-one with source_block_ids.
+  repeated uint32 destination_block_ids = 10;
+}
+
+message TriggerKVPushResponse {
+  string transfer_id = 1;
+  string source_executor_id = 2;
+  uint32 source_runtime_epoch = 3;
+  string destination_executor_id = 4;
+  uint32 destination_runtime_epoch = 5;
+
+  // Success means the destination returned PushKV success and its KV is READY.
+}
+
 message PushKVRequest {
   string transfer_id = 1;
 
@@ -117,21 +149,18 @@ message PushKVRequest {
   // Must match the destination's KV compatibility fingerprint.
   string kv_compatibility_id = 6;
 
-  // Identifies the complete prefix, including its cache namespace.
-  // Final prefix-chain hash, with CacheSalt included in hash computation.
-  string prefix_hash = 7;
-  // Complete prefix starting at token position 0. It must be positive and equeal to:
-  // len(destination_block_ids) * block_size.
-  uint32 prefix_tokens = 8;
+  // Engine-owned prefix identities, passed through by the source executor.
+  // One hash per complete block, in logical order.
+  repeated string block_hashes = 7;
 
   // Destination blocks reserved for this transfer, in logical order.
-  repeated uint32 destination_block_ids = 9;
+  repeated uint32 destination_block_ids = 8;
 
   // Layout v1: contiguous little-endian raw tensor bytes.
   // Shape: [layers, kv_heads, blocks, block_size, head_dim]
   // Both payloads are required and must have the exact expected byte length.
-  bytes key_data = 10;
-  bytes value_data = 11;
+  bytes key_data = 9;
+  bytes value_data = 10;
 }
 
 message PushKVResponse {
