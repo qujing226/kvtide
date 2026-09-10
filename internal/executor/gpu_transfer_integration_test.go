@@ -184,8 +184,8 @@ func requireCompatibleGPURuntimes(
 	destination *model.ExecutorStats,
 ) {
 	t.Helper()
-	require.Equal(t, "cuda", source.DeviceType)
-	require.Equal(t, "cuda", destination.DeviceType)
+	require.Equal(t, "cuda:0", source.DeviceType)
+	require.Equal(t, "cuda:0", destination.DeviceType)
 	require.Equal(t, "bfloat16", source.Dtype)
 	require.Equal(t, source.Dtype, destination.Dtype)
 	require.Equal(t, source.ModelId, destination.ModelId)
