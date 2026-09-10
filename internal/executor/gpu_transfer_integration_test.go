@@ -43,11 +43,14 @@ func TestGPUKVTransferThroughEngine(t *testing.T) {
 	defer cleanupGPUBlocks(t, destination, []uint32{1, 3, 4, 5, 6, 7})
 
 	blockSize := sourceRuntime.BlockSize
-	prefix := make([]uint32, 2*blockSize)
-	for i := range prefix {
-		prefix[i] = uint32(i%11 + 1)
+	require.Equal(t, uint32(16), blockSize)
+	prefix := []uint32{
+		42, 20457, 577, 30611, 61571, 1376, 897, 6500,
+		10010, 1948, 4128, 1614, 3883, 9475, 311, 7949,
+		11504, 9252, 34447, 13, 1096, 17590, 1273, 87856,
+		429, 264, 9106, 31558, 646, 3060, 9471, 504,
 	}
-	suffix := []uint32{6, 10}
+	suffix := []uint32{6500, 10010}
 	hashes := engineBlockHashes(t, logger, sourceRuntime, prefix)
 
 	sourcePrefill := executePrefill(
