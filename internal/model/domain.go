@@ -7,13 +7,14 @@ import (
 )
 
 type Request struct {
-	RequestId string
-	UserId    string
-	ModelID   LLMModelID
-	Prompt    string
-	MaxTokens uint32
-	Timeout   time.Duration
-	Deadline  time.Time
+	RequestId  string
+	UserId     string
+	ExecutorID string
+	ModelID    LLMModelID
+	Prompt     string
+	MaxTokens  uint32
+	Timeout    time.Duration
+	Deadline   time.Time
 
 	// CacheSalt is used for distinguish different user and originate.
 	// for now, it equals with UserId, but it can be more complex such as
@@ -55,13 +56,14 @@ type GenerateOutput struct {
 }
 
 type WorkItem struct {
-	WorkId    string
-	RequestId string
-	Phase     v1.WorkPhase
-	Deadline  time.Time
-	MaxTokens uint32
-	ModelID   LLMModelID
-	Cache     *PrefixMatch
+	WorkId     string
+	RequestId  string
+	ExecutorID string
+	Phase      v1.WorkPhase
+	Deadline   time.Time
+	MaxTokens  uint32
+	ModelID    LLMModelID
+	Cache      *PrefixMatch
 
 	// TokenIDs in WorkItem is a part of TokenIDs in Request.
 	TokenIDs      []uint32

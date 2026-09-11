@@ -1,7 +1,5 @@
 package block
 
-import "github.com/qujing226/kvtide/internal/model"
-
 func (m *manager) pushFree(id uint32) {
 	b := &m.blocks[id]
 	if b.RefCount == 0 {
@@ -12,7 +10,7 @@ func (m *manager) pushFree(id uint32) {
 	if b.RefCount > 0 {
 		return
 	}
-	m.appendFreeBlock(b)
+	m.appendFreeBlock(id)
 }
 
 func (m *manager) popFree() (uint32, bool) {
@@ -27,7 +25,7 @@ func (m *manager) popFree() (uint32, bool) {
 		delete(m.cachedBlocks, b.Hash)
 		b.Cached = false
 		// metrics: evicted block
-		m.metrics.IncEvictedBlock()
+		m.metrics.IncEvictedBlock(m.executorID)
 	}
 	b.Hash = ""
 	b.TokenCount = 0
@@ -52,18 +50,19 @@ func (m *manager) popFree() (uint32, bool) {
 	return id, true
 }
 
-func (m *manager) appendFreeBlock(b *model.Block) {
+func (m *manager) appendFreeBlock(id uint32) {
+	b := &m.blocks[id]
 	b.RefCount = 0
 	b.InFreeQueue = true
 	b.PrevFree = m.freeTail
 	b.NextFree = -1
 
 	if m.freeTail >= 0 {
-		m.blocks[m.freeTail].NextFree = int32(b.ID)
+		m.blocks[m.freeTail].NextFree = int32(id)
 	} else {
-		m.freeHead = int32(b.ID)
+		m.freeHead = int32(id)
 	}
 
-	m.freeTail = int32(b.ID)
+	m.freeTail = int32(id)
 	m.freeCount++
 }

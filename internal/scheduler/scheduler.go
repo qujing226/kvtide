@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"context"
+	"fmt"
+	"sync/atomic"
 	"time"
 
 	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
@@ -17,6 +19,7 @@ import (
 )
 
 type Scheduler interface {
+	AssignExecutor(req *model.Request) error
 	Enqueue(input *model.WorkItem) error
 	Batch(ctx context.Context)
 }
@@ -30,22 +33,25 @@ type scheduler struct {
 	scheduleRoundDelay   time.Duration
 	thresholdSeqs        uint32
 
-	prefillQueueSmall PrefillQueue
-	prefillQueueLarge PrefillQueue
-	decodeQueue       DecodeQueue
+	prefillSmall map[string]PrefillQueue
+	prefillLarge map[string]PrefillQueue
+	decode       map[string]DecodeQueue
 
 	requestManager  state.RequestStateManager
 	executorManager executor.Manager
-	blockManager    block.Manager
+	blockRegistry   block.Registry
+	executorIDs     []string
+	nextExecutor    atomic.Uint64
 
 	patchExecuteChan chan struct{}
 
 	metrics metrics.Metrics
 }
 
-func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, prefillQL PrefillQueue, decodeQ DecodeQueue,
-	executorManager executor.Manager, requestManager state.RequestStateManager, blockManager block.Manager,
+func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf,
+	executorManager executor.Manager, requestManager state.RequestStateManager, blockRegistry block.Registry,
 	metrics metrics.Metrics) Scheduler {
+	executorIDs := blockRegistry.ExecutorIDs()
 	s := &scheduler{
 		l:                l,
 		patchExecuteChan: make(chan struct{}, 1),
@@ -61,17 +67,41 @@ func NewScheduler(l *zap.SugaredLogger, cfg *conf.Conf, prefillQS PrefillQueue, 
 		scheduleRoundDelay:   cfg.Server.ScheduleConf.ScheduleDelay(),
 		thresholdSeqs:        cfg.Server.ScheduleConf.MaxBatchSeq * 4 / 5,
 
-		prefillQueueSmall: prefillQS,
-		prefillQueueLarge: prefillQL,
-		decodeQueue:       decodeQ,
+		prefillSmall: make(map[string]PrefillQueue, len(executorIDs)),
+		prefillLarge: make(map[string]PrefillQueue, len(executorIDs)),
+		decode:       make(map[string]DecodeQueue, len(executorIDs)),
 
 		executorManager: executorManager,
-		blockManager:    blockManager,
+		blockRegistry:   blockRegistry,
+		executorIDs:     executorIDs,
 		requestManager:  requestManager,
 
 		metrics: metrics,
 	}
+	for _, executorID := range executorIDs {
+		s.prefillSmall[executorID] = NewPrefillQueue(cfg, requestManager)
+		s.prefillLarge[executorID] = NewPrefillQueue(cfg, requestManager)
+		s.decode[executorID] = NewDecodeQueue(cfg, requestManager)
+	}
 	return s
+}
+
+func (s *scheduler) AssignExecutor(req *model.Request) error {
+	if req.ExecutorID == "" {
+		if len(s.executorIDs) == 0 {
+			return fmt.Errorf("no executor is available for request %s", req.RequestId)
+		}
+		idx := s.nextExecutor.Add(1) - 1
+		req.ExecutorID = s.executorIDs[idx%uint64(len(s.executorIDs))]
+		return nil
+	}
+
+	for _, executorID := range s.executorIDs {
+		if executorID == req.ExecutorID {
+			return nil
+		}
+	}
+	return fmt.Errorf("executor %s is not registered", req.ExecutorID)
 }
 
 func (s *scheduler) Enqueue(workItem *model.WorkItem) error {
@@ -79,18 +109,30 @@ func (s *scheduler) Enqueue(workItem *model.WorkItem) error {
 	var err error
 	switch workItem.Phase {
 	case v1.WorkPhasePrefill:
+		var queue PrefillQueue
+		var exists bool
 		if workItem.TokenCntTotal <= s.longPrefillThreshold {
-			err = s.prefillQueueSmall.Enqueue(workItem)
+			queue, exists = s.prefillSmall[workItem.ExecutorID]
 		} else {
-			err = s.prefillQueueLarge.Enqueue(workItem)
+			queue, exists = s.prefillLarge[workItem.ExecutorID]
 		}
+		if !exists {
+			err = errors.New(errors.CodeExecutorUnavailable, "executor "+workItem.ExecutorID+" has no prefill queue")
+			break
+		}
+		err = queue.Enqueue(workItem)
 		if err == nil {
-			s.trySchedule()
+			s.trySchedule(workItem.ExecutorID)
 		}
 	case v1.WorkPhaseDecode:
-		err = s.decodeQueue.Enqueue(workItem)
+		queue, exists := s.decode[workItem.ExecutorID]
+		if !exists {
+			err = errors.New(errors.CodeExecutorUnavailable, "executor "+workItem.ExecutorID+" has no decode queue")
+			break
+		}
+		err = queue.Enqueue(workItem)
 		if err == nil {
-			s.trySchedule()
+			s.trySchedule(workItem.ExecutorID)
 		}
 	default:
 		return errors.New(errors.CodeInvalidArgument, "invalid phase for enqueue")
@@ -118,9 +160,9 @@ func (s *scheduler) Batch(ctx context.Context) {
 			return
 		case <-s.patchExecuteChan:
 			ticker.Reset(s.scheduleRoundDelay)
-			s.patchExecute(ctx)
+			s.patchExecutors(ctx)
 		case <-ticker.C:
-			s.patchExecute(ctx)
+			s.patchExecutors(ctx)
 		}
 	}
 }
@@ -135,43 +177,94 @@ func (s *scheduler) consumeEvents(ctx context.Context) {
 			if !ok {
 				return
 			}
-			nextItems, err := s.requestManager.OnEvent(event)
-			if err != nil {
-				s.l.Errorf("failed to execute event: %v", err)
+			if err := s.handleEvent(event); err != nil {
+				s.l.Errorf("failed to handle executor event: %v", err)
 			}
-			for _, nextItem := range nextItems {
-				_ = s.Enqueue(nextItem)
-			}
-
-			s.metrics.ObserveExecution(event.Timing.Execution.Seconds(), event.ExecutorId)
 		}
 	}
 }
 
-func (s *scheduler) patchExecute(ctx context.Context) {
+func (s *scheduler) handleEvent(event *model.Event) error {
+	req, exists := s.requestManager.Get(event.RequestId)
+	if !exists {
+		return nil
+	}
+
+	var finalizeErr error
+	if event.ExecutorId != req.ExecutorID {
+		finalizeErr = fmt.Errorf(
+			"event executor %s does not match request executor %s",
+			event.ExecutorId,
+			req.ExecutorID,
+		)
+		_ = s.blockRegistry.Rollback(req.ExecutorID, event.WorkId)
+	} else if event.Err != nil || event.Type == v1.EventTypeRequestFailed {
+		finalizeErr = s.blockRegistry.Rollback(req.ExecutorID, event.WorkId)
+	} else {
+		finalizeErr = s.blockRegistry.Commit(req.ExecutorID, event.WorkId)
+	}
+
+	if finalizeErr != nil {
+		event.Err = finalizeErr
+		event.Type = v1.EventTypeRequestFailed
+		event.Done = true
+		event.FinishReason = v1.FinishReasonError
+	}
+
+	nextItems, err := s.requestManager.OnEvent(event)
+	if err != nil {
+		return err
+	}
+	for _, nextItem := range nextItems {
+		if err := s.Enqueue(nextItem); err != nil {
+			return err
+		}
+	}
+	if event.Done {
+		if err := s.blockRegistry.FreeRequest(req.ExecutorID, req.RequestId); err != nil {
+			return err
+		}
+	}
+
+	if s.metrics != nil {
+		s.metrics.ObserveExecution(event.Timing.Execution.Seconds(), event.ExecutorId)
+	}
+	return finalizeErr
+}
+
+func (s *scheduler) patchExecutors(ctx context.Context) {
+	for _, executorID := range s.executorIDs {
+		s.patchExecute(ctx, executorID)
+	}
+}
+
+func (s *scheduler) patchExecute(ctx context.Context, executorID string) {
 	// assemble work items
-	batch := s.pickBatch()
+	batch := s.pickBatch(executorID)
 	if len(batch) <= 0 {
 		return
 	}
 
 	batchLength := len(batch)
-	s.trySchedule()
+	s.trySchedule(executorID)
 
 	batchCreateAt := time.Now()
 
 	batchId := utils.MustGenerateUUIDv7()
 	err := s.executorManager.Submit(ctx, &model.Batch{
-		BatchID:   batchId,
-		BatchSize: uint32(batchLength),
-		CreateAt:  batchCreateAt,
-		Items:     batch,
+		BatchID:    batchId,
+		ExecutorID: batch[0].ExecutorID,
+		BatchSize:  uint32(batchLength),
+		CreateAt:   batchCreateAt,
+		Items:      batch,
 	})
 	if err != nil {
 		// Submit err: requeue workItem.
 		for _, work := range batch {
 			// Rollback blocks.
-			s.blockManager.Rollback(work.WorkId)
+			if rollbackErr := s.blockRegistry.Rollback(work.ExecutorID, work.WorkId); rollbackErr != nil {
+				s.l.Errorw("failed to rollback work", "work", work.WorkId, "error", rollbackErr)
+			}
 			s.l.Errorf("failed to submit work: %v", work)
 			s.requeueWork(work)
 		}
@@ -183,12 +276,12 @@ func (s *scheduler) patchExecute(ctx context.Context) {
 	s.observeBatchStatsAndTimeWait(batch, batchCreateAt)
 }
 
-func (s *scheduler) pickBatch() []*model.WorkItem {
+func (s *scheduler) pickBatch(executorID string) []*model.WorkItem {
 	budget := s.batchBudget
 	batch := make([]*model.WorkItem, 0, budget.remainSeqs)
-	s.pickDecode(&batch, &budget)
-	s.pickSmallPrefill(&batch, &budget)
-	s.pickLargePrefill(&batch, &budget)
+	s.pickDecode(s.decode[executorID], &batch, &budget)
+	s.pickSmallPrefill(s.prefillSmall[executorID], &batch, &budget)
+	s.pickLargePrefill(s.prefillLarge[executorID], &batch, &budget)
 	return batch
 }
 
@@ -197,21 +290,42 @@ func (s *scheduler) requeueWork(workItems ...*model.WorkItem) {
 		work.BlockAllocation = nil
 		switch work.Phase {
 		case v1.WorkPhaseDecode:
-			s.decodeQueue.Requeue(work)
+			queue, exists := s.decode[work.ExecutorID]
+			if !exists {
+				s.requestManager.Fail(work.RequestId, errors.New(errors.CodeExecutorUnavailable, "executor "+work.ExecutorID+" has no decode queue"))
+				continue
+			}
+			queue.Requeue(work)
 		case v1.WorkPhasePrefill:
 			if work.TokenCntTotal <= s.longPrefillThreshold {
-				s.prefillQueueSmall.Requeue(work)
+				queue, exists := s.prefillSmall[work.ExecutorID]
+				if !exists {
+					s.requestManager.Fail(work.RequestId, errors.New(errors.CodeExecutorUnavailable, "executor "+work.ExecutorID+" has no prefill queue"))
+					continue
+				}
+				queue.Requeue(work)
 			} else {
-				s.prefillQueueLarge.Requeue(work)
+				queue, exists := s.prefillLarge[work.ExecutorID]
+				if !exists {
+					s.requestManager.Fail(work.RequestId, errors.New(errors.CodeExecutorUnavailable, "executor "+work.ExecutorID+" has no prefill queue"))
+					continue
+				}
+				queue.Requeue(work)
 			}
 		}
 	}
 }
 
 // trySchedule is a trigger for dispatch if queue pressure > threshold.
-func (s *scheduler) trySchedule() {
-	if s.prefillQueueLarge.Length() > 10 || s.prefillQueueSmall.Length() > 30 ||
-		s.decodeQueue.Length() >= s.thresholdSeqs {
+func (s *scheduler) trySchedule(executorID string) {
+	prefillSmall, smallExists := s.prefillSmall[executorID]
+	prefillLarge, largeExists := s.prefillLarge[executorID]
+	decode, decodeExists := s.decode[executorID]
+	if !smallExists || !largeExists || !decodeExists {
+		return
+	}
+	if prefillLarge.Length() > 10 || prefillSmall.Length() > 30 ||
+		decode.Length() >= s.thresholdSeqs {
 		// signal
 		select {
 		case s.patchExecuteChan <- struct{}{}:
@@ -220,8 +334,13 @@ func (s *scheduler) trySchedule() {
 	}
 
 	// metrics: queueLength
-	s.metrics.SetPrefillQueueLength(int(s.prefillQueueSmall.Length() + s.prefillQueueLarge.Length()))
-	s.metrics.SetDecodeQueueLength(int(s.decodeQueue.Length()))
+	var prefillLength, decodeLength uint32
+	for _, id := range s.executorIDs {
+		prefillLength += s.prefillSmall[id].Length() + s.prefillLarge[id].Length()
+		decodeLength += s.decode[id].Length()
+	}
+	s.metrics.SetPrefillQueueLength(int(prefillLength))
+	s.metrics.SetDecodeQueueLength(int(decodeLength))
 }
 
 func (s *scheduler) observeBatchStatsAndTimeWait(batch []*model.WorkItem, now time.Time) {

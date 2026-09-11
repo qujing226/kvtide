@@ -34,20 +34,20 @@ type requestStateManager struct {
 	subscribeCh map[string]chan *model.Event
 	mu          sync.RWMutex
 
-	blockManager block.Manager
+	blockRegistry block.Registry
 
 	activeRequests atomic.Int64
 	metrics        metrics.Metrics
 }
 
-func NewRequestLifecycleStateManager(l *zap.SugaredLogger, blockManager block.Manager,
+func NewRequestLifecycleStateManager(l *zap.SugaredLogger, blockRegistry block.Registry,
 	metrics metrics.Metrics) RequestStateManager {
 	r := &requestStateManager{
-		l:            l,
-		requests:     make(map[string]*model.Request),
-		subscribeCh:  make(map[string]chan *model.Event),
-		blockManager: blockManager,
-		metrics:      metrics,
+		l:             l,
+		requests:      make(map[string]*model.Request),
+		subscribeCh:   make(map[string]chan *model.Event),
+		blockRegistry: blockRegistry,
+		metrics:       metrics,
 	}
 	return r
 }
@@ -63,8 +63,22 @@ func (r *requestStateManager) Create(req *model.Request) (*model.WorkItem, error
 
 	r.subscribeCh[req.RequestId] = make(chan *model.Event, 5)
 
+	if req.ExecutorID == "" {
+		executorIDs := r.blockRegistry.ExecutorIDs()
+		if len(executorIDs) != 1 {
+			delete(r.requests, req.RequestId)
+			delete(r.subscribeCh, req.RequestId)
+			return nil, errors.New(errors.CodeExecutorUnavailable, "request has no executor binding")
+		}
+		req.ExecutorID = executorIDs[0]
+	}
 	// prefix cache
-	prefixMatch := r.blockManager.MatchPrefix(req)
+	prefixMatch, err := r.blockRegistry.MatchPrefix(req)
+	if err != nil {
+		delete(r.requests, req.RequestId)
+		delete(r.subscribeCh, req.RequestId)
+		return nil, err
+	}
 
 	req.ComputedTokens = prefixMatch.CachedTokens
 
@@ -75,6 +89,7 @@ func (r *requestStateManager) Create(req *model.Request) (*model.WorkItem, error
 	workItem := &model.WorkItem{
 		WorkId:        utils.MustGenerateUUIDv7(),
 		RequestId:     req.RequestId,
+		ExecutorID:    req.ExecutorID,
 		Phase:         v1.WorkPhasePrefill,
 		Deadline:      req.Deadline,
 		MaxTokens:     req.MaxTokens,
@@ -174,6 +189,7 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 		prefillItem := &model.WorkItem{
 			WorkId:        utils.MustGenerateUUIDv7(),
 			RequestId:     e.RequestId,
+			ExecutorID:    req.ExecutorID,
 			Phase:         v1.WorkPhasePrefill,
 			Deadline:      req.Deadline,
 			MaxTokens:     req.MaxTokens,
@@ -204,6 +220,7 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 		decodeItem := &model.WorkItem{
 			WorkId:          utils.MustGenerateUUIDv7(),
 			RequestId:       e.RequestId,
+			ExecutorID:      req.ExecutorID,
 			Phase:           v1.WorkPhaseDecode,
 			Deadline:        req.Deadline,
 			MaxTokens:       req.MaxTokens,
@@ -237,6 +254,7 @@ func (r *requestStateManager) OnEvent(e *model.Event) ([]*model.WorkItem, error)
 			decodeItem := &model.WorkItem{
 				WorkId:          utils.MustGenerateUUIDv7(),
 				RequestId:       e.RequestId,
+				ExecutorID:      req.ExecutorID,
 				Phase:           v1.WorkPhaseDecode,
 				ModelID:         req.ModelID,
 				Cache:           req.Cache,
@@ -343,9 +361,13 @@ func (r *requestStateManager) increaseActiveRequestAndCacheHit(hit bool, cachedT
 }
 
 func (r *requestStateManager) deleteRequest(requestId string) {
+	req := r.requests[requestId]
 	delete(r.requests, requestId)
 	delete(r.subscribeCh, requestId)
-	// free all blocks allocated from block.Manager for current request.
-	r.blockManager.FreeRequest(requestId)
+	if req != nil {
+		if err := r.blockRegistry.FreeRequest(req.ExecutorID, requestId); err != nil {
+			r.l.Errorw("failed to find request block manager", "request", requestId, "executor", req.ExecutorID, "error", err)
+		}
+	}
 	r.metrics.SetActiveRequests(int(r.activeRequests.Add(-1)))
 }

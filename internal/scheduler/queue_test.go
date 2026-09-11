@@ -5,7 +5,6 @@ import (
 	"time"
 
 	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
-	"github.com/qujing226/kvtide/internal/block"
 	"github.com/qujing226/kvtide/internal/conf"
 	"github.com/qujing226/kvtide/internal/metrics"
 	"github.com/qujing226/kvtide/internal/model"
@@ -16,6 +15,7 @@ import (
 
 func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
 	m := metrics.NewMetrics()
+	registry := newTestBlockRegistryForScheduler("executor-a")
 	return &conf.Conf{
 		Server: conf.ServerConf{
 			ScheduleConf: conf.ScheduleConf{
@@ -24,18 +24,7 @@ func testQueueConf(length uint32) (*conf.Conf, state.RequestStateManager) {
 				},
 			},
 		},
-	}, state.NewRequestLifecycleStateManager(zap.S(), newTestBlockManager(), m)
-}
-
-func newTestBlockManager() block.Manager {
-	m, err := block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics(), block.Config{
-		BlockSize: 16,
-		NumBlocks: 1024,
-	})
-	if err != nil {
-		panic(err)
-	}
-	return m
+	}, state.NewRequestLifecycleStateManager(zap.S(), registry, m)
 }
 
 func testQueueWork(t *testing.T, manager state.RequestStateManager, id string, phase v1.WorkPhase) *model.WorkItem {

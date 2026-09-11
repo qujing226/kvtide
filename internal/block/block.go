@@ -12,19 +12,12 @@ import (
 	"go.uber.org/zap"
 )
 
-type Manager interface {
-	MatchPrefix(req *model.Request) *model.PrefixMatch
-	AllocateBlocks(work *model.WorkItem) bool
-	Commit(workId string)
-	Rollback(workID string)
-	FreeRequest(requestID string)
-}
-
 type manager struct {
 	l *zap.SugaredLogger
 
-	blockSize uint32
-	blocks    []model.Block
+	executorID string
+	blockSize  uint32
+	blocks     []model.Block
 
 	freeHead  int32
 	freeTail  int32
@@ -41,12 +34,13 @@ type manager struct {
 	metrics metrics.Metrics
 }
 
-func NewManager(l *zap.SugaredLogger, metrics metrics.Metrics, cfg Config) (Manager, error) {
+func newManager(l *zap.SugaredLogger, metrics metrics.Metrics, cfg Config) (*manager, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 	m := &manager{
 		l:                  l,
+		executorID:         cfg.ExecutorID,
 		blocks:             make([]model.Block, cfg.NumBlocks),
 		blockSize:          cfg.BlockSize,
 		freeHead:           0,
@@ -61,7 +55,6 @@ func NewManager(l *zap.SugaredLogger, metrics metrics.Metrics, cfg Config) (Mana
 	for i := range m.blocks {
 		// Blocks start in a doubly linked free queue.
 		m.blocks[i] = model.Block{
-			ID:          uint32(i),
 			InFreeQueue: true,
 			PrevFree:    int32(i - 1),
 			NextFree:    int32(i + 1),
@@ -140,7 +133,7 @@ func (m *manager) AllocateBlocks(work *model.WorkItem) bool {
 
 	allocatedBlockIds, ok := m.allocate(requiredBlocks)
 	if !ok {
-		m.metrics.IncAllocationFailure()
+		m.metrics.IncAllocationFailure(m.executorID)
 		m.l.Errorw("allocate blocks error", "blocks:", requiredBlocks)
 		return false
 	}
@@ -261,7 +254,7 @@ func (m *manager) observeBlockStats() {
 	free := uint64(m.freeCount)
 	active := uint64(len(m.blocks)) - free
 	cached := uint64(len(m.cachedBlocks))
-	m.metrics.ObserveBlockStats(active, free, cached)
+	m.metrics.ObserveBlockStats(m.executorID, active, free, cached)
 }
 
 func (m *manager) allocate(n uint32) ([]uint32, bool) {

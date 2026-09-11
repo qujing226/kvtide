@@ -5,10 +5,11 @@ import (
 )
 
 type Batch struct {
-	BatchID   string
-	BatchSize uint32
-	CreateAt  time.Time
-	Items     []*WorkItem
+	BatchID    string
+	ExecutorID string
+	BatchSize  uint32
+	CreateAt   time.Time
+	Items      []*WorkItem
 }
 
 type Usage struct {

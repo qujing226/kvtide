@@ -19,9 +19,9 @@ var testBlockConfig = Config{
 func newTestManager(t *testing.T) *manager {
 	t.Helper()
 
-	m, err := NewManager(zap.NewNop().Sugar(), metrics.NewMetrics(), testBlockConfig)
+	m, err := newManager(zap.NewNop().Sugar(), metrics.NewMetrics(), testBlockConfig)
 	require.NoError(t, err)
-	return m.(*manager)
+	return m
 }
 
 func TestAllocateBlocksForPrefillUsesTotalKVLength(t *testing.T) {

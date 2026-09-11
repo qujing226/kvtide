@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/qujing226/kvtide/internal/block"
 	"github.com/qujing226/kvtide/internal/executor"
@@ -17,26 +18,45 @@ func newLogger() *zap.SugaredLogger {
 	return logger.Sugar()
 }
 
-func newBlockConfig(
+func newBlockConfigs(
 	executors map[string]executor.Executor,
-) (block.Config, error) {
-	if len(executors) != 1 {
-		return block.Config{}, fmt.Errorf(
-			"exactly one executor is currently supported",
-		)
+) ([]block.Config, error) {
+	if len(executors) == 0 {
+		return nil, fmt.Errorf("no executor runtime available")
 	}
 
-	// todo: multi-executor
-	for _, exec := range executors {
-		runtime := exec.GetRuntimeStates()
+	executorIDs := make([]string, 0, len(executors))
+	for executorID := range executors {
+		executorIDs = append(executorIDs, executorID)
+	}
+	sort.Strings(executorIDs)
 
-		return block.Config{
+	configs := make([]block.Config, 0, len(executorIDs))
+	for _, executorID := range executorIDs {
+		exec := executors[executorID]
+		runtime := exec.GetRuntimeStates()
+		if runtime == nil {
+			return nil, fmt.Errorf("executor %s returned no runtime", executorID)
+		}
+		if runtime.ExecutorId != executorID {
+			return nil, fmt.Errorf(
+				"executor runtime ID %s does not match configured ID %s",
+				runtime.ExecutorId,
+				executorID,
+			)
+		}
+
+		cfg := block.Config{
 			ExecutorID:   runtime.ExecutorId,
 			RuntimeEpoch: runtime.RuntimeEpoch,
 			BlockSize:    runtime.BlockSize,
 			NumBlocks:    runtime.NumKvBlocks,
-		}, nil
+		}
+		if err := cfg.Validate(); err != nil {
+			return nil, fmt.Errorf("invalid runtime for executor %s: %w", executorID, err)
+		}
+		configs = append(configs, cfg)
 	}
 
-	return block.Config{}, fmt.Errorf("no executor runtime available")
+	return configs, nil
 }

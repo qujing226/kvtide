@@ -6,8 +6,6 @@ import v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
 // The actual K/V tensors live in the executor runtime; this struct only tracks
 // ownership, cache identity, and free-list state.
 type Block struct {
-	ID uint32
-
 	// Hash identifies the token content of this block and its prefix chain.
 	Hash string
 

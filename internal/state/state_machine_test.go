@@ -13,23 +13,24 @@ import (
 )
 
 type testStateFixture struct {
-	manager     RequestStateManager
-	blockManger block.Manager
-	metrics     metrics.Metrics
+	manager       RequestStateManager
+	blockRegistry block.Registry
+	metrics       metrics.Metrics
 }
 
 func newTestRequestStateManager(t *testing.T, m metrics.Metrics) testStateFixture {
 	t.Helper()
 
-	blockManager, err := block.NewManager(zap.NewNop().Sugar(), metrics.NewMetrics(), block.Config{
-		BlockSize: 16,
-		NumBlocks: 1024,
-	})
+	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), []block.Config{{
+		ExecutorID: "executor-a",
+		BlockSize:  16,
+		NumBlocks:  1024,
+	}})
 	require.NoError(t, err)
 	return testStateFixture{
-		manager:     NewRequestLifecycleStateManager(zap.NewNop().Sugar(), blockManager, m),
-		blockManger: blockManager,
-		metrics:     m,
+		manager:       NewRequestLifecycleStateManager(zap.NewNop().Sugar(), registry, m),
+		blockRegistry: registry,
+		metrics:       m,
 	}
 }
 
@@ -161,6 +162,39 @@ func TestCreatePrefixCacheMissCreatesPrefillWork(t *testing.T) {
 	require.Equal(t, uint32(0), req.ComputedTokens)
 }
 
+func TestExecutorBindingIsInheritedByFollowupWork(t *testing.T) {
+	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
+	manager := fixture.manager
+	req := &model.Request{
+		RequestId:    "req-executor-binding",
+		ExecutorID:   "executor-a",
+		ModelID:      model.MockModel,
+		Prompt:       "hello",
+		MaxTokens:    8,
+		TokenIDs:     testStateTokenIDs(2),
+		PromptTokens: 2,
+	}
+
+	work, err := manager.Create(req)
+	require.NoError(t, err)
+	require.Equal(t, "executor-a", work.ExecutorID)
+
+	next, err := manager.OnEvent(&model.Event{
+		WorkId:     work.WorkId,
+		RequestId:  req.RequestId,
+		ExecutorId: "executor-a",
+		Type:       v1.EventTypePrefillFinished,
+		TokenId:    99,
+		Usage: model.Usage{
+			InputTokens:  2,
+			OutputTokens: 1,
+		},
+	})
+	require.NoError(t, err)
+	require.Len(t, next, 1)
+	require.Equal(t, "executor-a", next[0].ExecutorID)
+}
+
 func TestCreatePrefixCachePartialHitCreatesRemainingPrefillWork(t *testing.T) {
 	fixture := newTestRequestStateManager(t, metrics.NewMetrics())
 	manager := fixture.manager
@@ -228,8 +262,10 @@ func TestPrefillFinishedCreatesDecodeWorkAfterBlockCommit(t *testing.T) {
 
 	work, err := manager.Create(req)
 	require.NoError(t, err)
-	require.True(t, fixture.blockManger.AllocateBlocks(work))
-	fixture.blockManger.Commit(work.WorkId)
+	allocated, err := fixture.blockRegistry.AllocateBlocks(work)
+	require.NoError(t, err)
+	require.True(t, allocated)
+	require.NoError(t, fixture.blockRegistry.Commit(work.ExecutorID, work.WorkId))
 
 	next, err := manager.OnEvent(&model.Event{
 		WorkId:    work.WorkId,
@@ -282,8 +318,10 @@ func seedPrefixCache(t *testing.T, fixture testStateFixture, requestId, cacheSal
 	}
 	work, err := fixture.manager.Create(req)
 	require.NoError(t, err)
-	require.True(t, fixture.blockManger.AllocateBlocks(work))
-	fixture.blockManger.Commit(work.WorkId)
+	allocated, err := fixture.blockRegistry.AllocateBlocks(work)
+	require.NoError(t, err)
+	require.True(t, allocated)
+	require.NoError(t, fixture.blockRegistry.Commit(work.ExecutorID, work.WorkId))
 	fixture.manager.Finish(req.RequestId)
 }
 

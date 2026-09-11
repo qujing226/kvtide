@@ -36,30 +36,15 @@ func main() {
 		}),
 		fx.Options(),
 
-		// initialize scheduler
 		fx.Provide(
-			scheduler.NewDecodeQueue,
-			fx.Annotate(
-				scheduler.NewPrefillQueue,
-				fx.ResultTags(`name:"prefillQueueSmall"`),
-			),
-			fx.Annotate(
-				scheduler.NewPrefillQueue,
-				fx.ResultTags(`name:"prefillQueueLarge"`),
-			),
-			fx.Annotate(
-				scheduler.NewScheduler,
-				fx.ParamTags(``, ``, `name:"prefillQueueSmall"`, `name:"prefillQueueLarge"`, ``, ``, ``, ``, ``),
-			),
-		),
-		fx.Provide(
-			newBlockConfig,
+			newBlockConfigs,
 			tokenizer.NewTokenizer,
-			block.NewManager,
+			block.NewRegistry,
 			metrics.NewMetrics,
 			executor.NewExecutors,
 			executor.NewExecutorManager,
 			state.NewRequestLifecycleStateManager,
+			scheduler.NewScheduler,
 			handler.NewInferenceHandle,
 			connect.NewLLMServingServer,
 			connect.NewAdminService,

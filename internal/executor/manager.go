@@ -2,11 +2,11 @@ package executor
 
 import (
 	"context"
+	"sort"
 	"sync/atomic"
 	"time"
 
 	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
-	"github.com/qujing226/kvtide/internal/block"
 	"github.com/qujing226/kvtide/internal/errors"
 	"github.com/qujing226/kvtide/internal/metrics"
 	"github.com/qujing226/kvtide/internal/model"
@@ -27,10 +27,8 @@ type executorManager struct {
 	executors    map[string]Executor
 	executorList []string
 
-	batchChan chan *model.Batch
-	eventChan chan *model.Event
-
-	blockManager block.Manager
+	batchChans map[string]chan *model.Batch
+	eventChan  chan *model.Event
 
 	metrics         metrics.Metrics
 	inflightBatches atomic.Uint64
@@ -45,32 +43,41 @@ func (e *executorManager) GetRuntimeStates() map[string]*model.ExecutorStats {
 	return runtimeStats
 }
 
-func NewExecutorManager(logger *zap.SugaredLogger, executors map[string]Executor, blockManager block.Manager, metrics metrics.Metrics) Manager {
+func NewExecutorManager(logger *zap.SugaredLogger, executors map[string]Executor, metrics metrics.Metrics) Manager {
 	executorNum := len(executors)
 
-	// todo: 调度管理
-	executorList := make([]string, executorNum)
-	idx := 0
-	for s, _ := range executors {
-		executorList[idx] = s
-		idx++
+	executorList := make([]string, 0, executorNum)
+	batchChans := make(map[string]chan *model.Batch, executorNum)
+	for executorID := range executors {
+		executorList = append(executorList, executorID)
+		batchChans[executorID] = make(chan *model.Batch, 100)
 	}
+	sort.Strings(executorList)
 
 	e := &executorManager{
 		logger:       logger,
 		executors:    executors,
 		executorList: executorList,
-		batchChan:    make(chan *model.Batch, 100),
+		batchChans:   batchChans,
 		eventChan:    make(chan *model.Event, 100),
-		blockManager: blockManager,
 		metrics:      metrics,
 	}
 	return e
 }
 
 func (e *executorManager) Submit(ctx context.Context, batch *model.Batch) error {
+	if batch == nil {
+		return errors.New(errors.CodeInvalidArgument, "batch must not be nil")
+	}
+	batchChan, exists := e.batchChans[batch.ExecutorID]
+	if !exists {
+		return errors.New(
+			errors.CodeExecutorUnavailable,
+			"executor "+batch.ExecutorID+" is unavailable",
+		)
+	}
 	select {
-	case e.batchChan <- batch:
+	case batchChan <- batch:
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
@@ -99,17 +106,27 @@ func (e *executorManager) TriggerKVPush(
 
 func (e *executorManager) Consume(ctx context.Context) {
 	for _, executorId := range e.executorList {
-		go e.consumeExecutor(ctx, executorId, e.executors[executorId])
+		go e.consumeExecutor(
+			ctx,
+			executorId,
+			e.executors[executorId],
+			e.batchChans[executorId],
+		)
 	}
 	<-ctx.Done()
 }
 
-func (e *executorManager) consumeExecutor(ctx context.Context, executorId string, executor Executor) {
+func (e *executorManager) consumeExecutor(
+	ctx context.Context,
+	executorId string,
+	executor Executor,
+	batchChan <-chan *model.Batch,
+) {
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case batch, ok := <-e.batchChan:
+		case batch, ok := <-batchChan:
 			if !ok {
 				return
 			}
@@ -129,13 +146,6 @@ func (e *executorManager) consumeExecutor(ctx context.Context, executorId string
 			e.metrics.SetInflightBatches(int(e.inflightBatches.Add(^uint64(0))))
 
 			for _, event := range events {
-				// 1. Commit or Rollback
-				if event.Err != nil || event.Type == v1.EventTypeRequestFailed {
-					e.rollbackEventsBlocks(event)
-				} else {
-					e.blockManager.Commit(event.WorkId)
-				}
-				// 2. send to upper layer
 				select {
 				case e.eventChan <- event:
 				case <-ctx.Done():
@@ -143,13 +153,6 @@ func (e *executorManager) consumeExecutor(ctx context.Context, executorId string
 				}
 			}
 		}
-	}
-}
-
-// rollbackEventsBlocks failed event should push kv block back.
-func (e *executorManager) rollbackEventsBlocks(events ...*model.Event) {
-	for _, item := range events {
-		e.blockManager.Rollback(item.WorkId)
 	}
 }
 

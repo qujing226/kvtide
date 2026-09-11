@@ -42,7 +42,12 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 	}
 	req.PromptTokens = uint32(len(req.TokenIDs))
 
-	// 2. Register inference request instance
+	// 2. Bind the request to an executor.
+	if err = e.scheduler.AssignExecutor(req); err != nil {
+		return nil, errors.New(errors.CodeExecutorUnavailable, err.Error())
+	}
+
+	// 3. Register inference request instance
 	prefillItem, err := e.requestManager.Create(req)
 	if err != nil {
 		return nil, errors.New(errors.CodeInternal, err.Error())
@@ -54,7 +59,7 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 		return nil, errors.New(errors.CodeInternal, err.Error())
 	}
 
-	// 3. schedule
+	// 4. schedule
 	err = e.scheduler.Enqueue(prefillItem)
 	if err != nil {
 		//e.requestManager.Cancel(prefillItem.RequestId)
@@ -74,7 +79,7 @@ func (e *inferenceHandler) GenerateStream(ctx context.Context, req *model.Reques
 					continue
 				}
 
-				// 4. deTokenize
+				// 5. deTokenize
 				outputText, decodeErr := e.tokenizer.Decode(req.ModelID, []uint32{event.TokenId})
 				if decodeErr != nil {
 					event.Err = decodeErr

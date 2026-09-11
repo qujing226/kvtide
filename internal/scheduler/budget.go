@@ -58,19 +58,20 @@ func splitPrefillChunk(item *model.WorkItem, tokens uint32) (*model.WorkItem, *m
 	return &chunk, &rest
 }
 
-func (s *scheduler) pickDecode(batch *[]*model.WorkItem, budget *batchBudget) {
-	workItems, itemLength := s.decodeQueue.Dequeue(min(budget.remainSeqs, budget.remainTokens))
+func (s *scheduler) pickDecode(queue DecodeQueue, batch *[]*model.WorkItem, budget *batchBudget) {
+	workItems, itemLength := queue.Dequeue(min(budget.remainSeqs, budget.remainTokens))
 	if itemLength == 0 {
 		budget.remainPrefill, budget.remainLargePrefill = budget.remainSeqs, budget.remainSeqs
 		return
 	}
 
 	for _, work := range workItems {
-		if budget.remainSeqs == 0 || budget.remainTokens == 0 {
-			s.requeueWork(work)
+		allocated, err := s.blockRegistry.AllocateBlocks(work)
+		if err != nil {
+			s.requestManager.Fail(work.RequestId, err)
 			continue
 		}
-		if !s.blockManager.AllocateBlocks(work) {
+		if !allocated {
 			s.requeueWork(work)
 			continue
 		}
@@ -80,10 +81,10 @@ func (s *scheduler) pickDecode(batch *[]*model.WorkItem, budget *batchBudget) {
 	}
 }
 
-func (s *scheduler) pickSmallPrefill(batch *[]*model.WorkItem, budget *batchBudget) {
-	maxScan := s.prefillQueueSmall.Length()
+func (s *scheduler) pickSmallPrefill(queue PrefillQueue, batch *[]*model.WorkItem, budget *batchBudget) {
+	maxScan := queue.Length()
 	for scanned := uint32(0); scanned < maxScan && budget.remainSeqs > 0 && budget.remainTokens > 0 && budget.remainPrefill > 0; scanned++ {
-		small, ok := s.prefillQueueSmall.Peek()
+		small, ok := queue.Peek()
 		if !ok {
 			return
 		}
@@ -91,11 +92,16 @@ func (s *scheduler) pickSmallPrefill(batch *[]*model.WorkItem, budget *batchBudg
 		if cost > budget.remainTokens {
 			break
 		}
-		small, ok = s.prefillQueueSmall.Pop()
+		small, ok = queue.Pop()
 		if !ok {
 			continue
 		}
-		if !s.blockManager.AllocateBlocks(small) {
+		allocated, err := s.blockRegistry.AllocateBlocks(small)
+		if err != nil {
+			s.requestManager.Fail(small.RequestId, err)
+			continue
+		}
+		if !allocated {
 			s.requeueWork(small)
 			continue
 		}
@@ -106,10 +112,10 @@ func (s *scheduler) pickSmallPrefill(batch *[]*model.WorkItem, budget *batchBudg
 	}
 }
 
-func (s *scheduler) pickLargePrefill(batch *[]*model.WorkItem, budget *batchBudget) {
-	maxScan := s.prefillQueueLarge.Length()
+func (s *scheduler) pickLargePrefill(queue PrefillQueue, batch *[]*model.WorkItem, budget *batchBudget) {
+	maxScan := queue.Length()
 	for scanned := uint32(0); scanned < maxScan && budget.remainSeqs > 0 && budget.remainTokens > 0 && budget.remainPrefill > 0 && budget.remainLargePrefill > 0; scanned++ {
-		large, ok := s.prefillQueueLarge.Pop()
+		large, ok := queue.Pop()
 		if !ok {
 			return
 		}
@@ -117,7 +123,12 @@ func (s *scheduler) pickLargePrefill(batch *[]*model.WorkItem, budget *batchBudg
 		cost := WorkBudgetCost(large)
 		scheduledTokens := min(cost, budget.remainTokens)
 		chunk, _ := splitPrefillChunk(large, scheduledTokens)
-		if !s.blockManager.AllocateBlocks(chunk) {
+		allocated, err := s.blockRegistry.AllocateBlocks(chunk)
+		if err != nil {
+			s.requestManager.Fail(chunk.RequestId, err)
+			continue
+		}
+		if !allocated {
 			s.requeueWork(large)
 			continue
 		}
