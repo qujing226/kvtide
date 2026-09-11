@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"sync"
 
 	v1 "github.com/qujing226/kvtide/gen/go/kvtide/v1"
@@ -34,18 +35,27 @@ type manager struct {
 	metrics metrics.Metrics
 }
 
-func newManager(l *zap.SugaredLogger, metrics metrics.Metrics, cfg Config) (*manager, error) {
-	if err := cfg.Validate(); err != nil {
-		return nil, err
+func newManager(l *zap.SugaredLogger, metrics metrics.Metrics, runtime *model.ExecutorStats) (*manager, error) {
+	if runtime == nil {
+		return nil, fmt.Errorf("executor runtime must not be nil")
+	}
+	if runtime.ExecutorId == "" {
+		return nil, fmt.Errorf("executor ID must not be empty")
+	}
+	if runtime.BlockSize == 0 {
+		return nil, fmt.Errorf("block size must be greater than zero")
+	}
+	if runtime.NumKvBlocks == 0 {
+		return nil, fmt.Errorf("number of blocks must be greater than zero")
 	}
 	m := &manager{
 		l:                  l,
-		executorID:         cfg.ExecutorID,
-		blocks:             make([]model.Block, cfg.NumBlocks),
-		blockSize:          cfg.BlockSize,
+		executorID:         runtime.ExecutorId,
+		blocks:             make([]model.Block, runtime.NumKvBlocks),
+		blockSize:          runtime.BlockSize,
 		freeHead:           0,
-		freeTail:           int32(cfg.NumBlocks) - 1,
-		freeCount:          cfg.NumBlocks,
+		freeTail:           int32(runtime.NumKvBlocks) - 1,
+		freeCount:          runtime.NumKvBlocks,
 		requestBlocks:      make(map[string][]uint32),
 		cachedBlocks:       make(map[string]uint32),
 		pendingAllocations: make(map[string]*model.BlockAllocation),
@@ -246,6 +256,80 @@ func (m *manager) FreeRequest(requestID string) {
 	}
 	for _, id := range blocks {
 		m.pushFree(id)
+	}
+	m.observeBlockStats()
+}
+
+func (m *manager) pinCachedBlocks(hashes []string) ([]uint32, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	blockIDs := make([]uint32, len(hashes))
+	for i, hash := range hashes {
+		blockID, exists := m.cachedBlocks[hash]
+		if !exists {
+			return nil, fmt.Errorf("cached block %s not found", hash)
+		}
+		block := &m.blocks[blockID]
+		if !block.Cached || block.Hash != hash || block.TokenCount != m.blockSize {
+			return nil, fmt.Errorf("cached block %s is not transferable", hash)
+		}
+		blockIDs[i] = blockID
+	}
+
+	m.touch(blockIDs...)
+	m.observeBlockStats()
+	return blockIDs, nil
+}
+
+func (m *manager) reserveTransferBlocks(count uint32) ([]uint32, bool) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	blockIDs, ok := m.allocate(count)
+	m.observeBlockStats()
+	return blockIDs, ok
+}
+
+func (m *manager) commitImportedBlocks(blockIDs []uint32, hashes []string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if len(blockIDs) != len(hashes) {
+		return fmt.Errorf("destination block and hash counts differ")
+	}
+	for _, blockID := range blockIDs {
+		if int(blockID) >= len(m.blocks) {
+			return fmt.Errorf("destination block %d is out of range", blockID)
+		}
+		block := &m.blocks[blockID]
+		if block.InFreeQueue || block.RefCount == 0 {
+			return fmt.Errorf("destination block %d is not reserved", blockID)
+		}
+	}
+
+	for i, blockID := range blockIDs {
+		block := &m.blocks[blockID]
+		hash := hashes[i]
+		if existingID, exists := m.cachedBlocks[hash]; exists && existingID != blockID {
+			m.pushFree(blockID)
+			continue
+		}
+		block.Hash = hash
+		block.TokenCount = m.blockSize
+		block.Cached = true
+		m.cachedBlocks[hash] = blockID
+		m.pushFree(blockID)
+	}
+	m.observeBlockStats()
+	return nil
+}
+
+func (m *manager) releaseTransferBlocks(blockIDs []uint32) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	for _, blockID := range blockIDs {
+		m.pushFree(blockID)
 	}
 	m.observeBlockStats()
 }

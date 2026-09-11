@@ -11,15 +11,16 @@ import (
 	"go.uber.org/zap"
 )
 
-var testBlockConfig = Config{
-	BlockSize: 16,
-	NumBlocks: 1024,
+var testBlockRuntime = &model.ExecutorStats{
+	ExecutorId:  "executor-a",
+	BlockSize:   16,
+	NumKvBlocks: 1024,
 }
 
 func newTestManager(t *testing.T) *manager {
 	t.Helper()
 
-	m, err := newManager(zap.NewNop().Sugar(), metrics.NewMetrics(), testBlockConfig)
+	m, err := newManager(zap.NewNop().Sugar(), metrics.NewMetrics(), testBlockRuntime)
 	require.NoError(t, err)
 	return m
 }
@@ -43,7 +44,7 @@ func TestAllocateBlocksForPrefillUsesTotalKVLength(t *testing.T) {
 	require.Equal(t, uint32(16), m.blocks[1].TokenCount)
 	require.Equal(t, uint32(8), m.blocks[2].TokenCount)
 
-	require.Equal(t, testBlockConfig.NumBlocks-3, m.freeCount)
+	require.Equal(t, testBlockRuntime.NumKvBlocks-3, m.freeCount)
 	require.Equal(t, 2, len(m.cachedBlocks))
 }
 
@@ -114,7 +115,7 @@ func TestFreeRequestReturnsNonCachedBlocksToFreeQueue(t *testing.T) {
 	m.FreeRequest("req-1")
 
 	require.Equal(t, 0, len(m.cachedBlocks))
-	require.Equal(t, testBlockConfig.NumBlocks, m.freeCount)
+	require.Equal(t, testBlockRuntime.NumKvBlocks, m.freeCount)
 }
 
 func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.T) {
@@ -136,7 +137,7 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 	require.True(t, m.blocks[1].InFreeQueue)
 	require.Equal(t, uint32(0), m.blocks[0].RefCount)
 	require.Equal(t, uint32(0), m.blocks[1].RefCount)
-	require.Equal(t, testBlockConfig.NumBlocks, m.freeCount)
+	require.Equal(t, testBlockRuntime.NumKvBlocks, m.freeCount)
 
 	secondReq := request("req-2", "user-1", tokens)
 	secondMatch := m.MatchPrefix(secondReq)
@@ -147,14 +148,14 @@ func TestPrefixCacheHitRemovesBlocksFromFreeQueueAndCanBeReusedAgain(t *testing.
 	require.True(t, m.blocks[1].InFreeQueue)
 	require.Equal(t, uint32(1), m.blocks[0].RefCount)
 	require.Equal(t, uint32(0), m.blocks[1].RefCount)
-	require.Equal(t, testBlockConfig.NumBlocks-1, m.freeCount)
+	require.Equal(t, testBlockRuntime.NumKvBlocks-1, m.freeCount)
 
 	m.FreeRequest(secondReq.RequestId)
 	require.True(t, m.blocks[0].InFreeQueue)
 	require.True(t, m.blocks[1].InFreeQueue)
 	require.True(t, m.blocks[0].Cached)
 	require.True(t, m.blocks[1].Cached)
-	require.Equal(t, testBlockConfig.NumBlocks, m.freeCount)
+	require.Equal(t, testBlockRuntime.NumKvBlocks, m.freeCount)
 
 	thirdReq := request("req-3", "user-1", tokens)
 	thirdMatch := m.MatchPrefix(thirdReq)
@@ -200,7 +201,7 @@ func TestPopFreeRemovesStalePrefixCacheIndexWhenOverwritingCachedBlock(t *testin
 	oldHash := "cached-free-block"
 	m.blocks[0].Cached = true
 	m.blocks[0].Hash = oldHash
-	m.blocks[0].TokenCount = testBlockConfig.BlockSize
+	m.blocks[0].TokenCount = testBlockRuntime.BlockSize
 	m.cachedBlocks[oldHash] = 0
 	require.Contains(t, m.cachedBlocks, oldHash)
 
@@ -236,7 +237,7 @@ func prefillWork(workID, requestID string, offset, newTokens uint32) *model.Work
 		WorkId:        workID,
 		RequestId:     requestID,
 		Phase:         v1.WorkPhasePrefill,
-		Cache:         &model.PrefixMatch{HashesTotal: testHashes(ceilDiv(offset+newTokens, testBlockConfig.BlockSize))},
+		Cache:         &model.PrefixMatch{HashesTotal: testHashes(ceilDiv(offset+newTokens, testBlockRuntime.BlockSize))},
 		TokenCntTotal: offset + newTokens,
 		PrefillOffset: offset,
 		NumNewTokens:  newTokens,

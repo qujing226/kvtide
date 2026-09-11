@@ -16,15 +16,15 @@ import (
 
 func newTestBlockRegistry(t *testing.T, executorIDs ...string) block.Registry {
 	t.Helper()
-	configs := make([]block.Config, 0, len(executorIDs))
+	runtimes := make(map[string]*model.ExecutorStats, len(executorIDs))
 	for _, executorID := range executorIDs {
-		configs = append(configs, block.Config{
-			ExecutorID: executorID,
-			BlockSize:  16,
-			NumBlocks:  1024,
-		})
+		runtimes[executorID] = &model.ExecutorStats{
+			ExecutorId:  executorID,
+			BlockSize:   16,
+			NumKvBlocks: 1024,
+		}
 	}
-	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), configs)
+	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), runtimes)
 	require.NoError(t, err)
 	return registry
 }
@@ -57,15 +57,15 @@ func newTestScheduler() *scheduler {
 }
 
 func newTestBlockRegistryForScheduler(executorIDs ...string) block.Registry {
-	configs := make([]block.Config, 0, len(executorIDs))
+	runtimes := make(map[string]*model.ExecutorStats, len(executorIDs))
 	for _, executorID := range executorIDs {
-		configs = append(configs, block.Config{
-			ExecutorID: executorID,
-			BlockSize:  16,
-			NumBlocks:  1024,
-		})
+		runtimes[executorID] = &model.ExecutorStats{
+			ExecutorId:  executorID,
+			BlockSize:   16,
+			NumKvBlocks: 1024,
+		}
 	}
-	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), configs)
+	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), runtimes)
 	if err != nil {
 		panic(err)
 	}

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/qujing226/kvtide/internal/block"
 	"github.com/qujing226/kvtide/internal/conf"
 	"github.com/qujing226/kvtide/internal/executor"
 	"github.com/qujing226/kvtide/internal/handler"
@@ -37,12 +36,11 @@ func main() {
 		fx.Options(),
 
 		fx.Provide(
-			newBlockConfigs,
 			tokenizer.NewTokenizer,
-			block.NewRegistry,
 			metrics.NewMetrics,
 			executor.NewExecutors,
 			executor.NewExecutorManager,
+			newBlockRegistry,
 			state.NewRequestLifecycleStateManager,
 			scheduler.NewScheduler,
 			handler.NewInferenceHandle,

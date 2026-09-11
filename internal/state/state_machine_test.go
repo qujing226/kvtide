@@ -21,11 +21,13 @@ type testStateFixture struct {
 func newTestRequestStateManager(t *testing.T, m metrics.Metrics) testStateFixture {
 	t.Helper()
 
-	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), []block.Config{{
-		ExecutorID: "executor-a",
-		BlockSize:  16,
-		NumBlocks:  1024,
-	}})
+	registry, err := block.NewRegistry(zap.NewNop().Sugar(), metrics.NewMetrics(), map[string]*model.ExecutorStats{
+		"executor-a": {
+			ExecutorId:  "executor-a",
+			BlockSize:   16,
+			NumKvBlocks: 1024,
+		},
+	})
 	require.NoError(t, err)
 	return testStateFixture{
 		manager:       NewRequestLifecycleStateManager(zap.NewNop().Sugar(), registry, m),

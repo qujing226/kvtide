@@ -14,9 +14,9 @@ func TestRegistryBuildsIndependentManagersInStableOrder(t *testing.T) {
 	blockRegistry, err := NewRegistry(
 		zap.NewNop().Sugar(),
 		metrics.NewMetrics(),
-		[]Config{
-			{ExecutorID: "executor-b", BlockSize: 16, NumBlocks: 8},
-			{ExecutorID: "executor-a", BlockSize: 16, NumBlocks: 4},
+		map[string]*model.ExecutorStats{
+			"executor-b": {ExecutorId: "executor-b", BlockSize: 16, NumKvBlocks: 8},
+			"executor-a": {ExecutorId: "executor-a", BlockSize: 16, NumKvBlocks: 4},
 		},
 	)
 	require.NoError(t, err)
@@ -38,29 +38,28 @@ func TestRegistryBuildsIndependentManagersInStableOrder(t *testing.T) {
 	)
 }
 
-func TestRegistryRejectsInvalidExecutorConfigs(t *testing.T) {
+func TestRegistryRejectsInvalidExecutorRuntimes(t *testing.T) {
 	tests := []struct {
-		name    string
-		configs []Config
+		name     string
+		runtimes map[string]*model.ExecutorStats
 	}{
 		{name: "empty registry"},
 		{
-			name: "empty executor ID",
-			configs: []Config{
-				{BlockSize: 16, NumBlocks: 4},
+			name: "missing runtime",
+			runtimes: map[string]*model.ExecutorStats{
+				"executor-a": nil,
 			},
 		},
 		{
-			name: "duplicate executor ID",
-			configs: []Config{
-				{ExecutorID: "executor-a", BlockSize: 16, NumBlocks: 4},
-				{ExecutorID: "executor-a", BlockSize: 16, NumBlocks: 8},
+			name: "runtime identity mismatch",
+			runtimes: map[string]*model.ExecutorStats{
+				"executor-a": {ExecutorId: "executor-b", BlockSize: 16, NumKvBlocks: 4},
 			},
 		},
 		{
 			name: "invalid manager config",
-			configs: []Config{
-				{ExecutorID: "executor-a", BlockSize: 0, NumBlocks: 4},
+			runtimes: map[string]*model.ExecutorStats{
+				"executor-a": {ExecutorId: "executor-a", BlockSize: 0, NumKvBlocks: 4},
 			},
 		},
 	}
@@ -70,7 +69,7 @@ func TestRegistryRejectsInvalidExecutorConfigs(t *testing.T) {
 			_, err := NewRegistry(
 				zap.NewNop().Sugar(),
 				metrics.NewMetrics(),
-				tt.configs,
+				tt.runtimes,
 			)
 			require.Error(t, err)
 		})
@@ -81,8 +80,8 @@ func TestRegistryRejectsUnknownExecutor(t *testing.T) {
 	registry, err := NewRegistry(
 		zap.NewNop().Sugar(),
 		metrics.NewMetrics(),
-		[]Config{
-			{ExecutorID: "executor-a", BlockSize: 16, NumBlocks: 4},
+		map[string]*model.ExecutorStats{
+			"executor-a": {ExecutorId: "executor-a", BlockSize: 16, NumKvBlocks: 4},
 		},
 	)
 	require.NoError(t, err)
@@ -95,9 +94,9 @@ func TestRegistryRoutesBlockLifecycleByExecutorID(t *testing.T) {
 	registry, err := NewRegistry(
 		zap.NewNop().Sugar(),
 		metrics.NewMetrics(),
-		[]Config{
-			{ExecutorID: "executor-a", BlockSize: 2, NumBlocks: 4},
-			{ExecutorID: "executor-b", BlockSize: 2, NumBlocks: 4},
+		map[string]*model.ExecutorStats{
+			"executor-a": {ExecutorId: "executor-a", BlockSize: 2, NumKvBlocks: 4},
+			"executor-b": {ExecutorId: "executor-b", BlockSize: 2, NumKvBlocks: 4},
 		},
 	)
 	require.NoError(t, err)
@@ -136,4 +135,131 @@ func TestRegistryRoutesBlockLifecycleByExecutorID(t *testing.T) {
 	match, err = registry.MatchPrefix(followup)
 	require.NoError(t, err)
 	require.True(t, match.Hit)
+}
+
+func TestPrepareTransferPinsSourceAndReservesDestinationBlocks(t *testing.T) {
+	blockRegistry := newTransferRegistry(t, 4)
+	r := blockRegistry.(*registry)
+	hashes := cacheTransferSource(t, blockRegistry)[:2]
+
+	plan, err := blockRegistry.PrepareTransfer(
+		"transfer-1",
+		"source",
+		"destination",
+		hashes,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "transfer-1", plan.TransferID)
+	require.Equal(t, "source", plan.SourceExecutorID)
+	require.Equal(t, "destination", plan.DestinationExecutorID)
+	require.Equal(t, hashes, plan.BlockHashes)
+	require.Equal(t, []uint32{0, 1}, plan.SourceBlockIDs)
+	require.Equal(t, []uint32{0, 1}, plan.DestinationBlockIDs)
+	require.Equal(t, uint32(2), r.managers["source"].freeCount)
+	require.Equal(t, uint32(2), r.managers["destination"].freeCount)
+}
+
+func TestCommitTransferPublishesDestinationPrefixAndReleasesReservations(t *testing.T) {
+	blockRegistry := newTransferRegistry(t, 4)
+	r := blockRegistry.(*registry)
+	hashes := cacheTransferSource(t, blockRegistry)[:2]
+	plan, err := blockRegistry.PrepareTransfer(
+		"transfer-1",
+		"source",
+		"destination",
+		hashes,
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, blockRegistry.CommitTransfer(plan.TransferID))
+	require.Equal(t, uint32(4), r.managers["source"].freeCount)
+	require.Equal(t, uint32(4), r.managers["destination"].freeCount)
+
+	match, err := blockRegistry.MatchPrefix(&model.Request{
+		RequestId:  "destination-request",
+		ExecutorID: "destination",
+		CacheSalt:  "shared-prefix",
+		TokenIDs:   []uint32{1, 2, 3, 4, 5},
+	})
+	require.NoError(t, err)
+	require.True(t, match.Hit)
+	require.Equal(t, uint32(4), match.CachedTokens)
+	require.Equal(t, plan.DestinationBlockIDs, match.BlockIDs)
+}
+
+func TestRollbackTransferRestoresSourceAndDestinationBlocks(t *testing.T) {
+	blockRegistry := newTransferRegistry(t, 4)
+	r := blockRegistry.(*registry)
+	hashes := cacheTransferSource(t, blockRegistry)[:2]
+	plan, err := blockRegistry.PrepareTransfer(
+		"transfer-1",
+		"source",
+		"destination",
+		hashes,
+	)
+	require.NoError(t, err)
+
+	require.NoError(t, blockRegistry.RollbackTransfer(plan.TransferID))
+	require.Equal(t, uint32(4), r.managers["source"].freeCount)
+	require.Equal(t, uint32(4), r.managers["destination"].freeCount)
+	require.Empty(t, r.managers["destination"].cachedBlocks)
+}
+
+func TestPrepareTransferReleasesSourcePinsWhenDestinationIsFull(t *testing.T) {
+	blockRegistry := newTransferRegistry(t, 1)
+	r := blockRegistry.(*registry)
+	hashes := cacheTransferSource(t, blockRegistry)[:2]
+
+	_, err := blockRegistry.PrepareTransfer(
+		"transfer-1",
+		"source",
+		"destination",
+		hashes,
+	)
+
+	require.Error(t, err)
+	require.Equal(t, uint32(4), r.managers["source"].freeCount)
+	require.Equal(t, uint32(1), r.managers["destination"].freeCount)
+}
+
+func newTransferRegistry(t *testing.T, destinationBlocks uint32) Registry {
+	t.Helper()
+	blockRegistry, err := NewRegistry(
+		zap.NewNop().Sugar(),
+		metrics.NewMetrics(),
+		map[string]*model.ExecutorStats{
+			"source":      {ExecutorId: "source", RuntimeEpoch: 7, BlockSize: 2, NumKvBlocks: 4},
+			"destination": {ExecutorId: "destination", RuntimeEpoch: 11, BlockSize: 2, NumKvBlocks: destinationBlocks},
+		},
+	)
+	require.NoError(t, err)
+	return blockRegistry
+}
+
+func cacheTransferSource(t *testing.T, blockRegistry Registry) []string {
+	t.Helper()
+	req := &model.Request{
+		RequestId:  "source-request",
+		ExecutorID: "source",
+		CacheSalt:  "shared-prefix",
+		TokenIDs:   []uint32{1, 2, 3, 4, 5, 6},
+	}
+	match, err := blockRegistry.MatchPrefix(req)
+	require.NoError(t, err)
+	work := &model.WorkItem{
+		WorkId:       "source-work",
+		RequestId:    req.RequestId,
+		ExecutorID:   req.ExecutorID,
+		Phase:        v1.WorkPhasePrefill,
+		Cache:        match,
+		TokenIDs:     req.TokenIDs,
+		NumNewTokens: uint32(len(req.TokenIDs)),
+	}
+	allocated, err := blockRegistry.AllocateBlocks(work)
+	require.NoError(t, err)
+	require.True(t, allocated)
+	require.NoError(t, blockRegistry.Commit(req.ExecutorID, work.WorkId))
+	require.NoError(t, blockRegistry.FreeRequest(req.ExecutorID, req.RequestId))
+	return match.HashesTotal
 }

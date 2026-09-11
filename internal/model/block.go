@@ -45,3 +45,16 @@ type BlockAllocation struct {
 	// TokensAfterCommit is the number of tokens after an allocation succeed.
 	TokensAfterCommit uint32
 }
+
+// TransferPlan is the block-level transaction prepared by the Engine before
+// asking one executor to push reusable prefix KV to another executor.
+type TransferPlan struct {
+	TransferID string
+
+	SourceExecutorID      string
+	SourceBlockIDs        []uint32
+	DestinationExecutorID string
+	DestinationBlockIDs   []uint32
+
+	BlockHashes []string
+}
