@@ -12,6 +12,7 @@ import (
 
 type Registry interface {
 	ExecutorIDs() []string
+	ProbePrefixes(req *model.Request) []model.PrefixCandidate
 	MatchPrefix(req *model.Request) (*model.PrefixMatch, error)
 	AllocateBlocks(work *model.WorkItem) (bool, error)
 	Commit(executorID, workID string) error
@@ -85,6 +86,14 @@ func (r *registry) managerFor(executorID string) (*manager, error) {
 
 func (r *registry) ExecutorIDs() []string {
 	return append([]string(nil), r.executorIDs...)
+}
+
+func (r *registry) ProbePrefixes(req *model.Request) []model.PrefixCandidate {
+	candidates := make([]model.PrefixCandidate, 0, len(r.executorIDs))
+	for _, executorID := range r.executorIDs {
+		candidates = append(candidates, r.managers[executorID].probePrefix(req))
+	}
+	return candidates
 }
 
 func (r *registry) MatchPrefix(req *model.Request) (*model.PrefixMatch, error) {

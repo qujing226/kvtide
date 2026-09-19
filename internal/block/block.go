@@ -85,15 +85,7 @@ func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
 		hit      bool
 	)
 
-	hashesTotal := m.blockHashes(req)
-
-	// Prefix cache only reuses complete blocks before the final logical block.
-	// The final block must run again to produce logits for the first output token.
-	maxMatchedBlocks := 0
-	if len(req.TokenIDs) > 0 {
-		maxMatchedBlocks = (len(req.TokenIDs) - 1) / int(m.blockSize)
-	}
-	hashesToMatch := hashesTotal[:min(len(hashesTotal), maxMatchedBlocks)]
+	hashesTotal, hashesToMatch := m.matchableBlockHashes(req)
 
 	m.mu.Lock()
 	for _, hash := range hashesToMatch {
@@ -120,6 +112,31 @@ func (m *manager) MatchPrefix(req *model.Request) *model.PrefixMatch {
 	}
 	req.Cache = cache
 	return cache
+}
+
+func (m *manager) probePrefix(req *model.Request) model.PrefixCandidate {
+	_, hashesToMatch := m.matchableBlockHashes(req)
+
+	var matchedHashes []string
+	m.mu.RLock()
+	for _, hash := range hashesToMatch {
+		blockID, exists := m.cachedBlocks[hash]
+		if !exists {
+			break
+		}
+		block := &m.blocks[blockID]
+		if !block.Cached || block.Hash != hash || block.TokenCount != m.blockSize {
+			break
+		}
+		matchedHashes = append(matchedHashes, hash)
+	}
+	m.mu.RUnlock()
+
+	return model.PrefixCandidate{
+		ExecutorID:    m.executorID,
+		CachedTokens:  uint32(len(matchedHashes)) * m.blockSize,
+		MatchedHashes: matchedHashes,
+	}
 }
 
 func (m *manager) AllocateBlocks(work *model.WorkItem) bool {
@@ -375,6 +392,18 @@ func (m *manager) blockHashes(req *model.Request) []string {
 		hashes = append(hashes, curr)
 	}
 	return hashes
+}
+
+func (m *manager) matchableBlockHashes(req *model.Request) ([]string, []string) {
+	hashesTotal := m.blockHashes(req)
+
+	// Prefix cache only reuses complete blocks before the final logical block.
+	// The final block must run again to produce logits for the first output token.
+	maxMatchedBlocks := 0
+	if len(req.TokenIDs) > 0 {
+		maxMatchedBlocks = (len(req.TokenIDs) - 1) / int(m.blockSize)
+	}
+	return hashesTotal, hashesTotal[:min(len(hashesTotal), maxMatchedBlocks)]
 }
 
 func (m *manager) touch(blockIds ...uint32) {

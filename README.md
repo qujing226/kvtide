@@ -1,65 +1,122 @@
 # KVTide
 
-![KVTide](./assets/banner.svg)
 <p align="center">
-  <strong>A Kubernetes-native scalable KV-aware LLM serving system, built from the runtime up.</strong>
+  <img src="./assets/banner.svg" alt="KVTide" width="520" />
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+" />
-  <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12+" />
-  <img src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB" alt="React 19" />
-  <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
-  <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
+  <strong>An LLM-serving research prototype for KV ownership, prefix reuse, and cross-executor state transfer.</strong>
 </p>
 
 <p align="center">
   <a href="./README_zh.md">中文</a>
-  |
-  <a href="http://118.178.120.11:8802/">Documentation</a>  
-  |
+  ·
   <a href="#quick-start">Quick Start</a>
-  |
+  ·
   <a href="#architecture">Architecture</a>
-  |
+  ·
   <a href="./k8s/README.md">Kubernetes</a>
 </p>
 
----
+> **Project status: frozen.** KVTide has completed its current research exploration. It is no longer under active development as a paper project or production serving system. The repository remains available as a working experimental runtime and engineering artifact; it has no active placement-policy roadmap.
 
 ## What is KVTide?
 
-KVTide is a scalable LLM serving system that makes scheduling and KV-cache ownership explicit. 
+KVTide makes several pieces of normally runtime-internal serving state explicit:
 
-The Engine owns tokenization, requests lifecycle, scheduling, KV metadata. Executor owns model execution, local KV tensors.
+- The Go Engine owns tokenization, request lifecycle, scheduling, Executor runtime metadata, and KV block metadata.
+- Python Executors own model execution, device-resident paged KV tensors, and KV block export/import.
+- Each Executor has its own block table, work queue, and runtime epoch.
+- The Engine can execute an explicit KV replication transaction between compatible Executors.
 
-## Vision
-Cache-aware routing creates a tension: routing requests to the executor that already owns reusable KV state reduces recomputation, but it can also overload cache-hot executors and constrain scheduling decisions.
+The project originally investigated whether hot prefix KV should be moved proactively toward available compute. As the surrounding serving ecosystem matured, that question no longer justified expanding a separate inference runtime. KVTide therefore stops at a mechanism-correctness prototype rather than adding prediction policies, a complete inference backend, or a production control plane. The archived research question and stopping rationale are in [`RESEARCH_QUESTION.md`](./RESEARCH_QUESTION.md).
 
-KVTide explores a different direction: move reusable KV state toward available compute, instead of always moving requests toward cached state.
+## Implemented capabilities
 
-## Ability In progress
-| Capability                       | Status              |
-| -------------------------------- | ------------------- |
-| Executor-aware block ownership   | In progress         |
-| Executor-to-executor KV transfer | Planned             |
-| Proactive KV placement           | Research hypothesis |
+| Area | Implementation |
+|---|---|
+| Requests and scheduling | Streaming request lifecycle, prefill/decode work items, chunked prefill, mixed work batches, sequence/token budgets |
+| Multiple Executors | Runtime discovery plus per-Executor work queues and block registries |
+| Prefix cache | User-scoped cache salt, chained full-block hashes, prefix matching, references, and release |
+| KV block lifecycle | Allocation, reservation, commit, rollback, cache retention, and release |
+| Model execution | Mock Runner and a Transformers-based Qwen causal-LM Runner on CPU or CUDA |
+| Paged KV | Executor-side paged K/V tensors, physical-slot writes, and a Hugging Face `DynamicCache` adapter |
+| KV transfer | Engine prepare → source push → destination import → Engine commit/rollback |
+| Compatibility and stale-state rejection | Runtime epoch, loaded-weight fingerprint, KV layout version, and dtype/geometry/config compatibility fingerprint |
+| Interfaces and observability | Connect RPC, incremental output, Prometheus metrics, and runtime inventory |
+| Deployment | Docker Compose, a Web runtime console, and kind manifests |
 
 ## Architecture
 
 ![KVTide architecture](./assets/Architecture.svg)
-![Block_Manager](./assets/Block_Manager.svg)
-![Tensor_Mobility](./assets/Tensor_Mobility.svg)
 
+Request execution:
 
-## Protocol
-The communication between Engine and Executor is using proto, see [protocol introduce](./proto/kvtide/v1/executor.proto)
+```text
+client
+  -> Go Engine
+     -> request state machine
+     -> executor-scoped scheduler
+     -> executor-scoped block registry
+     -> ExecuteBatch
+  -> Python Executor
+     -> model forward
+     -> local paged KV tensors
+  -> event / streamed result
+```
+
+KV replication:
+
+```text
+Engine Coordinator
+  -> reserve destination blocks and pin source blocks
+  -> TriggerKVPush(source)
+  -> source exports selected complete blocks
+  -> PushKV(destination)
+  -> destination validates identity, epoch, and compatibility
+  -> destination imports K/V and confirms device completion
+  -> Engine commits destination prefix metadata
+
+failure
+  -> Engine rollback
+  -> release source pins and destination reservations
+```
+
+The Engine computes prefix hashes and passes them through the transaction. Executors do not independently derive prefix identity. Physical block IDs remain Executor-local; the destination imports data into locally reserved blocks.
+
+## Validated scope
+
+The Go and Python unit suites cover scheduling, block lifecycle, runtime epochs, compatibility checks, KV tensor round trips, RPC transfer, failure rollback, and inference reuse.
+
+During development, a one-off integration run used two independent Executor processes on one RTX 4090 D to validate this path:
+
+```text
+source prefill
+  -> Engine-triggered KV push
+  -> destination prefix reuse
+  -> output comparison with a full destination-side prefill
+```
+
+That experiment validated control flow and correctness. It was not a performance benchmark and establishes no multi-GPU or multi-node scaling result.
+
+## Limitations
+
+KVTide is a research prototype, not an alternative to vLLM, SGLang, or LMCache.
+
+- KV transfer v1 synchronizes tensors to the host, encodes complete raw protobuf byte payloads, and copies them onto the destination device. It is not GPU Direct, RDMA, or NIXL.
+- Each Executor serializes inference, release, snapshot, and import through one cache lock; there is no concurrent CUDA-stream overlap.
+- A transfer is limited to 64 MiB by default and has no compression, chunked streaming, or incremental retry.
+- Compatibility requires identical loaded weights, model configuration, dtype, KV geometry, layout version, and tensor-parallel size.
+- Transfer v1 supports only `tensor_parallel_size=1` and complete prefix blocks starting at position zero.
+- There is no placement policy, demand predictor, autoscaler, or proactive replication controller.
+- There are no custom FlashAttention/PagedAttention kernels, tensor/pipeline/expert parallelism, or production-grade recovery mechanisms.
+- The prototype establishes mechanism correctness, not throughput, tail-latency, or cost improvements.
 
 ## Quick Start
 
-### With Qwen3-0.6B Executor
+### Download the model and start the stack
 
-Download the model first:
+The default Compose setup uses Qwen3-0.6B:
 
 ```bash
 cd executor
@@ -71,7 +128,7 @@ docker compose up --build -d
 
 | Service | Address |
 |---|---|
-| Dashboard runtime console | `http://127.0.0.1:5173` |
+| Web runtime console | `http://127.0.0.1:5173` |
 | Inference API | `http://127.0.0.1:8800` |
 | Admin API and metrics | `http://127.0.0.1:8801` |
 
@@ -82,46 +139,42 @@ curl http://127.0.0.1:8801/metrics
 docker compose down
 ```
 
-## Dashboard
-
-- **Topology** discovers the connected executor and shows its status.
-- **Metrics** reads Prometheus metrics for the whole system.
-<p align="center">
-  <img src="./assets/front-topology.png" alt="KVTide runtime topology" width="920" />
-</p>
-
-
-## Kubernetes with kind
-
-The Kubernetes manifests preserve the same one-to-one runtime topology:
+### Tests
 
 ```bash
-make docker-build
-make kube-start
-make kube-forward
+go test ./...
+
+cd executor
+uv run python -m unittest discover -s tests -v
 ```
 
-See [`k8s/README.md`](./k8s/README.md) for manifests, probes, rollout behavior, inspection commands, and cleanup.
+GPU environments may require a PyTorch wheel selected for the host driver. Use `uv run --no-sync` only when an already-provisioned environment must not be re-resolved; it is not the default local development command.
 
-The executor Deployment intentionally has one replica. Adding replicas behind a Kubernetes Service would load-balance batches without preserving executor-local KV ownership.
+## Benchmarks and Kubernetes
 
-## Roadmap: From Ownership to Mobility
+`make bench-quick` and `make bench-report` use the Mock Executor to measure control-plane behavior, not GPU-kernel performance. Historical reports remain in [`docs/benchmarks`](./docs/benchmarks).
 
-The next architectural boundary is executor-aware block ownership. Each block table must be scoped by executor and runtime epoch before the control plane can recover safely from restarts or place work across replicas.
+The kind manifests and commands are documented in [`k8s/README.md`](./k8s/README.md). They demonstrate the service topology; they do not constitute a production Operator or autoscaling system.
 
-From there, KVTide can evaluate its central hypothesis: when compatible executors run the same model weights, dtype, and tensor-parallel configuration, an overloaded executor should be able to **push** selected KV blocks to an available peer. The control plane should observe the new placement, update metadata, and measure whether reuse saved more work than transfer consumed.
+## Frozen boundary
 
-That path requires evidence, not only functionality. Future evaluations should compare recomputation, local reuse, and remote transfer across TTFT, TBT, throughput, transfer bandwidth, cache pressure, and tail latency.
+KVTide does not plan to add:
 
-## Related Systems
+- a proactive KV placement policy;
+- generic cross-model KV transformation middleware;
+- a full inference engine implemented in Go;
+- GPU Direct or multi-node transport; or
+- a production Kubernetes control plane.
 
-- [vLLM](https://github.com/vllm-project/vllm): paged KV-cache management and continuous batching.
-- [SGLang](https://github.com/sgl-project/sglang): prefix-aware scheduling and RadixAttention.
-- [LMCache](https://github.com/LMCache/LMCache): reusable KV storage and movement across serving instances.
-- Mooncake — KV-centric disaggregated serving and direct transfer.
-- NVIDIA Dynamo — distributed inference orchestration and KV-aware routing.
-- [llama.cpp](https://github.com/ggml-org/llama.cpp): lightweight local inference and CPU execution.
+If a new falsifiable question emerges from work on mature serving systems, this repository may be reused as a research harness. That is not an active roadmap or maintenance commitment.
 
+## Related systems
+
+- [vLLM](https://github.com/vllm-project/vllm)
+- [SGLang](https://github.com/sgl-project/sglang)
+- [LMCache](https://github.com/LMCache/LMCache)
+- [llm-d](https://github.com/llm-d/llm-d)
+- [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
 
 ## License
 

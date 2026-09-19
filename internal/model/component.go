@@ -37,6 +37,15 @@ type PrefixMatch struct {
 	HashesTotal []string
 }
 
+// PrefixCandidate is a read-only view of reusable prefix KV on one executor.
+// It intentionally excludes physical block IDs because they are resolved and
+// pinned only when the Engine prepares execution or transfer.
+type PrefixCandidate struct {
+	ExecutorID    string
+	CachedTokens  uint32
+	MatchedHashes []string
+}
+
 type EngineRuntimeStats struct {
 	PrefillQueueLength uint64
 	DecodeQueueLength  uint64

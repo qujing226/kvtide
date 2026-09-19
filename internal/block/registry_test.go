@@ -137,6 +137,48 @@ func TestRegistryRoutesBlockLifecycleByExecutorID(t *testing.T) {
 	require.True(t, match.Hit)
 }
 
+func TestProbePrefixesReportsEachExecutorInStableOrder(t *testing.T) {
+	blockRegistry := newTransferRegistry(t, 4)
+	hashes := cacheTransferSource(t, blockRegistry)
+
+	candidates := blockRegistry.ProbePrefixes(&model.Request{
+		RequestId: "probe-request",
+		CacheSalt: "shared-prefix",
+		TokenIDs:  []uint32{1, 2, 3, 4, 5},
+	})
+
+	require.Equal(t, []model.PrefixCandidate{
+		{ExecutorID: "destination"},
+		{
+			ExecutorID:    "source",
+			CachedTokens:  4,
+			MatchedHashes: hashes[:2],
+		},
+	}, candidates)
+}
+
+func TestProbePrefixesDoesNotAcquireOrBindCachedBlocks(t *testing.T) {
+	blockRegistry := newTransferRegistry(t, 4)
+	r := blockRegistry.(*registry)
+	cacheTransferSource(t, blockRegistry)
+	req := &model.Request{
+		RequestId: "probe-request",
+		CacheSalt: "shared-prefix",
+		TokenIDs:  []uint32{1, 2, 3, 4, 5},
+	}
+
+	blockRegistry.ProbePrefixes(req)
+
+	require.Nil(t, req.Cache)
+	require.Empty(t, req.ExecutorID)
+	require.NotContains(t, r.managers["source"].requestBlocks, req.RequestId)
+	require.NotContains(t, r.managers["destination"].requestBlocks, req.RequestId)
+	require.Equal(t, uint32(4), r.managers["source"].freeCount)
+	require.Equal(t, uint32(4), r.managers["destination"].freeCount)
+	require.Equal(t, uint32(0), r.managers["source"].blocks[0].RefCount)
+	require.Equal(t, uint32(0), r.managers["source"].blocks[1].RefCount)
+}
+
 func TestPrepareTransferPinsSourceAndReservesDestinationBlocks(t *testing.T) {
 	blockRegistry := newTransferRegistry(t, 4)
 	r := blockRegistry.(*registry)

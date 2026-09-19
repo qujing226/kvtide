@@ -5,15 +5,7 @@
 </p>
 
 <p align="center">
-  <strong>从 runtime 出发，构建 KV-aware LLM serving。</strong>
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Go-1.26%2B-00ADD8?logo=go&logoColor=white" alt="Go 1.26+" />
-  <img src="https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white" alt="Python 3.12+" />
-  <img src="https://img.shields.io/badge/React-19-20232A?logo=react&logoColor=61DAFB" alt="React 19" />
-  <img src="https://img.shields.io/badge/Connect-RPC-0B3954" alt="Connect RPC" />
-  <img src="https://img.shields.io/badge/License-MIT-2E8B57" alt="MIT License" />
+  <strong>一个探索 KV ownership、prefix reuse 与跨 Executor 状态迁移的 LLM serving 研究原型。</strong>
 </p>
 
 <p align="center">
@@ -26,83 +18,105 @@
   <a href="./k8s/README.md">Kubernetes</a>
 </p>
 
----
+> **项目状态：已冻结。** KVTide 已完成当前研究探索，不再作为活跃论文项目或生产 serving system 继续开发。仓库保留为可运行的实验原型和工程作品；这里没有尚待完成的 placement policy roadmap。
 
 ## KVTide 是什么？
 
-KVTide 是一个将调度、请求状态和 KV cache ownership 显式化的开源 LLM serving runtime。Go 控制平面负责分词、请求生命周期、token-budget 调度、prefix cache 与 block metadata，并将结果流式返回；Python Executor 可以运行可控的 Mock workload，也可以执行真实的 Qwen Transformers CPU forward。
+KVTide 将 LLM serving 中通常隐含在 runtime 内部的状态显式化：
 
-当前 runtime 刻意保持为**一个控制平面、一个 Executor 和一个 KV block pool**。这是研究 runtime 行为的一致性基线，而不是用普通服务副本伪装分布式推理。
+- Go Engine 管理 tokenization、请求生命周期、调度、Executor runtime 信息和 KV block metadata。
+- Python Executor 管理模型执行、设备上的 paged KV tensor，以及 KV block 的导出和导入。
+- 每个 Executor 拥有独立的 block table、队列和 runtime epoch。
+- Engine 可以在兼容的 Executor 之间执行一次显式的 KV replication transaction。
 
-> **Vision：** KV cache should move toward available compute automatically。KVTide 希望构建一个 Kubernetes-native runtime：兼容的 Executor 能够主动将可复用 KV block 推送到其他节点，并同步更新 ownership，避免后续请求重新计算 prefix。
+项目最初研究“是否应当主动把热门 prefix KV 推向空闲算力”。随着相关系统的边界逐渐清晰，这个问题本身不足以支撑继续扩展一套独立 runtime。KVTide 因此停在机制正确性原型，而不是继续实现预测策略、完整推理内核或生产控制面。研究过程与停止依据保留在 [`RESEARCH_QUESTION.md`](./RESEARCH_QUESTION.md)。
 
-## Runtime Console
+## 已实现能力
 
-Web 不是静态项目主页，而是 runtime 的交互控制台。
-
-- **Demo / Topology** 通过 `GetExecutors` 发现连接中的 Executor，并展示 model、runtime epoch、device、dtype 和 KV capacity。
-- **Demo / Request** 通过 Go 控制平面发送真实 Connect RPC 流式请求，并渲染生成的 Markdown。
-- **Demo / Metrics** 读取 Prometheus metrics，解释 queue、batch、request、latency、prefix cache 和 block pool 状态。
-- **Lab** 提供独立于真实 runtime 状态的逐步 token-budget 调度实验。
-
-<p align="center">
-  <img src="./assets/front-topology.png" alt="KVTide runtime topology" width="920" />
-</p>
-
-<p align="center">
-  <img src="./assets/front-generate.png" alt="KVTide request demo" width="49%" />
-  <img src="./assets/front-lab.png" alt="KVTide scheduler lab" width="49%" />
-</p>
-
-## 当前能力
-
-| 方向 | 实现 |
+| 模块 | 当前实现 |
 |---|---|
-| API | Connect RPC server-streaming inference、Executor RPC 和 Admin RPC |
-| 请求生命周期 | queued、prefill、decode、streaming、finished、timeout 和 failed 状态迁移 |
-| 调度 | prefill/decode 队列、chunked prefill、mixed work batch、sequence 与 token budget |
-| Prefix cache | user-scoped cache salt、完整 block 的链式 hash、hit/miss 与 saved-token metrics |
-| KV block | logical block table、free-list allocation、cache reuse、rollback、release 与 eviction 统计 |
-| 执行 | Mock Runner 与 Qwen3-0.6B Transformers CPU Runner |
-| KV tensor | Executor 侧 paged KV storage，以及 Hugging Face `DynamicCache` adapter |
-| Streaming | 增量文本、TTFT/TBT 观测、usage、finish reason 与错误信息 |
-| 可观测性 | Prometheus metrics 与 Executor runtime inventory |
-| 部署 | Docker Compose、低资源 Cloud Mock profile，以及面向 kind 的 Kubernetes manifests |
+| 请求与调度 | 流式请求生命周期、prefill/decode WorkItem、chunked prefill、mixed work batch、sequence/token budget |
+| 多 Executor | Executor runtime discovery、按 Executor 分离的工作队列和 block registry |
+| Prefix cache | user-scoped cache salt、完整 block 的链式 hash、prefix match、引用与释放 |
+| KV block lifecycle | allocation、reservation、commit、rollback、cache retention 和 release |
+| 模型执行 | Mock Runner 与基于 Transformers 的 Qwen causal-LM Runner，支持 CPU 和 CUDA |
+| Paged KV | Executor 侧 paged K/V tensor、物理 slot 写入与 Hugging Face `DynamicCache` adapter |
+| KV transfer | Engine prepare → source push → destination import → Engine commit/rollback |
+| 兼容性与防陈旧 | runtime epoch、实际加载权重 fingerprint、KV layout version、dtype/geometry/config compatibility fingerprint |
+| 接口与观测 | Connect RPC、增量输出、Prometheus metrics 与 runtime inventory |
+| 部署 | Docker Compose、Web runtime console 和 kind manifests |
 
 ## 架构
 
-KVTide 将用户可见的请求与一次模型执行所需的调度任务分离：
+![KVTide architecture](./assets/Architecture.svg)
 
-- `Request` 管理输入 token、生命周期、生成结果、usage 和完成状态。
-- `WorkItem` 描述一个可调度的 prefill chunk 或 decode step。
-- `Scheduler` 在 sequence 与 token budget 下选择任务。
-- `BlockManager` 负责 prefix matching 与逻辑 KV block metadata。
-- `ExecutorManager` 将 batch 发送给已配置的 runtime。
-- `Event` 提交或回滚 block 状态，并推进请求生命周期。
-
-![KVTide 架构](./assets/Stage2_Architecture.svg)
+请求执行路径：
 
 ```text
-GenerateStream
-  -> model-aware tokenizer
-  -> request state manager
-  -> prefix lookup and block allocation
-  -> prefill/decode WorkItem
-  -> token-budget scheduler
-  -> executor manager
-  -> Python model runner
-  -> Event
-  -> next WorkItem or streamed completion
-  -> block release / cache retention
+client
+  -> Go Engine
+     -> request state machine
+     -> executor-scoped scheduler
+     -> executor-scoped block registry
+     -> ExecuteBatch
+  -> Python Executor
+     -> model forward
+     -> local paged KV tensors
+  -> event / streamed result
 ```
 
-控制平面会向 Executor 传递 token IDs、block table、新分配的 block IDs、computed-token offset 和 runtime epoch。Executor 使用这些 metadata 重建历史 KV、写入新 slot，并拒绝发送给旧 runtime instance 的任务。
+KV replication 路径：
+
+```text
+Engine Coordinator
+  -> reserve destination blocks and pin source blocks
+  -> TriggerKVPush(source)
+  -> source exports selected complete blocks
+  -> PushKV(destination)
+  -> destination validates identity, epoch and compatibility
+  -> destination imports K/V and confirms device completion
+  -> Engine commits destination prefix metadata
+
+failure
+  -> Engine rollback
+  -> release source pins and destination reservations
+```
+
+Prefix hash 由 Engine 生成并随 transaction 传递；Executor 不重新推导 prefix identity。物理 block ID 始终是 Executor-local 的，目标端使用预留的本地 block ID 接收数据。
+
+## 已验证范围
+
+仓库中的 Go 和 Python 单元测试覆盖 scheduler、block lifecycle、runtime epoch、兼容性校验、KV tensor round-trip、RPC transfer、失败回滚和 inference reuse。
+
+开发期间还在一张 RTX 4090 D 上启动了两个独立 Executor 进程，验证了以下完整路径：
+
+```text
+source prefill
+  -> Engine-triggered KV push
+  -> destination prefix reuse
+  -> 与 destination 本地完整 prefill 的输出一致性比较
+```
+
+这次一次性实验用于验证数据流和正确性，不是性能 benchmark，也不构成多 GPU 或多节点扩展性结论。
+
+## 限制
+
+KVTide 是研究原型，不是 vLLM、SGLang 或 LMCache 的替代品。
+
+- KV transfer v1 将 tensor 同步到 host，编码为完整 raw protobuf bytes，再由目标端复制到设备；它不是 GPU Direct、RDMA 或 NIXL 路径。
+- 每个 Executor 使用一个 cache lock 串行化 inference、release、snapshot 和 import，没有并发 CUDA stream overlap。
+- 单次 KV transfer 默认上限为 64 MiB，不支持压缩、分块流式传输或增量重试。
+- KV compatibility 要求相同的实际权重、模型配置、dtype、KV geometry、layout version 和 tensor-parallel size。
+- KV transfer v1 只支持 `tensor_parallel_size=1` 和从位置 0 开始的完整 prefix blocks。
+- 没有 placement policy、需求预测、autoscaling 或 proactive replication controller。
+- 没有 FlashAttention/PagedAttention 自定义 kernel、tensor/pipeline/expert parallelism，也没有生产级故障恢复。
+- 已验证的是机制正确性，不是吞吐、tail latency 或成本优势。
 
 ## 快速开始
 
-### 真实 Qwen CPU Executor
+### 下载模型并启动
 
-默认 Compose 使用 CPU 运行 Qwen3-0.6B。首先下载模型：
+默认 Compose 使用 Qwen3-0.6B：
 
 ```bash
 cd executor
@@ -111,8 +125,6 @@ cd ..
 
 docker compose up --build -d
 ```
-
-访问 `http://127.0.0.1:5173`。
 
 | 服务 | 地址 |
 |---|---|
@@ -127,99 +139,41 @@ curl http://127.0.0.1:8801/metrics
 docker compose down
 ```
 
-默认 Executor 使用 fp32 权重和 512 MiB KV cache budget，建议使用至少 8 GiB 内存的机器。
-
-### 低资源 Cloud Mock
-
-[`deploy/cloud`](./deploy/cloud) 使用一个 Mock Executor 启动完整拓扑，并且只暴露 Web 服务。该 profile 适合 2 核 2 GiB 等小型公开 Demo 服务器。
-
-在服务器上导入已打包的镜像：
+### 测试
 
 ```bash
-docker load -i kvtide-server.tar
-docker load -i kvtide-executor.tar
-docker load -i kvtide-web.tar
+go test ./...
 
-cd deploy/cloud
-docker compose up -d
+cd executor
+uv run python -m unittest discover -s tests -v
 ```
 
-默认镜像 tag 是 `kvtide-server:local`、`kvtide-executor:local` 和 `kvtide-web:local`。需要时可以覆盖：
+GPU 环境可能需要使用与宿主驱动兼容的 PyTorch wheel。已有环境不希望触发 `uv` 重新解析依赖时，可以显式使用 `uv run --no-sync`；这不是仓库默认开发命令。
 
-```bash
-KVTIDE_SERVER_IMAGE=example/kvtide-server:v0.1 \
-KVTIDE_EXECUTOR_IMAGE=example/kvtide-executor:v0.1 \
-KVTIDE_WEB_IMAGE=example/kvtide-web:v0.1 \
-KVTIDE_WEB_PORT=8080 \
-docker compose up -d
-```
+## Benchmark 与 Kubernetes
 
-默认访问地址是 `http://<server-ip>/`。Inference、Admin、metrics 和 Executor 端口只存在于 Compose 私有网络中。
+`make bench-quick` 和 `make bench-report` 使用 Mock Executor 测量控制平面行为，不代表 GPU kernel 性能。历史报告保留在 [`docs/benchmarks`](./docs/benchmarks)。
 
-## Benchmark
+kind 部署命令和 manifests 见 [`k8s/README.md`](./k8s/README.md)。这些 manifests 用于展示服务拓扑，不代表生产级 Operator 或 autoscaling 支持。
 
-Benchmark 使用 Mock Executor，衡量的是控制平面行为，而不是 GPU kernel 性能。
+## 冻结边界
 
-![KVTide benchmark summary](./assets/Stage3_Benchmark_Summary.svg)
+KVTide 不再计划继续实现：
 
-内置 profile 覆盖 cold prefix、已 warmup 的 user-scoped prefix、混合 prompt 长度、token-budget batching 和 KV block pressure。报告包含 throughput、平均与尾延迟、TTFT、TBT、batch size、prefix hits、saved tokens、allocation failures 和 evictions。
+- proactive KV placement policy；
+- 通用 cross-model KV transformation middleware；
+- Go 版完整推理引擎；
+- GPU Direct、多节点传输或生产级 Kubernetes 控制面。
 
-```bash
-make bench-quick
-make bench-report
-```
-
-历史报告保留在 [`docs/benchmarks`](./docs/benchmarks)。
-
-## 使用 kind 部署 Kubernetes
-
-Kubernetes manifests 保持相同的一对一 runtime 拓扑：
-
-```bash
-make docker-build
-make kube-start
-make kube-forward
-```
-
-Manifests、probe、rollout、检查命令和清理方式见 [`k8s/README.md`](./k8s/README.md)。
-
-Executor Deployment 刻意保持一个 replica。在 Kubernetes Service 后添加 replica 只会负载均衡 batch，无法维持 Executor 本地 KV ownership。
-
-## 范围与边界
-
-当前已经实现：
-
-- 可运行的 Go 调度与请求生命周期控制平面
-- 真实流式 RPC 与 Prometheus 可观测性
-- model-aware Go tokenizer
-- 具备 Executor 侧 paged KV storage 的真实 CPU forward
-- 单 Executor runtime 中的 prefix cache 与 KV block ownership metadata
-
-尚未实现：
-
-- CUDA、FlashAttention 或自定义 PagedAttention kernel
-- tensor、pipeline 或 expert parallelism
-- 在一次 GPU forward 中执行 mixed-phase batch
-- multi-executor block namespace 与 placement policy
-- peer-to-peer KV transfer
-- 生产级 Kubernetes Operator 或 autoscaler
-- 完整 OpenAI API 兼容
-
-## Roadmap：从 Ownership 到 Mobility
-
-下一个架构边界是 Executor-aware block ownership。只有先让每张 block table 归属于明确的 Executor 和 runtime epoch，控制平面才能在节点重启后安全恢复，或者将请求放置到多个副本。
-
-在此基础上，KVTide 才能验证核心假设：当多个兼容 Executor 使用相同 model weights、dtype 和 tensor-parallel 配置时，KV 压力过高的 Executor 应该主动将部分 block **push** 给空闲节点。控制平面需要感知新的 placement、更新 metadata，并判断复用节省的计算是否大于传输成本。
-
-这条路线需要实验数据，而不仅是实现功能。后续应对比 recomputation、local reuse 和 remote transfer 对 TTFT、TBT、throughput、transfer bandwidth、cache pressure 和 tail latency 的影响。
+未来如果从成熟 serving 系统中出现了一个新的、可被实验否证的问题，可以把本仓库作为 research harness 使用；这不是当前 roadmap，也不构成维护承诺。
 
 ## 相关系统
 
 - [vLLM](https://github.com/vllm-project/vllm)
 - [SGLang](https://github.com/sgl-project/sglang)
 - [LMCache](https://github.com/LMCache/LMCache)
+- [llm-d](https://github.com/llm-d/llm-d)
 - [TensorRT-LLM](https://github.com/NVIDIA/TensorRT-LLM)
-- [llama.cpp](https://github.com/ggml-org/llama.cpp)
 
 ## License
 

@@ -1,6 +1,33 @@
 # KVTide：共享前缀 KV 的提前复制是否值得？
 
-研究备忘录，2026-09-05。状态：假设与实验设计，尚无性能或创新性结论。
+研究备忘录，2026-09-05；结项记录，2026-09-19。
+
+> **状态：研究路线已关闭。** 本文保留最初的假设、cost model 和 falsification design，作为 KVTide 的研究过程记录，而不是当前 roadmap。项目完成了跨 Executor KV replication 的机制与正确性原型，但没有建立 proactive placement 的性能收益或论文创新性结论。
+
+## 0. 结项结论
+
+KVTide 最终实现并验证了以下机制：
+
+- 每个 Executor 独立拥有 block table、KV tensor 和 runtime epoch；
+- Engine 根据 prefix hash 准备 source pin 与 destination reservation；
+- source Executor 将完整 prefix blocks 推送至 destination Executor；
+- destination 校验 executor identity、runtime epoch、实际权重 revision、KV layout 和 compatibility fingerprint；
+- destination 完成设备写入后，Engine commit 新副本；失败时 rollback source pin 与 destination reservation；
+- 单张 RTX 4090 D 上的两个独立 Executor 进程完成了真实 CUDA inference、迁移后 prefix reuse 与本地完整 prefill 的输出一致性验证。
+
+最后一项是机制正确性实验，不是多 GPU、GPU Direct、吞吐或 tail-latency 结论。当前 transfer 使用 host-staged raw protobuf payload，并与 Executor cache 操作串行化。
+
+项目没有继续进入 online policy 和完整性能评估，原因不是“KV cache 已经没有研究价值”，而是原 framing 的系统边界和 novelty 已不足以支持继续扩建独立 runtime：
+
+1. semantic/model routing、replica scheduling 和 KV/context management 正在形成相对独立的系统层；
+2. cache/load-aware routing、reactive P2P、planned placement 和 proactive replication 已有密集相关工作；
+3. vLLM KV connector 与 LMCache 等成熟项目已经提供跨 engine KV 管理、传输和扩展接口；
+4. cross-model 或 cross-adapter KV reuse 仍是开放问题，但算法可行性、质量边界和 runtime 集成均未收敛，不能仅凭 KVTide 已有代码把项目改写成新的 thesis；
+5. 继续实现 policy、GPU Direct 或完整 Go inference backend 的机会成本，高于它们对研究结论和工程能力证明的增量价值。
+
+因此，KVTide 冻结为 **KV/context mobility experimental runtime**。只有在成熟 serving 系统中先观察到一个现有抽象无法处理、且可被实验否证的新问题时，才考虑将其作为 research harness 重新使用；“给现有项目寻找新题目”不构成恢复开发的理由。
+
+下文是结项前形成的实验设计。它解释了当时准备如何证伪假设，但不表示这些阶段仍计划执行。
 
 ## 1. Problem
 
@@ -30,7 +57,7 @@ KVTide 研究在请求到达之前准备额外 prefix KV 副本，能否改善�
 
 预期失败区域包括短前缀、低复用、短暂或错误预测的热点、带宽不足、目的地不再空闲，以及副本挤出其他高价值缓存。报告失败区域也是实验产物。
 
-当前证据仅包括单 GPU BF16 推理、同实例前缀复用、释放、显式/自动 KV 容量 smoke。尚未验证跨 GPU KV 复制或真实 batched serving 性能。现有逐 item HF Runner 只承担正确性和初步机制探测。
+结项时的证据包括单 GPU BF16 推理、同实例前缀复用、释放、显式/自动 KV 容量，以及同一张 GPU 上两个独立 Executor 进程之间的 host-staged KV transfer 和迁移后复用正确性。项目仍未验证跨物理 GPU 复制、GPU Direct 或真实 batched serving 性能。现有逐 item HF Runner 只承担正确性和初步机制探测。
 
 ## 3. Cost model
 
